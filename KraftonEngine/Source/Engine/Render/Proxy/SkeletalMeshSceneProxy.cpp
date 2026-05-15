@@ -1,11 +1,11 @@
-﻿#include "Render/Proxy/SkeletalMeshSceneProxy.h"
+#include "Render/Proxy/SkeletalMeshSceneProxy.h"
 
 #include <algorithm>
 #include "Component/SkinnedMeshComponent.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Material/MaterialManager.h"
 #include "Render/Types/FrameContext.h"
-#include "Mesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 
 namespace
 {

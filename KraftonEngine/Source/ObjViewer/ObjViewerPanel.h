@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "Core/CoreTypes.h"
-#include "Mesh/ObjImporter.h"
+#include "Asset/Import/OBJ/ObjImporter.h"
 
 class FRenderer;
 class FWindowsWindow;

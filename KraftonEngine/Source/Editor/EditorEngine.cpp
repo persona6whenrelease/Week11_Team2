@@ -1,4 +1,4 @@
-#include "Editor/EditorEngine.h"
+﻿#include "Editor/EditorEngine.h"
 
 #include "Profiling/StartupProfiler.h"
 #include "Core/Notification.h"
@@ -14,12 +14,12 @@
 #include "Editor/UI/EditorFileUtils.h"
 #include "Editor/Viewport/LevelEditorViewportClient.h"
 #include "Object/ObjectFactory.h"
-#include "Mesh/MeshManager.h"
+#include "Asset/Import/MeshManager.h"
 #include "Core/ProjectSettings.h"
 #include "Input/InputSystem.h"
 #include "GameFramework/AActor.h"
 #include "GameFramework/PlayerController.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 #include "Engine/Platform/Paths.h"
 #include "Runtime/ActorPoolSystem.h"
 #include "Runtime/EngineFactory.h"
@@ -61,7 +61,7 @@ void UEditorEngine::Init(FWindowsWindow* InWindow)
 	FProjectSettings::Get().LoadFromFile(FProjectSettings::GetDefaultPath());
 	GetRuntimeModules().LoadModules(FProjectSettings::Get().RuntimeModules);
 
-	// 엔진 공통 초기화 (Renderer, D3D, 싱글턴 등)
+	// ?붿쭊 怨듯넻 珥덇린??(Renderer, D3D, ?깃?????
 	UEngine::Init(InWindow);
 
 	{
@@ -79,7 +79,7 @@ void UEditorEngine::Init(FWindowsWindow* InWindow)
 		FMaterialManager::Get().ScanMaterialAssets();
 	}
 
-	// 에디터 전용 초기화
+	// ?먮뵒???꾩슜 珥덇린??
 	FEditorSettings::Get().LoadFromFile(FEditorSettings::GetDefaultSettingsPath());
 
 	{
@@ -87,7 +87,7 @@ void UEditorEngine::Init(FWindowsWindow* InWindow)
 		MainPanel.Create(Window, Renderer, this);
 	}
 
-	// 기본 월드 생성 — 모든 서브시스템 초기화의 기반
+	// 湲곕낯 ?붾뱶 ?앹꽦 ??紐⑤뱺 ?쒕툕?쒖뒪??珥덇린?붿쓽 湲곕컲
 	CreateWorldContext(EWorldType::Editor, FName("Default"));
 	SetActiveWorld(WorldList[0].ContextHandle);
 	GetWorld()->InitWorld();
@@ -96,7 +96,7 @@ void UEditorEngine::Init(FWindowsWindow* InWindow)
 	SelectionManager.Init();
 	SelectionManager.SetWorld(GetWorld());
 
-	// 뷰포트 레이아웃 초기화 + 저장된 설정 복원
+	// 酉고룷???덉씠?꾩썐 珥덇린??+ ??λ맂 ?ㅼ젙 蹂듭썝
 	ViewportLayout.Initialize(this, Window, Renderer, &SelectionManager);
 	ViewportLayout.LoadFromSettings();
 
@@ -115,7 +115,7 @@ void UEditorEngine::Init(FWindowsWindow* InWindow)
 
 void UEditorEngine::Shutdown()
 {
-	// 에디터 해제 (엔진보다 먼저)
+	// ?먮뵒???댁젣 (?붿쭊蹂대떎 癒쇱?)
 	ViewportLayout.SaveToSettings();
 	MainPanel.SaveToSettings();
 	FProjectSettings::Get().SaveToFile(FProjectSettings::GetDefaultPath());
@@ -124,25 +124,25 @@ void UEditorEngine::Shutdown()
 	SelectionManager.Shutdown();
 	MainPanel.Release();
 
-	// 뷰포트 레이아웃 해제
+	// 酉고룷???덉씠?꾩썐 ?댁젣
 	ViewportLayout.Release();
 
-	// 엔진 공통 해제 (Renderer, D3D 등)
+	// ?붿쭊 怨듯넻 ?댁젣 (Renderer, D3D ??
 	UEngine::Shutdown();
 }
 
 void UEditorEngine::OnWindowResized(uint32 Width, uint32 Height)
 {
 	UEngine::OnWindowResized(Width, Height);
-	// 윈도우 리사이즈 시에는 ImGui 패널이 실제 크기를 결정하므로
-	// FViewport RT는 SSplitter 레이아웃에서 지연 리사이즈로 처리됨
+	// ?덈룄??由ъ궗?댁쫰 ?쒖뿉??ImGui ?⑤꼸???ㅼ젣 ?ш린瑜?寃곗젙?섎?濡?
+	// FViewport RT??SSplitter ?덉씠?꾩썐?먯꽌 吏??由ъ궗?댁쫰濡?泥섎━??
 }
 
 void UEditorEngine::Tick(float DeltaTime)
 {
 	const float RawDeltaTime = DeltaTime;
 
-	// --- PIE 요청 처리 (프레임 경계에서 처리되도록 Tick 선두에서 소비) ---
+	// --- PIE ?붿껌 泥섎━ (?꾨젅??寃쎄퀎?먯꽌 泥섎━?섎룄濡?Tick ?좊몢?먯꽌 ?뚮퉬) ---
 	if (bRequestEndPlayMapQueued)
 	{
 		bRequestEndPlayMapQueued = false;
@@ -164,7 +164,7 @@ void UEditorEngine::Tick(float DeltaTime)
 	FDirectoryWatcher::Get().ProcessChanges();
 	FNotificationManager::Get().Tick(RawDeltaTime);
 	InputSystem::Get().Tick();
-	// 추후 게임 전용 Task 분리 시 WorldDeltaTime 적용 여부 검토
+	// 異뷀썑 寃뚯엫 ?꾩슜 Task 遺꾨━ ??WorldDeltaTime ?곸슜 ?щ? 寃??
 	TaskScheduler.Tick(RawDeltaTime);
 	MainPanel.Update(RawDeltaTime);
 	InputSystem::Get().RefreshSnapshot();
@@ -193,8 +193,8 @@ void UEditorEngine::RenderUI(float DeltaTime)
 {
 	MainPanel.Render(DeltaTime);
 
-	// PIE 중에는 게임 UI도 같은 UGameViewportClient 기준으로 렌더한다.
-	// RmlUi renderer가 PresentationRect로 scissor를 걸기 때문에 에디터 뷰포트 패널 밖으로 나가지 않는다.
+	// PIE 以묒뿉??寃뚯엫 UI??媛숈? UGameViewportClient 湲곗??쇰줈 ?뚮뜑?쒕떎.
+	// RmlUi renderer媛 PresentationRect濡?scissor瑜?嫄멸린 ?뚮Ц???먮뵒??酉고룷???⑤꼸 諛뽰쑝濡??섍?吏 ?딅뒗??
 	if (IsPlayingInEditor())
 	{
 		if (UGameViewportClient* GameViewportClient = GetGameViewportClient())
@@ -233,21 +233,21 @@ void UEditorEngine::ApplyTransformSettingsToGizmo(UGizmoComponent* Gizmo)
 	const FEditorSettings& Settings = FEditorSettings::Get();
 	const bool bForceLocalForScale = Gizmo->GetMode() == EGizmoMode::Scale;
 	Gizmo->SetWorldSpace(bForceLocalForScale ? false : (Settings.CoordSystem == EEditorCoordSystem::World));
-	// 에디터 설정의 좌표계/스냅 값을 매 프레임 Gizmo 상태와 동기화한다.
+	// ?먮뵒???ㅼ젙??醫뚰몴怨??ㅻ깄 媛믪쓣 留??꾨젅??Gizmo ?곹깭? ?숆린?뷀븳??
 	Gizmo->SetSnapSettings(
 		Settings.bEnableTranslationSnap, Settings.TranslationSnapSize,
 		Settings.bEnableRotationSnap, Settings.RotationSnapSize,
 		Settings.bEnableScaleSnap, Settings.ScaleSnapSize);
 }
 
-// ─── PIE (Play In Ediator) ────────────────────────────────
-// UE 패턴 요약: Request는 단일 슬롯(std::optional)에 저장만 하고 즉시 실행하지 않는다.
-// 실제 StartPIE는 다음 Tick 선두의 StartQueuedPlaySessionRequest에서 일어난다.
-// 이유는 UI 콜백/트랜잭션 도중 같은 불안정한 타이밍을 피하기 위함.
+// ??? PIE (Play In Ediator) ????????????????????????????????
+// UE ?⑦꽩 ?붿빟: Request???⑥씪 ?щ’(std::optional)????λ쭔 ?섍퀬 利됱떆 ?ㅽ뻾?섏? ?딅뒗??
+// ?ㅼ젣 StartPIE???ㅼ쓬 Tick ?좊몢??StartQueuedPlaySessionRequest?먯꽌 ?쇱뼱?쒕떎.
+// ?댁쑀??UI 肄쒕갚/?몃옖??뀡 ?꾩쨷 媛숈? 遺덉븞?뺥븳 ??대컢???쇳븯湲??꾪븿.
 
 void UEditorEngine::RequestPlaySession(const FRequestPlaySessionParams& InParams)
 {
-	// 동시 요청은 UE와 동일하게 덮어쓴다 (진짜 큐 아님 — 단일 슬롯).
+	// ?숈떆 ?붿껌? UE? ?숈씪?섍쾶 ??뼱?대떎 (吏꾩쭨 ???꾨떂 ???⑥씪 ?щ’).
 	PlaySessionRequest = InParams;
 }
 
@@ -275,7 +275,7 @@ void UEditorEngine::StartQueuedPlaySessionRequest()
 	const FRequestPlaySessionParams Params = *PlaySessionRequest;
 	PlaySessionRequest.reset();
 
-	// 이미 PIE 중이면 기존 세션을 정리 후 새로 시작 (단순화).
+	// ?대? PIE 以묒씠硫?湲곗〈 ?몄뀡???뺣━ ???덈줈 ?쒖옉 (?⑥닚??.
 	if (PlayInEditorSessionInfo.has_value())
 	{
 		EndPlayMap();
@@ -295,21 +295,21 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 	InputSystem::Get().ResetTransientState();
 	InputSystem::Get().ClearGuiCapture();
 
-	// 1) 현재 에디터 월드를 복제해 PIE 월드 생성 (UE의 CreatePIEWorldByDuplication 대응).
+	// 1) ?꾩옱 ?먮뵒???붾뱶瑜?蹂듭젣??PIE ?붾뱶 ?앹꽦 (UE??CreatePIEWorldByDuplication ???.
 	UWorld* EditorWorld = GetWorld();
 	if (!EditorWorld)
 	{
 		return;
 	}
-	// DuplicateAs(PIE)로 복제하면 Actor 복제 전에 WorldType이 설정되어
-	// EditorOnly 컴포넌트의 프록시가 아예 생성되지 않음.
+	// DuplicateAs(PIE)濡?蹂듭젣?섎㈃ Actor 蹂듭젣 ?꾩뿉 WorldType???ㅼ젙?섏뼱
+	// EditorOnly 而댄룷?뚰듃???꾨줉?쒓? ?꾩삁 ?앹꽦?섏? ?딆쓬.
 	UWorld* PIEWorld = EditorWorld->DuplicateAs(EWorldType::PIE);
 	if (!PIEWorld)
 	{
 		return;
 	}
 
-	// 2) PIE WorldContext를 WorldList에 등록.
+	// 2) PIE WorldContext瑜?WorldList???깅줉.
 	FWorldContext Ctx;
 	Ctx.WorldType = EWorldType::PIE;
 	Ctx.ContextHandle = FName("PIE");
@@ -317,7 +317,7 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 	Ctx.World = PIEWorld;
 	WorldList.push_back(Ctx);
 
-	// 3) 세션 정보 기록 (이전 활성 핸들 포함 — EndPlayMap에서 복원).
+	// 3) ?몄뀡 ?뺣낫 湲곕줉 (?댁쟾 ?쒖꽦 ?몃뱾 ?ы븿 ??EndPlayMap?먯꽌 蹂듭썝).
 	FPlayInEditorSessionInfo Info;
 	Info.OriginalRequestParams = Params;
 	Info.PIEStartTime = 0.0;
@@ -334,22 +334,22 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 	}
 	PlayInEditorSessionInfo = Info;
 
-	// 4) ActiveWorldHandle을 PIE로 전환 — 이후 GetWorld()는 PIE 월드를 반환.
+	// 4) ActiveWorldHandle??PIE濡??꾪솚 ???댄썑 GetWorld()??PIE ?붾뱶瑜?諛섑솚.
 	SetActiveWorld(FName("PIE"));
 
 	TaskScheduler.Clear();
 	GetRuntimeModules().OnWorldCreated(PIEWorld);
 
-	// GPU Occlusion readback은 ProxyId 기반이라 월드가 갈리면 stale.
-	// 이전 프레임 결과를 무효화해야 wrong-proxy hit 방지.
+	// GPU Occlusion readback? ProxyId 湲곕컲?대씪 ?붾뱶媛 媛덈━硫?stale.
+	// ?댁쟾 ?꾨젅??寃곌낵瑜?臾댄슚?뷀빐??wrong-proxy hit 諛⑹?.
 	if (IRenderPipeline* Pipeline = GetRenderPipeline())
 	{
 		Pipeline->OnSceneCleared();
 	}
 
-	// 5) PIE의 카메라는 에디터 뷰포트 카메라가 아니라 PIE World 안의 CameraComponent를 우선 사용한다.
-	//    에디터 뷰포트 카메라를 ActiveCamera로 넣으면 Pawn/Controller/ActiveCamera이 전부 우회되어
-	//    카메라를 추가해도 플레이 화면에 아무 반응이 없는 문제가 생긴다.
+	// 5) PIE??移대찓?쇰뒗 ?먮뵒??酉고룷??移대찓?쇨? ?꾨땲??PIE World ?덉쓽 CameraComponent瑜??곗꽑 ?ъ슜?쒕떎.
+	//    ?먮뵒??酉고룷??移대찓?쇰? ActiveCamera濡??ｌ쑝硫?Pawn/Controller/ActiveCamera???꾨? ?고쉶?섏뼱
+	//    移대찓?쇰? 異붽??대룄 ?뚮젅???붾㈃???꾨Т 諛섏쓳???녿뒗 臾몄젣媛 ?앷릿??
 	PIEWorld->AutoWirePlayerController();
 	if (UCameraComponent* GameplayCamera = PIEWorld->ResolveGameplayViewCamera())
 	{
@@ -362,10 +362,10 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 		PIEWorld->SetViewCamera(ActiveVC->GetCamera());
 	}
 
-	// 6) Selection을 PIE 월드 기준으로 재바인딩 — 에디터 액터를 가리킨 채로 두면
-	//    픽킹(=PIE 월드) / outliner / outline 렌더가 모두 어긋난다.
+	// 6) Selection??PIE ?붾뱶 湲곗??쇰줈 ?щ컮?몃뵫 ???먮뵒???≫꽣瑜?媛由ы궓 梨꾨줈 ?먮㈃
+	//    ?쏀궧(=PIE ?붾뱶) / outliner / outline ?뚮뜑媛 紐⑤몢 ?닿툔?쒕떎.
 	SelectionManager.ClearSelection();
-	//SelectionManager.SetGizmoEnabled(false); //PIE가 시작되면 gizmo 비활성화
+	//SelectionManager.SetGizmoEnabled(false); //PIE媛 ?쒖옉?섎㈃ gizmo 鍮꾪솢?깊솕
 	SelectionManager.SetWorld(PIEWorld);
 
 	if (!GetGameViewportClient())
@@ -424,13 +424,13 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 	}
 	EnterPIEPossessedMode();
 	
-	//이 코드와 대응되는 게 아래 EndPlayMap()에 있음.
-	//MainPanel.HideEditorWindowsForPIE(); //PIE 중에는 에디터 패널을 숨김.
-	//ViewportLayout.DisableWorldAxisForPIE(); //PIE 중에는 월드 축 렌더링을 비활성화.
+	//??肄붾뱶? ??묐릺??寃??꾨옒 EndPlayMap()???덉쓬.
+	//MainPanel.HideEditorWindowsForPIE(); //PIE 以묒뿉???먮뵒???⑤꼸???④?.
+	//ViewportLayout.DisableWorldAxisForPIE(); //PIE 以묒뿉???붾뱶 異??뚮뜑留곸쓣 鍮꾪솢?깊솕.
 
-	// 7) BeginPlay 트리거 — 모든 등록/바인딩이 끝난 다음 첫 Tick 이전에 호출.
-	//    UWorld::BeginPlay가 bHasBegunPlay를 먼저 세팅하므로 BeginPlay 도중
-	//    SpawnActor로 만든 신규 액터도 자동으로 BeginPlay된다.
+	// 7) BeginPlay ?몃━嫄???紐⑤뱺 ?깅줉/諛붿씤?⑹씠 ?앸궃 ?ㅼ쓬 泥?Tick ?댁쟾???몄텧.
+	//    UWorld::BeginPlay媛 bHasBegunPlay瑜?癒쇱? ?명똿?섎?濡?BeginPlay ?꾩쨷
+	//    SpawnActor濡?留뚮뱺 ?좉퇋 ?≫꽣???먮룞?쇰줈 BeginPlay?쒕떎.
 	PIEWorld->BeginPlay();
 	FSoundManager::Get().PlayBGM();
 }
@@ -450,36 +450,36 @@ void UEditorEngine::EndPlayMap()
 
 	TaskScheduler.Clear();
 
-	// PIE 런타임 Row 액터는 실제 삭제합니다.
+	// PIE ?고???Row ?≫꽣???ㅼ젣 ??젣?⑸땲??
 	GetRuntimeModules().OnPreWorldReset(PIEWorld);
 
-	// 풀에 들어가 있던 PIE 액터 참조는 이 월드 기준으로만 끊습니다.
-	// FActorPoolSystem::Shutdown()은 전체 풀을 지우므로 PIE에서는 ClearWorld가 더 안전합니다.
+	// ????ㅼ뼱媛 ?덈뜕 PIE ?≫꽣 李몄“?????붾뱶 湲곗??쇰줈留??딆뒿?덈떎.
+	// FActorPoolSystem::Shutdown()? ?꾩껜 ???吏?곕?濡?PIE?먯꽌??ClearWorld媛 ???덉쟾?⑸땲??
 	if (PIEWorld)
 	{
 		FActorPoolSystem::Get().ClearWorld(PIEWorld);
 	}
 
-	// 활성 월드를 PIE 시작 전 핸들로 복원.
+	// ?쒖꽦 ?붾뱶瑜?PIE ?쒖옉 ???몃뱾濡?蹂듭썝.
 	const FName PrevHandle = PlayInEditorSessionInfo->PreviousActiveWorldHandle;
 	SetActiveWorld(PrevHandle);
 
-	// 복귀한 Editor 월드의 VisibleProxies/캐시된 카메라 상태를 강제 무효화.
-	// PIE 중 Editor WorldTick이 skip되어 캐시가 PIE 시작 전 시점 그대로 남아 있고,
-	// NeedsVisibleProxyRebuild()가 카메라 변화 기반이라 false를 반환하면 stale
-	// VisibleProxies가 그대로 재사용되어 dangling proxy 참조로 크래시가 날 수 있다.
+	// 蹂듦???Editor ?붾뱶??VisibleProxies/罹먯떆??移대찓???곹깭瑜?媛뺤젣 臾댄슚??
+	// PIE 以?Editor WorldTick??skip?섏뼱 罹먯떆媛 PIE ?쒖옉 ???쒖젏 洹몃?濡??⑥븘 ?덇퀬,
+	// NeedsVisibleProxyRebuild()媛 移대찓??蹂??湲곕컲?대씪 false瑜?諛섑솚?섎㈃ stale
+	// VisibleProxies媛 洹몃?濡??ъ궗?⑸릺??dangling proxy 李몄“濡??щ옒?쒓? ?????덈떎.
 	//
-	// 또한 Renderer::PerObjectCBPool은 ProxyId로 인덱싱되는 월드 간 공유 풀이라,
-	// PIE 중 PIE 프록시가 덮어쓴 슬롯이 그대로 남아 있으면 Editor 프록시의
-	// bPerObjectCBDirty=false 상태로 인해 업로드가 skip되어 PIE 마지막 transform으로
-	// 렌더된다. 모든 Editor 프록시를 PerObjectCB dirty로 마킹해 재업로드 강제.
+	// ?먰븳 Renderer::PerObjectCBPool? ProxyId濡??몃뜳?깅릺???붾뱶 媛?怨듭쑀 ??대씪,
+	// PIE 以?PIE ?꾨줉?쒓? ??뼱???щ’??洹몃?濡??⑥븘 ?덉쑝硫?Editor ?꾨줉?쒖쓽
+	// bPerObjectCBDirty=false ?곹깭濡??명빐 ?낅줈?쒓? skip?섏뼱 PIE 留덉?留?transform?쇰줈
+	// ?뚮뜑?쒕떎. 紐⑤뱺 Editor ?꾨줉?쒕? PerObjectCB dirty濡?留덊궧???ъ뾽濡쒕뱶 媛뺤젣.
 	if (UWorld* EditorWorld = GetWorld())
 	{
 		EditorWorld->GetScene().MarkAllPerObjectCBDirty();
 
-		// ActiveCamera는 PIE 시작 시 PIE 월드로 옮겨졌고 PIE 월드와 함께 파괴됐다.
-		// Editor 월드의 ActiveCamera는 여전히 그 dangling 포인터를 가리킬 수 있으므로
-		// 활성 뷰포트의 카메라로 다시 바인딩해 줘야 frustum culling이 정상 동작한다.
+		// ActiveCamera??PIE ?쒖옉 ??PIE ?붾뱶濡???꺼議뚭퀬 PIE ?붾뱶? ?④퍡 ?뚭눼?먮떎.
+		// Editor ?붾뱶??ActiveCamera???ъ쟾??洹?dangling ?ъ씤?곕? 媛由ы궗 ???덉쑝誘濡?
+		// ?쒖꽦 酉고룷?몄쓽 移대찓?쇰줈 ?ㅼ떆 諛붿씤?⑺빐 以섏빞 frustum culling???뺤긽 ?숈옉?쒕떎.
 		if (FLevelEditorViewportClient* ActiveVC = ViewportLayout.GetActiveViewport())
 		{
 			if (UCameraComponent* VCCamera = ActiveVC->GetCamera())
@@ -497,12 +497,12 @@ void UEditorEngine::EndPlayMap()
 		}
 	}
 
-	// Selection을 에디터 월드로 복원 — PIE 액터는 곧 파괴되므로 먼저 비운다.
+	// Selection???먮뵒???붾뱶濡?蹂듭썝 ??PIE ?≫꽣??怨??뚭눼?섎?濡?癒쇱? 鍮꾩슫??
 	SelectionManager.ClearSelection();
-	//SelectionManager.SetGizmoEnabled(true); //PIE가 끝나면 gizmo 활성화
+	//SelectionManager.SetGizmoEnabled(true); //PIE媛 ?앸굹硫?gizmo ?쒖꽦??
 	SelectionManager.SetWorld(GetWorld());
 	
-	//이 코드와 대응되는 게 위의 StartPlayInEditorSession()에 있음.
+	//??肄붾뱶? ??묐릺??寃??꾩쓽 StartPlayInEditorSession()???덉쓬.
 	//MainPanel.RestoreEditorWindowsAfterPIE();
 	//ViewportLayout.RestoreWorldAxisAfterPIE();
 
@@ -513,10 +513,10 @@ void UEditorEngine::EndPlayMap()
 		SetGameViewportClient(nullptr);
 	}
 
-	// PIE WorldContext 제거 (DestroyWorldContext가 EndPlay + DestroyObject 수행).
+	// PIE WorldContext ?쒓굅 (DestroyWorldContext媛 EndPlay + DestroyObject ?섑뻾).
 	DestroyWorldContext(FName("PIE"));
 
-	// PIE 월드의 프록시가 모두 파괴됐으므로 GPU Occlusion readback 무효화.
+	// PIE ?붾뱶???꾨줉?쒓? 紐⑤몢 ?뚭눼?먯쑝誘濡?GPU Occlusion readback 臾댄슚??
 	if (IRenderPipeline* Pipeline = GetRenderPipeline())
 	{
 		Pipeline->OnSceneCleared();
@@ -624,7 +624,7 @@ void UEditorEngine::SyncGameViewportPIEControlState(bool bPossessedMode)
 	PIEViewportClient->Possess(Camera);
 }
 
-// ─── 기존 메서드 ──────────────────────────────────────────
+// ??? 湲곗〈 硫붿꽌????????????????????????????????????????????
 
 void UEditorEngine::ResetViewport()
 {
@@ -663,7 +663,7 @@ void UEditorEngine::LoadStartLevel()
 
 	if (!LoadSceneFromPath(FilePath))
 	{
-		// 로드 실패 시 빈 씬으로 복구
+		// 濡쒕뱶 ?ㅽ뙣 ??鍮??ъ쑝濡?蹂듦뎄
 		NewScene();
 	}
 }
@@ -674,7 +674,7 @@ void UEditorEngine::ClearScene()
 	SelectionManager.ClearSelection();
 	SelectionManager.SetWorld(nullptr);
 
-	// 씬 프록시 파괴 전 GPU Occlusion 스테이징 데이터 무효화
+	// ???꾨줉???뚭눼 ??GPU Occlusion ?ㅽ뀒?댁쭠 ?곗씠??臾댄슚??
 	if (IRenderPipeline* Pipeline = GetRenderPipeline())
 		Pipeline->OnSceneCleared();
 

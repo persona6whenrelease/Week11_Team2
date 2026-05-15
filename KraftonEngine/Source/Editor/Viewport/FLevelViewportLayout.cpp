@@ -1,4 +1,4 @@
-﻿#include "Editor/Viewport/FLevelViewportLayout.h"
+#include "Editor/Viewport/FLevelViewportLayout.h"
 
 #include "Editor/EditorEngine.h"
 #include "Editor/Viewport/LevelEditorViewportClient.h"
@@ -39,8 +39,8 @@
 #include "Serialization/PrefabSaveManager.h"
 
 #include "GameFramework/StaticMeshActor.h"
-#include "Mesh/MeshManager.h"
-#include "Mesh/FBX/FBXSceneAsset.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Component/SkeletalMeshComponent.h"
 #include <algorithm>
 

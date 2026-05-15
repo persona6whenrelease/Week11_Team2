@@ -1,8 +1,8 @@
-﻿#include "Collision/MeshTriangleBVH.h"
+#include "Collision/MeshTriangleBVH.h"
 
 #include "Collision/RayUtils.h"
 #include "Collision/RayUtilsSIMD.h"
-#include "Mesh/StaticMeshAsset.h"
+#include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Core/EngineTypes.h"
 
 #include <algorithm>

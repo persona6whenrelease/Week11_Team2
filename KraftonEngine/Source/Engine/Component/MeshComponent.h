@@ -1,8 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "Component/PrimitiveComponent.h"
 #include "Core/PropertyTypes.h"
-#include "Mesh/MeshCommonTypes.h"
+#include "Asset/Mesh/Common/MeshCommonTypes.h"
 
 class UMaterial;
 

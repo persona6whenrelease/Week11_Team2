@@ -1,0 +1,517 @@
+.
+├── Camera
+│   ├── CameraFadeModifier.cpp
+│   ├── CameraFadeModifier.h
+│   ├── CameraModifier.cpp
+│   ├── CameraModifier.h
+│   ├── CameraShakeModifier.cpp
+│   ├── CameraShakeModifier.h
+│   ├── CameraTypes.h
+│   ├── CameraVignetteModifier.cpp
+│   ├── CameraVignetteModifier.h
+│   ├── PlayerCameraManager.cpp
+│   └── PlayerCameraManager.h
+├── Collision
+│   ├── ConvexVolume.cpp
+│   ├── ConvexVolume.h
+│   ├── DynamicAABBTree.h
+│   ├── MeshTriangleBVH.cpp
+│   ├── MeshTriangleBVH.h
+│   ├── OBB.h
+│   ├── Octree.cpp
+│   ├── Octree.h
+│   ├── PrimitiveCollision.cpp
+│   ├── PrimitiveCollision.h
+│   ├── RayUtils.cpp
+│   ├── RayUtils.h
+│   ├── RayUtilsSIMD.cpp
+│   ├── RayUtilsSIMD.h
+│   ├── SpatialPartition.cpp
+│   ├── SpatialPartition.h
+│   ├── WorldCollisionBVH.cpp
+│   ├── WorldCollisionBVH.h
+│   ├── WorldCollisionSystem.cpp
+│   ├── WorldCollisionSystem.h
+│   ├── WorldPrimitivePickingBVH.cpp
+│   └── WorldPrimitivePickingBVH.h
+├── Component
+│   ├── ActorComponent.cpp
+│   ├── ActorComponent.h
+│   ├── BillboardComponent.cpp
+│   ├── BillboardComponent.h
+│   ├── CameraComponent.cpp
+│   ├── CameraComponent.h
+│   ├── Collision
+│   │   ├── BoxComponent.cpp
+│   │   ├── BoxComponent.h
+│   │   ├── CapsuleComponent.cpp
+│   │   ├── CapsuleComponent.h
+│   │   ├── CollisionTypes.h
+│   │   ├── ShapeComponent.cpp
+│   │   ├── ShapeComponent.h
+│   │   ├── SphereComponent.cpp
+│   │   └── SphereComponent.h
+│   ├── ComponentReferenceUtils.cpp
+│   ├── ComponentReferenceUtils.h
+│   ├── ControllerInputComponent.cpp
+│   ├── ControllerInputComponent.h
+│   ├── CylindricalBillboardComponent.cpp
+│   ├── CylindricalBillboardComponent.h
+│   ├── DecalComponent.cpp
+│   ├── DecalComponent.h
+│   ├── GizmoComponent.cpp
+│   ├── GizmoComponent.h
+│   ├── HeightFogComponent.cpp
+│   ├── HeightFogComponent.h
+│   ├── Light
+│   │   ├── AmbientLightComponent.cpp
+│   │   ├── AmbientLightComponent.h
+│   │   ├── DirectionalLightComponent.cpp
+│   │   ├── DirectionalLightComponent.h
+│   │   ├── LightComponent.cpp
+│   │   ├── LightComponent.h
+│   │   ├── LightComponentBase.cpp
+│   │   ├── LightComponentBase.h
+│   │   ├── PointLightComponent.cpp
+│   │   ├── PointLightComponent.h
+│   │   ├── SpotLightComponent.cpp
+│   │   └── SpotLightComponent.h
+│   ├── MeshComponent.cpp
+│   ├── MeshComponent.h
+│   ├── Movement
+│   │   ├── InterpToMovementComponent.cpp
+│   │   ├── InterpToMovementComponent.h
+│   │   ├── MovementComponent.cpp
+│   │   ├── MovementComponent.h
+│   │   ├── PawnMovementComponent.cpp
+│   │   ├── PawnMovementComponent.h
+│   │   ├── PendulumMovementComponent.cpp
+│   │   ├── PendulumMovementComponent.h
+│   │   ├── ProjectileMovementComponent.cpp
+│   │   ├── ProjectileMovementComponent.h
+│   │   ├── RotatingMovementComponent.cpp
+│   │   └── RotatingMovementComponent.h
+│   ├── PawnOrientationComponent.cpp
+│   ├── PawnOrientationComponent.h
+│   ├── PrimitiveComponent.cpp
+│   ├── PrimitiveComponent.h
+│   ├── SceneComponent.cpp
+│   ├── SceneComponent.h
+│   ├── Script
+│   │   ├── LuaScriptComponent.cpp
+│   │   └── LuaScriptComponent.h
+│   ├── SkeletalGizmoComponent.cpp
+│   ├── SkeletalGizmoComponent.h
+│   ├── SkeletalMeshComponent.cpp
+│   ├── SkeletalMeshComponent.h
+│   ├── SkinnedMeshComponent.cpp
+│   ├── SkinnedMeshComponent.h
+│   ├── SpringArmComponent.cpp
+│   ├── SpringArmComponent.h
+│   ├── StaticMeshComponent.cpp
+│   ├── StaticMeshComponent.h
+│   ├── SubUVComponent.cpp
+│   ├── SubUVComponent.h
+│   ├── TextRenderComponent.cpp
+│   └── TextRenderComponent.h
+├── Core
+│   ├── ClassTypes.h
+│   ├── CollisionTypes.h
+│   ├── Common.h
+│   ├── CoreTypes.h
+│   ├── EngineTypes.cpp
+│   ├── EngineTypes.h
+│   ├── Log.cpp
+│   ├── Log.h
+│   ├── Notification.cpp
+│   ├── Notification.h
+│   ├── ProjectSettings.cpp
+│   ├── ProjectSettings.h
+│   ├── PropertyTypes.h
+│   ├── RayTypes.h
+│   ├── ResourceTypes.h
+│   ├── Singleton.h
+│   ├── TickFunction.cpp
+│   ├── TickFunction.h
+│   └── Time
+│       ├── EngineTimeManager.cpp
+│       └── EngineTimeManager.h
+├── Debug
+│   ├── DebugDrawQueue.cpp
+│   ├── DebugDrawQueue.h
+│   ├── DrawDebugHelpers.cpp
+│   └── DrawDebugHelpers.h
+├── GameFramework
+│   ├── AActor.cpp
+│   ├── AActor.h
+│   ├── CameraActor.cpp
+│   ├── CameraActor.h
+│   ├── DecalActor.cpp
+│   ├── DecalActor.h
+│   ├── HeightFogActor.cpp
+│   ├── HeightFogActor.h
+│   ├── Level.cpp
+│   ├── Level.h
+│   ├── Light
+│   │   ├── AmbientLightActor.cpp
+│   │   ├── AmbientLightActor.h
+│   │   ├── DirectionalLightActor.cpp
+│   │   ├── DirectionalLightActor.h
+│   │   ├── PointLightActor.cpp
+│   │   ├── PointLightActor.h
+│   │   ├── SpotLightActor.cpp
+│   │   └── SpotLightActor.h
+│   ├── Pawn.cpp
+│   ├── Pawn.h
+│   ├── PlayerController.cpp
+│   ├── PlayerController.h
+│   ├── StaticMeshActor.cpp
+│   ├── StaticMeshActor.h
+│   ├── World.cpp
+│   ├── World.h
+│   └── WorldContext.h
+├── Input
+│   ├── GameplayInputRouter.cpp
+│   ├── GameplayInputRouter.h
+│   ├── InputFrame.h
+│   ├── InputSystem.cpp
+│   └── InputSystem.h
+├── Materials
+│   ├── Material.cpp
+│   ├── Material.h
+│   ├── MaterialManager.cpp
+│   └── MaterialManager.h
+├── Math
+│   ├── MathUtils.cpp
+│   ├── MathUtils.h
+│   ├── Matrix.cpp
+│   ├── Matrix.h
+│   ├── Quat.cpp
+│   ├── Quat.h
+│   ├── Rotator.cpp
+│   ├── Rotator.h
+│   ├── Transform.cpp
+│   ├── Transform.h
+│   ├── Vector.cpp
+│   └── Vector.h
+├── Mesh
+│   ├── FBX
+│   │   ├── FBXImportMeta.h
+│   │   ├── FBXImportTypes.h
+│   │   ├── FBXImporter.cpp
+│   │   ├── FBXImporter.h
+│   │   ├── FBXManager.cpp
+│   │   ├── FBXManager.h
+│   │   ├── FBXSceneAsset.cpp
+│   │   ├── FBXSceneAsset.h
+│   │   ├── FBXUtil.cpp
+│   │   ├── FBXUtil.h
+│   │   ├── FbxAnimationParser.cpp
+│   │   ├── FbxAnimationParser.h
+│   │   ├── FbxMaterialImportUtils.cpp
+│   │   ├── FbxMaterialImportUtils.h
+│   │   ├── FbxMeshGeometryBuilder.cpp
+│   │   ├── FbxMeshGeometryBuilder.h
+│   │   ├── FbxMetaParser.cpp
+│   │   ├── FbxMetaParser.h
+│   │   ├── FbxSkeletalMeshAssembler.cpp
+│   │   ├── FbxSkeletalMeshAssembler.h
+│   │   ├── FbxSkeletalMeshPartParser.cpp
+│   │   ├── FbxSkeletalMeshPartParser.h
+│   │   ├── FbxStaticMeshParser.cpp
+│   │   └── FbxStaticMeshParser.h
+│   ├── MeshCommonTypes.h
+│   ├── MeshManager.cpp
+│   ├── MeshManager.h
+│   ├── MeshSimplifier.cpp
+│   ├── MeshSimplifier.h
+│   ├── ObjImporter.cpp
+│   ├── ObjImporter.h
+│   ├── ObjManager.cpp
+│   ├── ObjManager.h
+│   ├── SkeletalMesh.cpp
+│   ├── SkeletalMesh.h
+│   ├── SkeletalMeshAsset.h
+│   ├── StaticMesh.cpp
+│   ├── StaticMesh.h
+│   └── StaticMeshAsset.h
+├── Mesh.zip
+├── Object
+│   ├── FName.cpp
+│   ├── FName.h
+│   ├── Object.cpp
+│   ├── Object.h
+│   ├── ObjectFactory.h
+│   ├── ObjectIterator.h
+│   ├── UClass.h
+│   ├── UUIDGenerator.cpp
+│   └── UUIDGenerator.h
+├── Platform
+│   ├── ConsoleHelper.h
+│   ├── CrashDump.cpp
+│   ├── CrashDump.h
+│   ├── DirectoryWatcher.cpp
+│   ├── DirectoryWatcher.h
+│   ├── Paths.cpp
+│   └── Paths.h
+├── Profiling
+│   ├── GPUProfiler.cpp
+│   ├── GPUProfiler.h
+│   ├── MemoryStats.cpp
+│   ├── MemoryStats.h
+│   ├── PlatformTime.h
+│   ├── ShadowStats.cpp
+│   ├── ShadowStats.h
+│   ├── StartupProfiler.cpp
+│   ├── StartupProfiler.h
+│   ├── Stats.cpp
+│   ├── Stats.h
+│   ├── Timer.cpp
+│   └── Timer.h
+├── Render
+│   ├── Command
+│   │   ├── DrawCommand.h
+│   │   ├── DrawCommandBuilder.cpp
+│   │   ├── DrawCommandBuilder.h
+│   │   ├── DrawCommandList.cpp
+│   │   └── DrawCommandList.h
+│   ├── Culling
+│   │   ├── ClusteredLightCuller.cpp
+│   │   ├── ClusteredLightCuller.h
+│   │   ├── GPUOcclusionCulling.cpp
+│   │   ├── GPUOcclusionCulling.h
+│   │   ├── TileBasedLightCulling.cpp
+│   │   └── TileBasedLightCulling.h
+│   ├── Device
+│   │   ├── D3DDevice.cpp
+│   │   └── D3DDevice.h
+│   ├── Geometry
+│   │   ├── FontGeometry.cpp
+│   │   ├── FontGeometry.h
+│   │   ├── LineGeometry.cpp
+│   │   └── LineGeometry.h
+│   ├── Pipeline
+│   │   ├── DefaultRenderPipeline.cpp
+│   │   ├── DefaultRenderPipeline.h
+│   │   ├── IRenderPipeline.h
+│   │   ├── RenderCollector.cpp
+│   │   ├── RenderCollector.h
+│   │   ├── Renderer.cpp
+│   │   └── Renderer.h
+│   ├── Proxy
+│   │   ├── BillboardSceneProxy.cpp
+│   │   ├── BillboardSceneProxy.h
+│   │   ├── CylindricalBillboardSceneProxy.cpp
+│   │   ├── CylindricalBillboardSceneProxy.h
+│   │   ├── DecalSceneProxy.cpp
+│   │   ├── DecalSceneProxy.h
+│   │   ├── DirtyFlag.h
+│   │   ├── GizmoSceneProxy.cpp
+│   │   ├── GizmoSceneProxy.h
+│   │   ├── PrimitiveSceneProxy.cpp
+│   │   ├── PrimitiveSceneProxy.h
+│   │   ├── SkeletalMeshSceneProxy.cpp
+│   │   ├── SkeletalMeshSceneProxy.h
+│   │   ├── StaticMeshSceneProxy.cpp
+│   │   ├── StaticMeshSceneProxy.h
+│   │   ├── SubUVSceneProxy.cpp
+│   │   ├── SubUVSceneProxy.h
+│   │   ├── TextRenderSceneProxy.cpp
+│   │   └── TextRenderSceneProxy.h
+│   ├── RenderPass
+│   │   ├── AdditiveDecalPass.cpp
+│   │   ├── AdditiveDecalPass.h
+│   │   ├── AlphaBlendPass.cpp
+│   │   ├── AlphaBlendPass.h
+│   │   ├── DecalPass.cpp
+│   │   ├── DecalPass.h
+│   │   ├── EditorLinesPass.cpp
+│   │   ├── EditorLinesPass.h
+│   │   ├── FXAAPass.cpp
+│   │   ├── FXAAPass.h
+│   │   ├── GizmoInnerPass.cpp
+│   │   ├── GizmoInnerPass.h
+│   │   ├── GizmoOuterPass.cpp
+│   │   ├── GizmoOuterPass.h
+│   │   ├── LightCullingPass.cpp
+│   │   ├── LightCullingPass.h
+│   │   ├── OpaquePass.cpp
+│   │   ├── OpaquePass.h
+│   │   ├── OverlayFontPass.cpp
+│   │   ├── OverlayFontPass.h
+│   │   ├── PassRenderStateTable.cpp
+│   │   ├── PassRenderStateTable.h
+│   │   ├── PostProcessPass.cpp
+│   │   ├── PostProcessPass.h
+│   │   ├── PreDepthPass.cpp
+│   │   ├── PreDepthPass.h
+│   │   ├── RenderPassBase.cpp
+│   │   ├── RenderPassBase.h
+│   │   ├── RenderPassPipeline.cpp
+│   │   ├── RenderPassPipeline.h
+│   │   ├── RenderPassRegistry.cpp
+│   │   ├── RenderPassRegistry.h
+│   │   ├── SelectionMaskPass.cpp
+│   │   ├── SelectionMaskPass.h
+│   │   ├── ShadowMapPass.cpp
+│   │   └── ShadowMapPass.h
+│   ├── RenderState
+│   │   ├── BlendStateManager.cpp
+│   │   ├── BlendStateManager.h
+│   │   ├── DepthStencilStateManager.cpp
+│   │   ├── DepthStencilStateManager.h
+│   │   ├── RasterizerStateManager.cpp
+│   │   ├── RasterizerStateManager.h
+│   │   ├── SamplerStateManager.cpp
+│   │   └── SamplerStateManager.h
+│   ├── Resource
+│   │   ├── Buffer.cpp
+│   │   ├── Buffer.h
+│   │   ├── MeshBufferManager.cpp
+│   │   ├── MeshBufferManager.h
+│   │   ├── RenderResources.cpp
+│   │   └── RenderResources.h
+│   ├── Scene
+│   │   ├── FScene.cpp
+│   │   ├── FScene.h
+│   │   ├── SceneEnvironment.cpp
+│   │   └── SceneEnvironment.h
+│   ├── Shader
+│   │   ├── Shader.cpp
+│   │   ├── Shader.h
+│   │   ├── ShaderInclude.h
+│   │   ├── ShaderManager.cpp
+│   │   └── ShaderManager.h
+│   ├── Shadow
+│   │   ├── AtlasQuadTreeBase.cpp
+│   │   ├── AtlasQuadTreeBase.h
+│   │   ├── AtlasQuadTreePoint.cpp
+│   │   ├── AtlasQuadTreePoint.h
+│   │   ├── ShadowAtlasQuadTree.cpp
+│   │   └── ShadowAtlasQuadTree.h
+│   ├── Snapshot
+│   │   ├── SnapShotRenderer.cpp
+│   │   └── SnapShotRenderer.h
+│   ├── Types
+│   │   ├── FogParams.h
+│   │   ├── ForwardLightData.h
+│   │   ├── FrameContext.cpp
+│   │   ├── FrameContext.h
+│   │   ├── GlobalLightParams.h
+│   │   ├── LODContext.h
+│   │   ├── LightFrustumUtils.h
+│   │   ├── MaterialTextureSlot.h
+│   │   ├── RenderConstants.h
+│   │   ├── RenderStateTypes.h
+│   │   ├── RenderTypes.h
+│   │   ├── ShadowSettings.h
+│   │   ├── VertexTypes.h
+│   │   └── ViewTypes.h
+│   └── Viewport
+│       ├── D3D11ViewportPresenter.cpp
+│       └── D3D11ViewportPresenter.h
+├── Resource
+│   ├── ResourceManager.cpp
+│   └── ResourceManager.h
+├── Runtime
+│   ├── ActorPoolSystem.cpp
+│   ├── ActorPoolSystem.h
+│   ├── Delegate.cpp
+│   ├── Delegate.h
+│   ├── DelegateSubscriptionBox.h
+│   ├── Engine.cpp
+│   ├── Engine.h
+│   ├── EngineFactory.cpp
+│   ├── EngineFactory.h
+│   ├── EngineLoop.cpp
+│   ├── EngineLoop.h
+│   ├── IRuntimeModule.h
+│   ├── Launch.cpp
+│   ├── Launch.h
+│   ├── LoadingScreen.cpp
+│   ├── LoadingScreen.h
+│   ├── PooledObjectInterface.h
+│   ├── RuntimeModuleManager.cpp
+│   ├── RuntimeModuleManager.h
+│   ├── TaskScheduler.cpp
+│   ├── TaskScheduler.h
+│   ├── WindowsApplication.cpp
+│   ├── WindowsApplication.h
+│   ├── WindowsWindow.cpp
+│   ├── WindowsWindow.h
+│   └── resource.h
+├── Scripting
+│   ├── LuaActorLifecycleBindings.cpp
+│   ├── LuaBindingHelper.h
+│   ├── LuaBindings.cpp
+│   ├── LuaBindings.h
+│   ├── LuaCameraComponentBindings.cpp
+│   ├── LuaComponentBindings.cpp
+│   ├── LuaDelegateBindings.cpp
+│   ├── LuaGameObjectBindings.cpp
+│   ├── LuaHandles.h
+│   ├── LuaInputLibrary.cpp
+│   ├── LuaInputLibrary.h
+│   ├── LuaMathBindings.cpp
+│   ├── LuaMovementBindings.cpp
+│   ├── LuaPawnBindings.cpp
+│   ├── LuaPawnOrientationBindings.cpp
+│   ├── LuaPlayerControllerBindings.cpp
+│   ├── LuaPropertyBridge.cpp
+│   ├── LuaPropertyBridge.h
+│   ├── LuaSaveGameBindings.cpp
+│   ├── LuaScriptSubsystem.cpp
+│   ├── LuaScriptSubsystem.h
+│   ├── LuaShapeBindings.cpp
+│   ├── LuaSoundLibrary.cpp
+│   ├── LuaSoundLibrary.h
+│   ├── LuaSpringArmComponentBindings.cpp
+│   ├── LuaStaticMeshBindings.cpp
+│   ├── LuaWorldExtendedBindings.cpp
+│   ├── LuaWorldLibrary.cpp
+│   ├── LuaWorldLibrary.h
+│   └── SolInclude.h
+├── Serialization
+│   ├── Archive.h
+│   ├── CurveSaveManager.cpp
+│   ├── CurveSaveManager.h
+│   ├── MemoryArchive.h
+│   ├── PrefabSaveManager.cpp
+│   ├── PrefabSaveManager.h
+│   ├── SceneSaveManager.cpp
+│   ├── SceneSaveManager.h
+│   └── WindowsArchive.h
+├── Sound
+│   ├── SoundManager.cpp
+│   └── SoundManager.h
+├── Texture
+│   ├── Texture2D.cpp
+│   └── Texture2D.h
+├── UI
+│   ├── ImGui
+│   │   ├── ImGuiViewportPresenter.cpp
+│   │   └── ImGuiViewportPresenter.h
+│   ├── Rml
+│   │   ├── RmlD3D11RenderInterface.cpp
+│   │   ├── RmlD3D11RenderInterface.h
+│   │   ├── RmlUiConfig.h
+│   │   ├── RmlUiWindowsMacroGuard.h
+│   │   ├── RmlWin32SystemInterface.cpp
+│   │   └── RmlWin32SystemInterface.h
+│   ├── SSplitter.cpp
+│   ├── SSplitter.h
+│   ├── SWidget.h
+│   ├── SWindow.cpp
+│   ├── SWindow.h
+│   └── ViewportUiLayer.h
+├── Viewport
+│   ├── GameViewportClient.cpp
+│   ├── GameViewportClient.h
+│   ├── Viewport.cpp
+│   ├── Viewport.h
+│   ├── ViewportClient.cpp
+│   ├── ViewportClient.h
+│   └── ViewportPresentationTypes.h
+└── tree
+
+47 directories, 468 files

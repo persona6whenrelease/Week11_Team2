@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "Component/MeshComponent.h"
 #include "Core/PropertyTypes.h"
-#include "Mesh/StaticMesh.h"
+#include "Asset/Mesh/StaticMesh/StaticMesh.h"
 #include "../Engine/Runtime/DelegateSubscriptionBox.h"
 
 class UMaterial;

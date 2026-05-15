@@ -5,7 +5,7 @@
 #include "Component/TextRenderComponent.h"
 #include "Component/Collision/BoxComponent.h"
 #include "Component/SubUVComponent.h"
-#include "Mesh/MeshManager.h"
+#include "Asset/Import/MeshManager.h"
 
 IMPLEMENT_CLASS(AStaticMeshActor, AActor)
 

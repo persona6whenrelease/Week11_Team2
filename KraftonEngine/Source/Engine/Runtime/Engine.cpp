@@ -1,4 +1,4 @@
-﻿#include "Engine/Runtime/Engine.h"
+#include "Engine/Runtime/Engine.h"
 
 #include "Platform/Paths.h"
 #include "Core/Log.h"
@@ -11,8 +11,8 @@
 #include "Resource/ResourceManager.h"
 #include "Render/Pipeline/DefaultRenderPipeline.h"
 #include "Render/Resource/MeshBufferManager.h"
-#include "Mesh/MeshManager.h"
-#include "Texture/Texture2D.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Texture/Texture2D.h"
 #include "GameFramework/World.h"
 #include "GameFramework/AActor.h"
 #include "Core/TickFunction.h"

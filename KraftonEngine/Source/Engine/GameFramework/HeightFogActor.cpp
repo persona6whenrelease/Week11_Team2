@@ -1,7 +1,7 @@
 ﻿#include "HeightFogActor.h"
 #include "Component/HeightFogComponent.h"
 #include "Component/BillboardComponent.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 IMPLEMENT_CLASS(AHeightFogActor, AActor)
 

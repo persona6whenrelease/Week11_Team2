@@ -1,9 +1,9 @@
-﻿#include "SkeletalMeshViewerViewportClient.h"
+#include "SkeletalMeshViewerViewportClient.h"
 #include "Object/Object.h"
 #include "Editor/Settings/EditorSettings.h"
 #include "Component/CameraComponent.h"
 #include "Engine/Input/InputFrame.h"
-#include "Mesh/SkeletalMeshAsset.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
 #include "Component/SkeletalGizmoComponent.h" // 기즈모 헤더 추가
 #include "GameFramework/World.h"

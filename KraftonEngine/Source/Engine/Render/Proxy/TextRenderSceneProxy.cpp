@@ -1,8 +1,8 @@
-#include "Render/Proxy/TextRenderSceneProxy.h"
+﻿#include "Render/Proxy/TextRenderSceneProxy.h"
 #include "Component/TextRenderComponent.h"
 #include "Render/Types/FrameContext.h"
 #include "Render/Shader/ShaderManager.h"
-#include "Materials/Material.h"
+#include "Asset/Material/Material.h"
 #include "Object/ObjectFactory.h"
 
 // ============================================================
@@ -29,7 +29,7 @@ void FTextRenderSceneProxy::UpdateTransform()
 
 void FTextRenderSceneProxy::UpdateMesh()
 {
-	// SelectionMask 아웃라인 패스에서 사용할 mesh/shader
+	// SelectionMask ?꾩썐?쇱씤 ?⑥뒪?먯꽌 ?ъ슜??mesh/shader
 	MeshBuffer = GetOwner()->GetMeshBuffer();
 	ProxyFlags |= EPrimitiveProxyFlags::FontBatched;
 
@@ -48,7 +48,7 @@ void FTextRenderSceneProxy::UpdateMesh()
 		SectionDraws.push_back({ TextMaterial, 0, IdxCount });
 	}
 
-	// 텍스트/폰트 데이터 캐싱 (UpdatePerViewport에서 Owner 접근 제거)
+	// ?띿뒪???고듃 ?곗씠??罹먯떛 (UpdatePerViewport?먯꽌 Owner ?묎렐 ?쒓굅)
 	UTextRenderComponent* TextComp = GetTextRenderComponent();
 	CachedText = TextComp->GetText();
 	CachedFontScale = TextComp->GetFontSize();
@@ -63,11 +63,11 @@ UTextRenderComponent* FTextRenderSceneProxy::GetTextRenderComponent() const
 }
 
 // ============================================================
-// UpdatePerViewport — 빌보드 행렬 계산 + 아웃라인 행렬 갱신
+// UpdatePerViewport ??鍮뚮낫???됰젹 怨꾩궛 + ?꾩썐?쇱씤 ?됰젹 媛깆떊
 // ============================================================
 void FTextRenderSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 {
-	// 텍스트/폰트 미설정 시 비가시
+	// ?띿뒪???고듃 誘몄꽕????鍮꾧???
 	if (CachedText.empty() || !CachedFont || !CachedFont->IsLoaded())
 	{
 		bVisible = false;
@@ -82,14 +82,14 @@ void FTextRenderSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 
 	if (!bVisible) return;
 
-	// 빌보드 행렬
+	// 鍮뚮낫???됰젹
 	FVector BillboardForward = Frame.CameraForward * -1.0f;
 	FMatrix RotMatrix;
 	RotMatrix.SetAxes(BillboardForward, Frame.CameraRight * -1.0f, Frame.CameraUp);
 	CachedBillboardMatrix = FMatrix::MakeScaleMatrix(CachedScale)
 		* RotMatrix * FMatrix::MakeTranslationMatrix(CachedLocation);
 
-	// SelectionMask용 아웃라인 행렬 (캐싱된 CharWidth/CharHeight로 직접 계산)
+	// SelectionMask???꾩썐?쇱씤 ?됰젹 (罹먯떛??CharWidth/CharHeight濡?吏곸젒 怨꾩궛)
 	int32 Len = 0;
 	for (size_t i = 0; i < CachedText.length(); ++i)
 	{
