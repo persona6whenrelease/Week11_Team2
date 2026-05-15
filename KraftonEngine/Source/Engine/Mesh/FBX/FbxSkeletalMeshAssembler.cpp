@@ -1,4 +1,12 @@
-﻿#include "FbxSkeletalMeshAssembler.h"
+/**
+ * FBX에서 파싱된 여러 스키닝 메시 파트를 최종 FSkeletalMesh로 조립한다.
+ *
+ * 같은 스켈레톤을 공유하는 mesh part를 모으고, 각 파트의 정점/인덱스/섹션/본 가중치를 하나의 메시
+ * 데이터로 병합한다. rigid attached mesh처럼 특정 본에 붙은 파트도 스켈레탈 메시로 표현될 수 있도록
+ * 유효성 검증과 본 인덱스 매핑을 함께 수행한다.
+ */
+
+#include "FbxSkeletalMeshAssembler.h"
 
 #include "Core/Log.h"
 #include "FbxMaterialImportUtils.h"
@@ -8,326 +16,321 @@
 
 namespace
 {
-	template <typename T>
-	bool IsValidIndex(const TArray<T>& Items, int32 Index)
-	{
-		return Index >= 0 && static_cast<size_t>(Index) < Items.size();
-	}
-}
+    template <typename T> bool IsValidIndex(const TArray<T> &Items, int32 Index)
+    {
+        return Index >= 0 && static_cast<size_t>(Index) < Items.size();
+    }
+} // namespace
 
 bool FFbxSkeletalMeshAssembler::Assemble(
-	const TArray<FFbxSkinnedMeshPart>& SkinnedMeshParts,
-	TArray<FSkeletalMesh>& OutSkeletalMeshAssets,
-	TMap<int32, int32>& OutSkeletonIdToSkeletalMeshAssetIndex) const
+    const TArray<FFbxSkinnedMeshPart> &SkinnedMeshParts,
+    TArray<FSkeletalMesh>             &OutSkeletalMeshAssets,
+    TMap<int32, int32>                &OutSkeletonIdToSkeletalMeshAssetIndex) const
 {
-	OutSkeletalMeshAssets.clear();
-	OutSkeletonIdToSkeletalMeshAssetIndex.clear();
+    OutSkeletalMeshAssets.clear();
+    OutSkeletonIdToSkeletalMeshAssetIndex.clear();
 
-	for (const FFbxSkeletonMeta& SkeletonMeta : ImportMeta.Skeletons)
-	{
-		if (!SkeletonMeta.bValid)
-		{
-			continue;
-		}
+    for (const FFbxSkeletonMeta &SkeletonMeta : ImportMeta.Skeletons)
+    {
+        if (!SkeletonMeta.bValid)
+        {
+            continue;
+        }
 
-		TArray<const FFbxSkinnedMeshPart*> Parts;
-		int32 SkinnedPartCount = 0;
-		int32 RigidPartCount = 0;
-		for (const FFbxSkinnedMeshPart& Part : SkinnedMeshParts)
-		{
-			if (Part.SkeletonId != SkeletonMeta.SkeletonId)
-			{
-				continue;
-			}
+        TArray<const FFbxSkinnedMeshPart *> Parts;
+        int32                               SkinnedPartCount = 0;
+        int32                               RigidPartCount = 0;
+        for (const FFbxSkinnedMeshPart &Part : SkinnedMeshParts)
+        {
+            if (Part.SkeletonId != SkeletonMeta.SkeletonId)
+            {
+                continue;
+            }
 
-			Parts.push_back(&Part);
-			SkinnedPartCount += Part.bSkinned ? 1 : 0;
-			RigidPartCount += Part.bRigidAttached ? 1 : 0;
-		}
+            Parts.push_back(&Part);
+            SkinnedPartCount += Part.bSkinned ? 1 : 0;
+            RigidPartCount += Part.bRigidAttached ? 1 : 0;
+        }
 
-		if (Parts.empty())
-		{
-			UE_LOG("[FBXImporter] Skeleton has no mesh parts to attach. SkeletonId=%d", SkeletonMeta.SkeletonId);
-			continue;
-		}
+        if (Parts.empty())
+        {
+            UE_LOG("[FBXImporter] Skeleton has no mesh parts to attach. SkeletonId=%d",
+                   SkeletonMeta.SkeletonId);
+            continue;
+        }
 
-		FSkeletalMesh SkeletalMesh;
-		if (!BuildSkeletalMeshFromParts(SkeletonMeta, Parts, SkeletalMesh))
-		{
-			UE_LOG("[FBXImporter] Failed to build skeletal mesh from parts. SkeletonId=%d", SkeletonMeta.SkeletonId);
-			return false;
-		}
+        FSkeletalMesh SkeletalMesh;
+        if (!BuildSkeletalMeshFromParts(SkeletonMeta, Parts, SkeletalMesh))
+        {
+            UE_LOG("[FBXImporter] Failed to build skeletal mesh from parts. SkeletonId=%d",
+                   SkeletonMeta.SkeletonId);
+            return false;
+        }
 
-		UE_LOG("[FBXImporter] Built skeletal mesh. SkeletonId=%d Parts=%d Skinned=%d Rigid=%d Vertices=%u Indices=%u Sections=%u Bones=%u",
-			SkeletonMeta.SkeletonId,
-			static_cast<int32>(Parts.size()),
-			SkinnedPartCount,
-			RigidPartCount,
-			static_cast<uint32>(SkeletalMesh.Vertices.size()),
-			static_cast<uint32>(SkeletalMesh.Indices.size()),
-			static_cast<uint32>(SkeletalMesh.Sections.size()),
-			static_cast<uint32>(SkeletalMesh.Bones.size()));
+        UE_LOG("[FBXImporter] Built skeletal mesh. SkeletonId=%d Parts=%d Skinned=%d Rigid=%d "
+               "Vertices=%u Indices=%u "
+               "Sections=%u Bones=%u",
+               SkeletonMeta.SkeletonId, static_cast<int32>(Parts.size()), SkinnedPartCount,
+               RigidPartCount, static_cast<uint32>(SkeletalMesh.Vertices.size()),
+               static_cast<uint32>(SkeletalMesh.Indices.size()),
+               static_cast<uint32>(SkeletalMesh.Sections.size()),
+               static_cast<uint32>(SkeletalMesh.Bones.size()));
 
-		for (size_t BoneIdx = 0; BoneIdx < SkeletalMesh.Bones.size(); ++BoneIdx)
-		{
-			const FBoneInfo& B = SkeletalMesh.Bones[BoneIdx];
-			UE_LOG("[FBXImporter]   Bone[%zu] Parent=%d Name='%s'",
-				BoneIdx, B.ParentIndex, B.Name.c_str());
-		}
+        for (size_t BoneIdx = 0; BoneIdx < SkeletalMesh.Bones.size(); ++BoneIdx)
+        {
+            const FBoneInfo &B = SkeletalMesh.Bones[BoneIdx];
+            UE_LOG("[FBXImporter]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
+                   B.Name.c_str());
+        }
 
-		const int32 AssetIndex = static_cast<int32>(OutSkeletalMeshAssets.size());
-		OutSkeletalMeshAssets.push_back(SkeletalMesh);
-		OutSkeletonIdToSkeletalMeshAssetIndex[SkeletonMeta.SkeletonId] = AssetIndex;
-	}
+        const int32 AssetIndex = static_cast<int32>(OutSkeletalMeshAssets.size());
+        OutSkeletalMeshAssets.push_back(SkeletalMesh);
+        OutSkeletonIdToSkeletalMeshAssetIndex[SkeletonMeta.SkeletonId] = AssetIndex;
+    }
 
-	return true;
+    return true;
 }
 
 bool FFbxSkeletalMeshAssembler::BuildSkeletalMeshFromParts(
-	const FFbxSkeletonMeta& SkeletonMeta,
-	const TArray<const FFbxSkinnedMeshPart*>& Parts,
-	FSkeletalMesh& OutMesh) const
+    const FFbxSkeletonMeta &SkeletonMeta, const TArray<const FFbxSkinnedMeshPart *> &Parts,
+    FSkeletalMesh &OutMesh) const
 {
-	OutMesh = {};
-	OutMesh.PathFileName = ImportMeta.SourceFilePath + "#Skeleton_" + std::to_string(SkeletonMeta.SkeletonId);
+    OutMesh = {};
+    OutMesh.PathFileName =
+        ImportMeta.SourceFilePath + "#Skeleton_" + std::to_string(SkeletonMeta.SkeletonId);
 
-	if (!IsValidIndex(ImportMeta.Bones, SkeletonMeta.RootBoneId) || SkeletonMeta.BoneIds.empty())
-	{
-		UE_LOG("[FBXImporter] Cannot build skeletal mesh with invalid skeleton root. SkeletonId=%d RootBoneId=%d",
-			SkeletonMeta.SkeletonId,
-			SkeletonMeta.RootBoneId);
-		return false;
-	}
+    if (!IsValidIndex(ImportMeta.Bones, SkeletonMeta.RootBoneId) || SkeletonMeta.BoneIds.empty())
+    {
+        UE_LOG("[FBXImporter] Cannot build skeletal mesh with invalid skeleton root. SkeletonId=%d "
+               "RootBoneId=%d",
+               SkeletonMeta.SkeletonId, SkeletonMeta.RootBoneId);
+        return false;
+    }
 
-	OutMesh.Bones.resize(SkeletonMeta.BoneIds.size());
-	TArray<FMatrix> BoneBindInSkeletonSpace;
-	TArray<FMatrix> BoneModelInSkeletonSpace;
-	BoneBindInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
-	BoneModelInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
+    OutMesh.Bones.resize(SkeletonMeta.BoneIds.size());
+    TArray<FMatrix> BoneBindInSkeletonSpace;
+    TArray<FMatrix> BoneModelInSkeletonSpace;
+    BoneBindInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
+    BoneModelInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
 
-	const FMatrix InvSkeletonRootBindGlobal = FMatrix::Identity;
+    const FMatrix InvSkeletonRootBindGlobal = FMatrix::Identity;
 
-	for (int32 SkeletonBoneIndex = 0; SkeletonBoneIndex < static_cast<int32>(SkeletonMeta.BoneIds.size()); ++SkeletonBoneIndex)
-	{
-		const int32 BoneId = SkeletonMeta.BoneIds[SkeletonBoneIndex];
-		if (!IsValidIndex(ImportMeta.Bones, BoneId))
-		{
-			UE_LOG("[FBXImporter] Invalid BoneId in skeleton. SkeletonId=%d BoneId=%d",
-				SkeletonMeta.SkeletonId,
-				BoneId);
-			return false;
-		}
+    for (int32 SkeletonBoneIndex = 0;
+         SkeletonBoneIndex < static_cast<int32>(SkeletonMeta.BoneIds.size()); ++SkeletonBoneIndex)
+    {
+        const int32 BoneId = SkeletonMeta.BoneIds[SkeletonBoneIndex];
+        if (!IsValidIndex(ImportMeta.Bones, BoneId))
+        {
+            UE_LOG("[FBXImporter] Invalid BoneId in skeleton. SkeletonId=%d BoneId=%d",
+                   SkeletonMeta.SkeletonId, BoneId);
+            return false;
+        }
 
-		const FFbxBoneMeta& BoneMeta = ImportMeta.Bones[BoneId];
-		auto BoneIndexIt = SkeletonMeta.BoneIdToSkeletonBoneIndex.find(BoneId);
-		if (BoneIndexIt == SkeletonMeta.BoneIdToSkeletonBoneIndex.end() ||
-			BoneIndexIt->second != SkeletonBoneIndex ||
-			BoneMeta.SkeletonBoneIndex != SkeletonBoneIndex)
-		{
-			UE_LOG("[FBXImporter] Bone skeleton index mismatch. SkeletonId=%d BoneId=%d Expected=%d BoneMeta=%d",
-				SkeletonMeta.SkeletonId,
-				BoneId,
-				SkeletonBoneIndex,
-				BoneMeta.SkeletonBoneIndex);
-			return false;
-		}
+        const FFbxBoneMeta &BoneMeta = ImportMeta.Bones[BoneId];
+        auto                BoneIndexIt = SkeletonMeta.BoneIdToSkeletonBoneIndex.find(BoneId);
+        if (BoneIndexIt == SkeletonMeta.BoneIdToSkeletonBoneIndex.end() ||
+            BoneIndexIt->second != SkeletonBoneIndex ||
+            BoneMeta.SkeletonBoneIndex != SkeletonBoneIndex)
+        {
+            UE_LOG("[FBXImporter] Bone skeleton index mismatch. SkeletonId=%d BoneId=%d "
+                   "Expected=%d BoneMeta=%d",
+                   SkeletonMeta.SkeletonId, BoneId, SkeletonBoneIndex, BoneMeta.SkeletonBoneIndex);
+            return false;
+        }
 
-		FBoneInfo& BoneInfo = OutMesh.Bones[SkeletonBoneIndex];
-		BoneInfo.Name = BoneMeta.Name;
-		BoneInfo.ParentIndex = -1;
+        FBoneInfo &BoneInfo = OutMesh.Bones[SkeletonBoneIndex];
+        BoneInfo.Name = BoneMeta.Name;
+        BoneInfo.ParentIndex = -1;
 
-		auto ParentIndexIt = SkeletonMeta.BoneIdToSkeletonBoneIndex.find(BoneMeta.ParentBoneId);
-		if (ParentIndexIt != SkeletonMeta.BoneIdToSkeletonBoneIndex.end())
-		{
-			BoneInfo.ParentIndex = ParentIndexIt->second;
-			if (BoneInfo.ParentIndex >= SkeletonBoneIndex)
-			{
-				UE_LOG("[FBXImporter] Bone parent index must precede child for reference pose accumulation. SkeletonId=%d BoneId=%d ParentIndex=%d ChildIndex=%d",
-					SkeletonMeta.SkeletonId,
-					BoneId,
-					BoneInfo.ParentIndex,
-					SkeletonBoneIndex);
-				return false;
-			}
-		}
+        auto ParentIndexIt = SkeletonMeta.BoneIdToSkeletonBoneIndex.find(BoneMeta.ParentBoneId);
+        if (ParentIndexIt != SkeletonMeta.BoneIdToSkeletonBoneIndex.end())
+        {
+            BoneInfo.ParentIndex = ParentIndexIt->second;
+            if (BoneInfo.ParentIndex >= SkeletonBoneIndex)
+            {
+                UE_LOG("[FBXImporter] Bone parent index must precede child for reference pose "
+                       "accumulation. "
+                       "SkeletonId=%d BoneId=%d ParentIndex=%d ChildIndex=%d",
+                       SkeletonMeta.SkeletonId, BoneId, BoneInfo.ParentIndex, SkeletonBoneIndex);
+                return false;
+            }
+        }
 
-		BoneBindInSkeletonSpace[SkeletonBoneIndex] = BoneMeta.BindGlobalMatrix * InvSkeletonRootBindGlobal;
-		BoneModelInSkeletonSpace[SkeletonBoneIndex] = BoneMeta.ModelGlobalMatrix * InvSkeletonRootBindGlobal;
-		BoneInfo.InverseBindPose = BoneBindInSkeletonSpace[SkeletonBoneIndex].GetInverse();
-	}
+        BoneBindInSkeletonSpace[SkeletonBoneIndex] =
+            BoneMeta.BindGlobalMatrix * InvSkeletonRootBindGlobal;
+        BoneModelInSkeletonSpace[SkeletonBoneIndex] =
+            BoneMeta.ModelGlobalMatrix * InvSkeletonRootBindGlobal;
+        BoneInfo.InverseBindPose = BoneBindInSkeletonSpace[SkeletonBoneIndex].GetInverse();
+    }
 
-	for (int32 SkeletonBoneIndex = 0; SkeletonBoneIndex < static_cast<int32>(OutMesh.Bones.size()); ++SkeletonBoneIndex)
-	{
-		FBoneInfo& BoneInfo = OutMesh.Bones[SkeletonBoneIndex];
-		const FMatrix& BoneGlobalInSkeletonSpace = BoneModelInSkeletonSpace[SkeletonBoneIndex];
+    for (int32 SkeletonBoneIndex = 0; SkeletonBoneIndex < static_cast<int32>(OutMesh.Bones.size());
+         ++SkeletonBoneIndex)
+    {
+        FBoneInfo     &BoneInfo = OutMesh.Bones[SkeletonBoneIndex];
+        const FMatrix &BoneGlobalInSkeletonSpace = BoneModelInSkeletonSpace[SkeletonBoneIndex];
 
-		// Runtime accumulates parent-local model pose to build current bone globals.
-		if (BoneInfo.ParentIndex >= 0)
-		{
-			BoneInfo.LocalBindPose =
-				BoneGlobalInSkeletonSpace * BoneModelInSkeletonSpace[BoneInfo.ParentIndex].GetInverse();
-		}
-		else
-		{
-			BoneInfo.LocalBindPose = BoneGlobalInSkeletonSpace;
-		}
-	}
+        if (BoneInfo.ParentIndex >= 0)
+        {
+            BoneInfo.LocalBindPose = BoneGlobalInSkeletonSpace *
+                                     BoneModelInSkeletonSpace[BoneInfo.ParentIndex].GetInverse();
+        }
+        else
+        {
+            BoneInfo.LocalBindPose = BoneGlobalInSkeletonSpace;
+        }
+    }
 
-	TMap<FString, int32> SlotNameToMaterialIndex;
+    TMap<FString, int32> SlotNameToMaterialIndex;
 
-	for (const FFbxSkinnedMeshPart* Part : Parts)
-	{
-		if (!Part || !ValidateSkinnedMeshPartForAttach(SkeletonMeta, *Part))
-		{
-			return false;
-		}
+    for (const FFbxSkinnedMeshPart *Part : Parts)
+    {
+        if (!Part || !ValidateSkinnedMeshPartForAttach(SkeletonMeta, *Part))
+        {
+            return false;
+        }
 
-		const uint32 VertexBase = static_cast<uint32>(OutMesh.Vertices.size());
-		const uint32 IndexBase = static_cast<uint32>(OutMesh.Indices.size());
+        const uint32 VertexBase = static_cast<uint32>(OutMesh.Vertices.size());
+        const uint32 IndexBase = static_cast<uint32>(OutMesh.Indices.size());
 
-		OutMesh.Vertices.insert(OutMesh.Vertices.end(), Part->Vertices.begin(), Part->Vertices.end());
-		OutMesh.Indices.reserve(OutMesh.Indices.size() + Part->Indices.size());
-		for (uint32 Index : Part->Indices)
-		{
-			OutMesh.Indices.push_back(Index + VertexBase);
-		}
+        OutMesh.Vertices.insert(OutMesh.Vertices.end(), Part->Vertices.begin(),
+                                Part->Vertices.end());
+        OutMesh.Indices.reserve(OutMesh.Indices.size() + Part->Indices.size());
+        for (uint32 Index : Part->Indices)
+        {
+            OutMesh.Indices.push_back(Index + VertexBase);
+        }
 
-		for (const FFbxMeshPartSection& PartSection : Part->Sections)
-		{
-			const FString SlotName = FbxMaterialImportUtils::NormalizeMaterialSlotName(PartSection.MaterialSlotName);
-			int32 MaterialIndex = -1;
-			auto MaterialIt = SlotNameToMaterialIndex.find(SlotName);
-			if (MaterialIt != SlotNameToMaterialIndex.end())
-			{
-				MaterialIndex = MaterialIt->second;
-			}
-			else
-			{
-				MaterialIndex = static_cast<int32>(SlotNameToMaterialIndex.size());
-				SlotNameToMaterialIndex[SlotName] = MaterialIndex;
-			}
+        for (const FFbxMeshPartSection &PartSection : Part->Sections)
+        {
+            const FString SlotName =
+                FbxMaterialImportUtils::NormalizeMaterialSlotName(PartSection.MaterialSlotName);
+            int32 MaterialIndex = -1;
+            auto  MaterialIt = SlotNameToMaterialIndex.find(SlotName);
+            if (MaterialIt != SlotNameToMaterialIndex.end())
+            {
+                MaterialIndex = MaterialIt->second;
+            }
+            else
+            {
+                MaterialIndex = static_cast<int32>(SlotNameToMaterialIndex.size());
+                SlotNameToMaterialIndex[SlotName] = MaterialIndex;
+            }
 
-			FMeshSection Section;
-			Section.MaterialIndex = MaterialIndex;
-			Section.MaterialSlotName = SlotName;
-			Section.FirstIndex = IndexBase + static_cast<uint32>(PartSection.FirstIndex);
-			Section.NumTriangles = static_cast<uint32>(PartSection.IndexCount / 3);
-			OutMesh.Sections.push_back(Section);
+            FMeshSection Section;
+            Section.MaterialIndex = MaterialIndex;
+            Section.MaterialSlotName = SlotName;
+            Section.FirstIndex = IndexBase + static_cast<uint32>(PartSection.FirstIndex);
+            Section.NumTriangles = static_cast<uint32>(PartSection.IndexCount / 3);
+            OutMesh.Sections.push_back(Section);
 
-			UE_LOG("[FBXImporter] Skeletal section material. SourceMeshId=%d SourceSlot=%d SlotName=%s MaterialIndex=%d",
-				PartSection.SourceMeshId,
-				PartSection.MaterialSlotIndex,
-				SlotName.c_str(),
-				MaterialIndex);
-		}
-	}
+            UE_LOG("[FBXImporter] Skeletal section material. SourceMeshId=%d SourceSlot=%d "
+                   "SlotName=%s MaterialIndex=%d",
+                   PartSection.SourceMeshId, PartSection.MaterialSlotIndex, SlotName.c_str(),
+                   MaterialIndex);
+        }
+    }
 
-	OutMesh.CacheBounds();
-	return !OutMesh.Vertices.empty() && !OutMesh.Indices.empty() && !OutMesh.Bones.empty();
+    OutMesh.CacheBounds();
+    return !OutMesh.Vertices.empty() && !OutMesh.Indices.empty() && !OutMesh.Bones.empty();
 }
 
 bool FFbxSkeletalMeshAssembler::ValidateSkinnedMeshPartForAttach(
-	const FFbxSkeletonMeta& SkeletonMeta,
-	const FFbxSkinnedMeshPart& Part) const
+    const FFbxSkeletonMeta &SkeletonMeta, const FFbxSkinnedMeshPart &Part) const
 {
-	bool bValid = true;
+    bool bValid = true;
 
-	if (Part.SkeletonId != SkeletonMeta.SkeletonId)
-	{
-		UE_LOG("[FBXImporter] Attach validation failed: skeleton mismatch. PartMeshId=%d PartSkeletonId=%d SkeletonId=%d",
-			Part.MeshId,
-			Part.SkeletonId,
-			SkeletonMeta.SkeletonId);
-		return false;
-	}
+    if (Part.SkeletonId != SkeletonMeta.SkeletonId)
+    {
+        UE_LOG("[FBXImporter] Attach validation failed: skeleton mismatch. PartMeshId=%d "
+               "PartSkeletonId=%d SkeletonId=%d",
+               Part.MeshId, Part.SkeletonId, SkeletonMeta.SkeletonId);
+        return false;
+    }
 
-	if (Part.Vertices.empty() || Part.Indices.empty())
-	{
-		UE_LOG("[FBXImporter] Attach validation failed: empty vertices or indices. MeshId=%d Vertices=%u Indices=%u",
-			Part.MeshId,
-			static_cast<uint32>(Part.Vertices.size()),
-			static_cast<uint32>(Part.Indices.size()));
-		return false;
-	}
+    if (Part.Vertices.empty() || Part.Indices.empty())
+    {
+        UE_LOG("[FBXImporter] Attach validation failed: empty vertices or indices. MeshId=%d "
+               "Vertices=%u Indices=%u",
+               Part.MeshId, static_cast<uint32>(Part.Vertices.size()),
+               static_cast<uint32>(Part.Indices.size()));
+        return false;
+    }
 
-	for (uint32 Index : Part.Indices)
-	{
-		if (Index >= Part.Vertices.size())
-		{
-			UE_LOG("[FBXImporter] Attach validation failed: index out of range. MeshId=%d Index=%u VertexCount=%u",
-				Part.MeshId,
-				Index,
-				static_cast<uint32>(Part.Vertices.size()));
-			bValid = false;
-		}
-	}
+    for (uint32 Index : Part.Indices)
+    {
+        if (Index >= Part.Vertices.size())
+        {
+            UE_LOG("[FBXImporter] Attach validation failed: index out of range. MeshId=%d Index=%u "
+                   "VertexCount=%u",
+                   Part.MeshId, Index, static_cast<uint32>(Part.Vertices.size()));
+            bValid = false;
+        }
+    }
 
-	const uint32 BoneCount = static_cast<uint32>(SkeletonMeta.BoneIds.size());
-	int32 BadWeightSumWarningCount = 0;
-	float FirstBadWeightSum = 0.0f;
-	bool bLoggedWeightSumWarning = false;
-	for (const FSkeletalVertex& Vertex : Part.Vertices)
-	{
-		float WeightSum = 0.0f;
-		for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
-		{
-			const uint32 BoneIndex = Vertex.BoneIDs[InfluenceIndex];
-			const float Weight = Vertex.BoneWeights[InfluenceIndex];
-			if (Weight > 0.0f && BoneIndex >= BoneCount)
-			{
-				UE_LOG("[FBXImporter] Attach validation failed: bone index out of range. MeshId=%d BoneIndex=%u BoneCount=%u",
-					Part.MeshId,
-					BoneIndex,
-					BoneCount);
-				bValid = false;
-			}
-			WeightSum += Weight;
-		}
+    const uint32 BoneCount = static_cast<uint32>(SkeletonMeta.BoneIds.size());
+    int32        BadWeightSumWarningCount = 0;
+    float        FirstBadWeightSum = 0.0f;
+    bool         bLoggedWeightSumWarning = false;
+    for (const FSkeletalVertex &Vertex : Part.Vertices)
+    {
+        float WeightSum = 0.0f;
+        for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
+        {
+            const uint32 BoneIndex = Vertex.BoneIDs[InfluenceIndex];
+            const float  Weight = Vertex.BoneWeights[InfluenceIndex];
+            if (Weight > 0.0f && BoneIndex >= BoneCount)
+            {
+                UE_LOG("[FBXImporter] Attach validation failed: bone index out of range. MeshId=%d "
+                       "BoneIndex=%u "
+                       "BoneCount=%u",
+                       Part.MeshId, BoneIndex, BoneCount);
+                bValid = false;
+            }
+            WeightSum += Weight;
+        }
 
-		if (WeightSum <= 0.0001f)
-		{
-			UE_LOG("[FBXImporter] Attach validation failed: vertex has zero total bone weight. MeshId=%d",
-				Part.MeshId);
-			bValid = false;
-		}
-		else if (std::abs(WeightSum - 1.0f) > 0.05f)
-		{
-			++BadWeightSumWarningCount;
-			if (!bLoggedWeightSumWarning)
-			{
-				FirstBadWeightSum = WeightSum;
-				UE_LOG("[FBXImporter] Warning: vertex bone weight sum is %.4f. MeshId=%d. Further weight warnings for this mesh will be summarized.",
-					WeightSum,
-					Part.MeshId);
-				bLoggedWeightSumWarning = true;
-			}
-		}
-	}
+        if (WeightSum <= 0.0001f)
+        {
+            UE_LOG("[FBXImporter] Attach validation failed: vertex has zero total bone weight. "
+                   "MeshId=%d",
+                   Part.MeshId);
+            bValid = false;
+        }
+        else if (std::abs(WeightSum - 1.0f) > 0.05f)
+        {
+            ++BadWeightSumWarningCount;
+            if (!bLoggedWeightSumWarning)
+            {
+                FirstBadWeightSum = WeightSum;
+                UE_LOG("[FBXImporter] Warning: vertex bone weight sum is %.4f. MeshId=%d. Further "
+                       "weight warnings for "
+                       "this mesh will be summarized.",
+                       WeightSum, Part.MeshId);
+                bLoggedWeightSumWarning = true;
+            }
+        }
+    }
 
-	if (BadWeightSumWarningCount > 0)
-	{
-		UE_LOG("[FBXImporter] Mesh has %d vertices with non-normalized bone weights. MeshId=%d FirstWeightSum=%.4f",
-			BadWeightSumWarningCount,
-			Part.MeshId,
-			FirstBadWeightSum);
-	}
+    if (BadWeightSumWarningCount > 0)
+    {
+        UE_LOG("[FBXImporter] Mesh has %d vertices with non-normalized bone weights. MeshId=%d "
+               "FirstWeightSum=%.4f",
+               BadWeightSumWarningCount, Part.MeshId, FirstBadWeightSum);
+    }
 
-	for (const FFbxMeshPartSection& Section : Part.Sections)
-	{
-		if (Section.FirstIndex < 0 ||
-			Section.IndexCount <= 0 ||
-			Section.IndexCount % 3 != 0 ||
-			Section.FirstIndex + Section.IndexCount > static_cast<int32>(Part.Indices.size()))
-		{
-			UE_LOG("[FBXImporter] Attach validation failed: invalid section range. MeshId=%d SourceMeshId=%d FirstIndex=%d IndexCount=%d PartIndexCount=%u",
-				Part.MeshId,
-				Section.SourceMeshId,
-				Section.FirstIndex,
-				Section.IndexCount,
-				static_cast<uint32>(Part.Indices.size()));
-			bValid = false;
-		}
-	}
+    for (const FFbxMeshPartSection &Section : Part.Sections)
+    {
+        if (Section.FirstIndex < 0 || Section.IndexCount <= 0 || Section.IndexCount % 3 != 0 ||
+            Section.FirstIndex + Section.IndexCount > static_cast<int32>(Part.Indices.size()))
+        {
+            UE_LOG("[FBXImporter] Attach validation failed: invalid section range. MeshId=%d "
+                   "SourceMeshId=%d "
+                   "FirstIndex=%d IndexCount=%d PartIndexCount=%u",
+                   Part.MeshId, Section.SourceMeshId, Section.FirstIndex, Section.IndexCount,
+                   static_cast<uint32>(Part.Indices.size()));
+            bValid = false;
+        }
+    }
 
-	return bValid;
+    return bValid;
 }
