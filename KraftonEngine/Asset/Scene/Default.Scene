@@ -1,0 +1,19 @@
+{
+  "Actors" : [],
+  "ClassName" : "UWorld",
+  "ContextHandle" : "NewScene",
+  "ContextName" : "New Scene",
+  "Name" : "Default",
+  "PerspectiveCamera" : {
+    "AspectRatio" : 2.093857,
+    "FOV" : 1.047198,
+    "FarClip" : 1000.000000,
+    "Location" : [12.579534, -1.300004, 2.335117],
+    "NearClip" : 0.100000,
+    "OrthoWidth" : 10.000000,
+    "Orthographic" : false,
+    "Rotation" : [0.000000, 25.514967, -158.999191]
+  },
+  "Version" : 2,
+  "WorldType" : "Editor"
+}
