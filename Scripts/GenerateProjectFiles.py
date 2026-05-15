@@ -168,6 +168,7 @@ INCLUDE_PATHS = [
     "Source",
     "ThirdParty",
     "ThirdParty\\ImGui",
+    "ThirdParty\\Sol",
     "Source\\Editor",
     "Source\\ObjViewer",
     "Source\\GameClient",

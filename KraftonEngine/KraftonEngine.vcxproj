@@ -118,49 +118,49 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)ThirdParty\SFML\lib\Debug;$(ProjectDir)ThirdParty\FBXSDK\lib\x64\debug;$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)ThirdParty\SFML\lib\Release;$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ObjViewDebug|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)ThirdParty\SFML\lib\Release;$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Demo|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)ThirdParty\SFML\lib\Release;$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GameClient|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
+    <IncludePath>Source\Engine;Source;ThirdParty;ThirdParty\ImGui;ThirdParty\Sol;Source\Editor;Source\ObjViewer;Source\GameClient;.;$(ProjectDir)ThirdParty\FBXSDK\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)ThirdParty\SFML\lib\Release;$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
