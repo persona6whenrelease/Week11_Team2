@@ -110,6 +110,22 @@ ENGINE_EXCLUDE_PREFIXES = [
     # Keep them out of regenerated projects even if stale files remain on disk.
     "Source\\Engine\\Runtime\\ObjectPoolSystem.cpp",
     "Source\\Engine\\Runtime\\ObjectPoolSystem.h",
+    # FBXSDK samples ship with the SDK but are standalone executables (each has its
+    # own main()); compiling them as part of the engine would break the build.
+    "ThirdParty\\FBXSDK\\samples",
+    # Stale Crossy code that was incorrectly placed in Source\Engine but never
+    # integrated; authoritative copies live in Source\Games\Crossy.
+    "Source\\Engine\\Runtime\\RowManager.cpp",
+    "Source\\Engine\\Runtime\\RowManager.h",
+    "Source\\Engine\\Component\\Movement\\HopMovementComponent.cpp",
+    "Source\\Engine\\Component\\Movement\\HopMovementComponent.h",
+    "Source\\Engine\\Component\\ParryComponent.cpp",
+    "Source\\Engine\\Component\\ParryComponent.h",
+    "Source\\Engine\\Scripting\\LuaParryComponentBindings.cpp",
+    "Source\\Engine\\Scripting\\LuaRowManagerBindings.cpp",
+    "Source\\Engine\\Scripting\\LuaUiBindings.cpp",
+    "Source\\Engine\\UI\\Game\\GameUiSystem.cpp",
+    "Source\\Engine\\UI\\Game\\GameUiSystem.h",
 ]
 
 # Files removed by the refactor. Delete them before scanning so local stale copies
@@ -117,6 +133,18 @@ ENGINE_EXCLUDE_PREFIXES = [
 OBSOLETE_FILES = [
     "Source\\Engine\\Runtime\\ObjectPoolSystem.cpp",
     "Source\\Engine\\Runtime\\ObjectPoolSystem.h",
+    # See ENGINE_EXCLUDE_PREFIXES comment above.
+    "Source\\Engine\\Runtime\\RowManager.cpp",
+    "Source\\Engine\\Runtime\\RowManager.h",
+    "Source\\Engine\\Component\\Movement\\HopMovementComponent.cpp",
+    "Source\\Engine\\Component\\Movement\\HopMovementComponent.h",
+    "Source\\Engine\\Component\\ParryComponent.cpp",
+    "Source\\Engine\\Component\\ParryComponent.h",
+    "Source\\Engine\\Scripting\\LuaParryComponentBindings.cpp",
+    "Source\\Engine\\Scripting\\LuaRowManagerBindings.cpp",
+    "Source\\Engine\\Scripting\\LuaUiBindings.cpp",
+    "Source\\Engine\\UI\\Game\\GameUiSystem.cpp",
+    "Source\\Engine\\UI\\Game\\GameUiSystem.h",
 ]
 
 # Directories to recursively scan for the Crossy static library project.
@@ -144,6 +172,7 @@ INCLUDE_PATHS = [
     "Source\\ObjViewer",
     "Source\\GameClient",
     ".",
+    "$(ProjectDir)ThirdParty\\FBXSDK\\include",  # == FBXSDK_INCLUDE_PATH (defined below in FBXSDK block)
 ]
 
 # Include paths for the Crossy module. Do not add Source/Games/Crossy as a
@@ -173,6 +202,21 @@ SFML_CONFIG_FLAVOR = {
     "GameClient": "Release",
 }
 SFML_PLATFORMS = {"x64"}
+
+# ──────────────────────────────────────────────
+# FBXSDK configuration — application project only
+# ──────────────────────────────────────────────
+FBXSDK_LIB_BASE = "$(ProjectDir)ThirdParty\\FBXSDK\\lib\\x64"
+FBXSDK_INCLUDE_PATH = "$(ProjectDir)ThirdParty\\FBXSDK\\include"
+FBXSDK_LIB_NAMES = ["libfbxsdk.lib"]
+FBXSDK_CONFIG_FLAVOR = {
+    "Debug": "debug",
+    "Release": "release",
+    "ObjViewDebug": "release",
+    "Demo": "release",
+    "GameClient": "release",
+}
+FBXSDK_PLATFORMS = {"x64"}
 
 # Lua / vcpkg property sheet
 USE_VCPKG_LUA_PROPS = True
@@ -332,6 +376,21 @@ def sfml_post_build_command(flavor: str) -> str:
     return f'xcopy /Y /D /I "{src}" "$(OutDir)"'
 
 
+def fbxsdk_flavor_for(cfg: str, plat: str) -> str | None:
+    if plat not in FBXSDK_PLATFORMS:
+        return None
+    return FBXSDK_CONFIG_FLAVOR.get(cfg)
+
+
+def fbxsdk_lib_names(flavor: str) -> list[str]:
+    return list(FBXSDK_LIB_NAMES)
+
+
+def fbxsdk_post_build_command(flavor: str) -> str:
+    src = f"{FBXSDK_LIB_BASE}\\{flavor}\\libfbxsdk.dll"
+    return f'xcopy /Y /D /I "{src}" "$(OutDir)"'
+
+
 def project_include_path(path: Path) -> str:
     rel = path.relative_to(ROOT)
     return normalize_rel(rel)
@@ -468,6 +527,7 @@ def generate_vcxproj(
     application_project: bool = False,
     static_library_project: bool = False,
     include_sfml: bool = False,
+    include_fbxsdk: bool = False,
     include_nuget: bool = False,
     project_references: list[ProjectReference] | None = None,
 ):
@@ -547,10 +607,17 @@ def generate_vcxproj(
             ET.SubElement(pg, "IntDir").text = "$(ProjectDir)Build\\$(Configuration)\\"
         ET.SubElement(pg, "IncludePath").text = include_path_value
 
-        library_path_value = base_library_path
-        flavor = sfml_flavor_for(cfg, plat) if include_sfml else None
-        if flavor is not None:
-            library_path_value = f"{SFML_LIB_BASE}\\{flavor};{base_library_path}"
+        library_path_parts: list[str] = []
+
+        sfml_flavor = sfml_flavor_for(cfg, plat) if include_sfml else None
+        if sfml_flavor is not None:
+            library_path_parts.append(f"{SFML_LIB_BASE}\\{sfml_flavor}")
+
+        fbxsdk_flavor = fbxsdk_flavor_for(cfg, plat) if include_fbxsdk else None
+        if fbxsdk_flavor is not None:
+            library_path_parts.append(f"{FBXSDK_LIB_BASE}\\{fbxsdk_flavor}")
+
+        library_path_value = ";".join(library_path_parts + [base_library_path])
         ET.SubElement(pg, "LibraryPath").text = library_path_value
 
         if application_project:
@@ -604,14 +671,35 @@ def generate_vcxproj(
             ET.SubElement(link, "SubSystem").text = subsystem
             ET.SubElement(link, "GenerateDebugInformation").text = "true"
 
+            deps: list[str] = []
+            post_build_commands: list[str] = []
+            post_build_labels: list[str] = []
+            message_flavor: str | None = None
+
             sfml_flavor = sfml_flavor_for(cfg, plat) if include_sfml else None
             if sfml_flavor is not None:
-                libs = sfml_lib_names(sfml_flavor)
-                ET.SubElement(link, "AdditionalDependencies").text = ";".join(libs) + ";%(AdditionalDependencies)"
+                deps.extend(sfml_lib_names(sfml_flavor))
+                post_build_commands.append(sfml_post_build_command(sfml_flavor))
+                post_build_labels.append("SFML")
+                message_flavor = sfml_flavor
 
+            fbxsdk_flavor = fbxsdk_flavor_for(cfg, plat) if include_fbxsdk else None
+            if fbxsdk_flavor is not None:
+                deps.extend(fbxsdk_lib_names(fbxsdk_flavor))
+                post_build_commands.append(fbxsdk_post_build_command(fbxsdk_flavor))
+                post_build_labels.append("FBX SDK")
+                if message_flavor is None:
+                    message_flavor = fbxsdk_flavor.title()
+
+            if deps:
+                ET.SubElement(link, "AdditionalDependencies").text = ";".join(deps) + ";%(AdditionalDependencies)"
+
+            if post_build_commands:
                 pbe = ET.SubElement(idg, "PostBuildEvent")
-                ET.SubElement(pbe, "Command").text = sfml_post_build_command(sfml_flavor)
-                ET.SubElement(pbe, "Message").text = f"Copying SFML {sfml_flavor} DLLs to $(OutDir)"
+                ET.SubElement(pbe, "Command").text = " & ".join(post_build_commands)
+                ET.SubElement(pbe, "Message").text = (
+                    f"Copying {' and '.join(post_build_labels)} {message_flavor} DLLs to $(OutDir)"
+                )
 
     # Items
     for item_name in ["ClCompile", "ClInclude", "FxCompile", "ResourceCompile", "Natvis", "None"]:
@@ -845,6 +933,7 @@ def main():
         include_paths=INCLUDE_PATHS,
         application_project=True,
         include_sfml=True,
+        include_fbxsdk=True,
         include_nuget=True,
         project_references=[
             ProjectReference(
@@ -879,6 +968,7 @@ def main():
         int_dir_prefix=CROSSY_PROJECT_NAME,
         static_library_project=True,
         include_sfml=False,
+        include_fbxsdk=False,
         include_nuget=False,
     )
     print(f"  {PROJECT_DIR / (CROSSY_PROJECT_NAME + '.vcxproj')}")
