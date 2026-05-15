@@ -586,12 +586,71 @@ void RenderBoneTreeNode(const TArray<FBoneInfo>& Bones, int32 BoneIndex, int32& 
 }
 }
 
-FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
+FSkeletalEditorTab::FSkeletalEditorTab(UEditorEngine* InEditorEngine, int32 InTabId, ESkeletalEditorMode InMode)
+	: EditorEngine(InEditorEngine)
+	, TabId(InTabId)
+	, Mode(InMode)
+{
+}
+
+FSkeletalEditorTab::~FSkeletalEditorTab()
 {
 	ReleasePreviewScene();
 }
 
-void FEditorSkeletalMeshViewerWidget::EnsurePreviewScene()
+FString FSkeletalEditorTab::GetTabLabel() const
+{
+	auto ExtractStem = [](const FString& Path) -> FString
+	{
+		const size_t SepPos = Path.find_last_of("/\\");
+		const FString FileName = (SepPos == FString::npos) ? Path : Path.substr(SepPos + 1);
+		const size_t DotPos = FileName.find_last_of('.');
+		return (DotPos == FString::npos) ? FileName : FileName.substr(0, DotPos);
+	};
+
+	FString Base;
+	if (Mode == ESkeletalEditorMode::AnimSequence)
+	{
+		Base = SourcePath.empty() ? FString("AnimSequence") : ExtractStem(SourcePath);
+		Base += " [Anim]";
+	}
+	else
+	{
+		if (PreviewSkeletalMesh)
+		{
+			const FSkeletalMesh* Asset = PreviewSkeletalMesh->GetSkeletalMeshAsset();
+			if (Asset && !Asset->PathFileName.empty())
+			{
+				Base = ExtractStem(Asset->PathFileName);
+			}
+		}
+		if (Base.empty())
+		{
+			Base = SourcePath.empty() ? FString("SkeletalMesh") : ExtractStem(SourcePath);
+		}
+	}
+
+	// ImGui 탭 식별자 고유성을 위해 ##TabId 부착
+	return Base + "###SkelEditorTab" + std::to_string(TabId);
+}
+
+bool FSkeletalEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
+{
+	Mode = ESkeletalEditorMode::AnimSequence;
+	SourcePath = AssetPath;
+	StatusMessage = "AnimSequence editor — TODO";
+	return true;
+}
+
+void FSkeletalEditorTab::RenderAnimSequenceTimelineStub()
+{
+	ImGui::TextUnformatted("AnimSequence Timeline (stub)");
+	ImGui::Separator();
+	ImGui::TextDisabled("Timeline / Notify track UI coming soon");
+	ImGui::TextDisabled("Asset: %s", SourcePath.empty() ? "<none>" : SourcePath.c_str());
+}
+
+void FSkeletalEditorTab::EnsurePreviewScene()
 {
 	if (PreviewWorld)
 	{
@@ -631,7 +690,7 @@ void FEditorSkeletalMeshViewerWidget::EnsurePreviewScene()
 	}
 }
 
-void FEditorSkeletalMeshViewerWidget::ReleasePreviewScene()
+void FSkeletalEditorTab::ReleasePreviewScene()
 {
 	if (PreviewViewport)
 	{
@@ -659,7 +718,7 @@ void FEditorSkeletalMeshViewerWidget::ReleasePreviewScene()
 	}
 }
 
-void FEditorSkeletalMeshViewerWidget::SetPreviewMesh(USkeletalMesh* InMesh, bool bResetCamera)
+void FSkeletalEditorTab::SetPreviewMesh(USkeletalMesh* InMesh, bool bResetCamera)
 {
 	EnsurePreviewScene();
 	PreviewSkeletalMesh = InMesh;
@@ -701,7 +760,7 @@ void FEditorSkeletalMeshViewerWidget::SetPreviewMesh(USkeletalMesh* InMesh, bool
 	}
 }
 
-void FEditorSkeletalMeshViewerWidget::TickPreviewScene(float DeltaTime)
+void FSkeletalEditorTab::TickPreviewScene(float DeltaTime)
 {
 	if (!PreviewWorld)
 	{
@@ -713,7 +772,7 @@ void FEditorSkeletalMeshViewerWidget::TickPreviewScene(float DeltaTime)
 	UpdateBoneDebugLines();
 }
 
-void FEditorSkeletalMeshViewerWidget::UpdateInput(float DeltaTime)
+void FSkeletalEditorTab::UpdateInput(float DeltaTime)
 {
 	if (!bHasPreviewViewportRect || !PreviewViewportClient)
 	{
@@ -751,8 +810,10 @@ void FEditorSkeletalMeshViewerWidget::UpdateInput(float DeltaTime)
 	bPreviewViewportWantsKeyboardCapture = bPreviewViewportWantsMouseCapture && bRightMouseDown;
 }
 
-bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
+bool FSkeletalEditorTab::OpenFbxAsset(const FString& FbxPath)
 {
+	Mode = ESkeletalEditorMode::SkeletalMesh;
+	SourcePath = FbxPath;
 	CurrentFbxPath = FbxPath;
 	CurrentSceneAsset = FMeshManager::LoadFbxScene(FbxPath);
 	SelectedResourceIndex = -1;
@@ -778,33 +839,9 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	return true;
 }
 
-void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
+void FSkeletalEditorTab::RenderTabContent(float DeltaTime)
 {
-	FEditorSettings& Settings = FEditorSettings::Get();
-	ImGuiWindowClass ViewerWindowClass;
-	ViewerWindowClass.ParentViewportId = 0;
-	ViewerWindowClass.ViewportFlagsOverrideClear = ImGuiViewportFlags_NoTaskBarIcon;
-	ImGui::SetNextWindowClass(&ViewerWindowClass);
-	ImGui::SetNextWindowSize(ImVec2(1100.0f, 700.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin("SkeletalMesh Viewer", &Settings.UI.bSkeletalMeshViewer, ImGuiWindowFlags_MenuBar))
-	{
-		bHasPreviewViewportRect = false;
-		bPreviewViewportWantsMouseCapture = false;
-		bPreviewViewportWantsKeyboardCapture = false;
-		ImGui::End();
-		return;
-	}
-
-	if (ImGui::BeginMenuBar())
-	{
-		if (ImGui::BeginMenu("Asset"))
-		{
-			ImGui::MenuItem("Open SkeletalMesh...", nullptr, false, false);
-			ImGui::MenuItem("Close", nullptr, false, false);
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenuBar();
-	}
+	ImGui::PushID(TabId);
 
 	if (ImGui::BeginTable(
 		"##SkeletalMeshViewerLayout",
@@ -818,23 +855,37 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 		ImGui::TableNextRow();
 
 		ImGui::TableSetColumnIndex(0);
-		RenderResourcePanel();
-		ImGui::Separator();
-		RenderBonePanel();
+		if (Mode == ESkeletalEditorMode::SkeletalMesh)
+		{
+			RenderResourcePanel();
+			ImGui::Separator();
+			RenderBonePanel();
+		}
+		else
+		{
+			RenderAnimSequenceTimelineStub();
+		}
 
 		ImGui::TableSetColumnIndex(1);
 		RenderViewportPanel(DeltaTime);
 
 		ImGui::TableSetColumnIndex(2);
-		RenderTransformPanel();
+		if (Mode == ESkeletalEditorMode::SkeletalMesh)
+		{
+			RenderTransformPanel();
+		}
+		else
+		{
+			ImGui::TextDisabled("Details (TODO)");
+		}
 
 		ImGui::EndTable();
 	}
 
-	ImGui::End();
+	ImGui::PopID();
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderResourcePanel()
+void FSkeletalEditorTab::RenderResourcePanel()
 {
 	if (ImGui::BeginChild("##SkeletalMeshResources", ImVec2(0.0f, 120.0f), false))
 	{
@@ -883,7 +934,7 @@ void FEditorSkeletalMeshViewerWidget::RenderResourcePanel()
 	ImGui::EndChild();
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderViewportPanel(float DeltaTime)
+void FSkeletalEditorTab::RenderViewportPanel(float DeltaTime)
 {
 	(void)DeltaTime;
 
@@ -1042,7 +1093,7 @@ void FEditorSkeletalMeshViewerWidget::RenderViewportPanel(float DeltaTime)
 	ImGui::EndChild();
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
+void FSkeletalEditorTab::RenderBonePanel()
 {
 	if (ImGui::BeginChild("##SkeletalMeshBoneHierarchy", ImVec2(0.0f, 0.0f), false))
 	{
@@ -1192,7 +1243,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 	ImGui::EndChild();
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
+void FSkeletalEditorTab::RenderAnimationPlaybackPanel()
 {
 	const FSkeletalMesh* Asset = (PreviewSkeletalMesh && PreviewMeshComponent)
 		? PreviewSkeletalMesh->GetSkeletalMeshAsset() : nullptr;
@@ -1259,7 +1310,7 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	ImGui::Separator();
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
+void FSkeletalEditorTab::RenderTransformPanel()
 {
 	if (ImGui::BeginChild("##SkeletalMeshDetails", ImVec2(0.0f, 0.0f), false))
 	{
@@ -1324,7 +1375,7 @@ void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
 }
 
 
-USkeletalMesh* FEditorSkeletalMeshViewerWidget::GetSelectedSkeletalMesh() const
+USkeletalMesh* FSkeletalEditorTab::GetSelectedSkeletalMesh() const
 {
 	if (!CurrentSceneAsset)
 	{
@@ -1340,7 +1391,7 @@ USkeletalMesh* FEditorSkeletalMeshViewerWidget::GetSelectedSkeletalMesh() const
 	return SkeletalMeshes[SelectedResourceIndex];
 }
 
-void FEditorSkeletalMeshViewerWidget::DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId)
+void FSkeletalEditorTab::DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId)
 {
 	ImGui::Text("Show");
 	if (ImGui::BeginTable(TableId, 6, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame))
@@ -1396,7 +1447,7 @@ void FEditorSkeletalMeshViewerWidget::DrawViewerShowFlagsControls(FViewportRende
 	}
 }
 
-void FEditorSkeletalMeshViewerWidget::RenderViewerViewportToolbar()
+void FSkeletalEditorTab::RenderViewerViewportToolbar()
 {
 	FSkeletalMeshViewerViewportClient* PreviewClient = PreviewViewportClient;
 	if (!PreviewClient)
@@ -1563,7 +1614,7 @@ void FEditorSkeletalMeshViewerWidget::RenderViewerViewportToolbar()
 }
 
 
-void FEditorSkeletalMeshViewerWidget::UpdateBoneDebugLines()
+void FSkeletalEditorTab::UpdateBoneDebugLines()
 {
 	if (!PreviewSkeletalMesh || !PreviewMeshComponent)
 	{
@@ -1624,4 +1675,207 @@ void FEditorSkeletalMeshViewerWidget::UpdateBoneDebugLines()
 
 	}
 
+}
+
+
+// =========================================================================
+// FEditorSkeletalMeshViewerWidget — 통합 셸 (탭바 호스트)
+// =========================================================================
+
+FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
+{
+	Tabs.clear();
+}
+
+FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::FindTabBySource(const FString& Path) const
+{
+	for (const auto& Tab : Tabs)
+	{
+		if (Tab && Tab->GetSourcePath() == Path)
+		{
+			return Tab.get();
+		}
+	}
+	return nullptr;
+}
+
+FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::GetActiveTab() const
+{
+	if (ActiveTabIndex < 0 || ActiveTabIndex >= static_cast<int32>(Tabs.size()))
+	{
+		return nullptr;
+	}
+	return Tabs[ActiveTabIndex].get();
+}
+
+void FEditorSkeletalMeshViewerWidget::RequestCloseTab(int32 Index)
+{
+	if (Index < 0 || Index >= static_cast<int32>(Tabs.size()))
+	{
+		return;
+	}
+	Tabs.erase(Tabs.begin() + Index);
+	if (Tabs.empty())
+	{
+		ActiveTabIndex = -1;
+	}
+	else if (ActiveTabIndex >= static_cast<int32>(Tabs.size()))
+	{
+		ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
+	}
+}
+
+bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
+{
+	// 같은 FBX가 이미 열려 있으면 그 탭으로 포커싱
+	if (FSkeletalEditorTab* Existing = FindTabBySource(FbxPath))
+	{
+		RequestedFocusTabId = Existing->GetTabId();
+		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+		{
+			if (Tabs[i].get() == Existing)
+			{
+				ActiveTabIndex = i;
+				break;
+			}
+		}
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FSkeletalEditorTab>(EditorEngine, NextTabId++, ESkeletalEditorMode::SkeletalMesh);
+	const bool bOk = NewTab->OpenFbxAsset(FbxPath);
+	if (!bOk)
+	{
+		return false;
+	}
+	RequestedFocusTabId = NewTab->GetTabId();
+	Tabs.emplace_back(std::move(NewTab));
+	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
+	return true;
+}
+
+bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& AssetPath)
+{
+	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
+	{
+		RequestedFocusTabId = Existing->GetTabId();
+		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+		{
+			if (Tabs[i].get() == Existing)
+			{
+				ActiveTabIndex = i;
+				break;
+			}
+		}
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FSkeletalEditorTab>(EditorEngine, NextTabId++, ESkeletalEditorMode::AnimSequence);
+	NewTab->OpenAnimSequenceAsset(AssetPath);
+	RequestedFocusTabId = NewTab->GetTabId();
+	Tabs.emplace_back(std::move(NewTab));
+	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
+	return true;
+}
+
+bool FEditorSkeletalMeshViewerWidget::WantsMouseCapture() const
+{
+	const FSkeletalEditorTab* Active = GetActiveTab();
+	return Active && Active->WantsMouseCapture();
+}
+
+bool FEditorSkeletalMeshViewerWidget::WantsKeyboardCapture() const
+{
+	const FSkeletalEditorTab* Active = GetActiveTab();
+	return Active && Active->WantsKeyboardCapture();
+}
+
+void FEditorSkeletalMeshViewerWidget::UpdateInput(float DeltaTime)
+{
+	if (FSkeletalEditorTab* Active = GetActiveTab())
+	{
+		Active->UpdateInput(DeltaTime);
+	}
+}
+
+void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
+{
+	FEditorSettings& Settings = FEditorSettings::Get();
+	ImGuiWindowClass ViewerWindowClass;
+	ViewerWindowClass.ParentViewportId = 0;
+	ViewerWindowClass.ViewportFlagsOverrideClear = ImGuiViewportFlags_NoTaskBarIcon;
+	ImGui::SetNextWindowClass(&ViewerWindowClass);
+	ImGui::SetNextWindowSize(ImVec2(1100.0f, 700.0f), ImGuiCond_FirstUseEver);
+	if (!ImGui::Begin("Skeletal Editor", &Settings.UI.bSkeletalMeshViewer, ImGuiWindowFlags_MenuBar))
+	{
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::BeginMenu("Asset"))
+		{
+			ImGui::MenuItem("Open SkeletalMesh...", nullptr, false, false);
+			ImGui::MenuItem("Open AnimSequence...", nullptr, false, false);
+			ImGui::Separator();
+			if (ImGui::MenuItem("Close Current Tab", nullptr, false, ActiveTabIndex >= 0))
+			{
+				RequestCloseTab(ActiveTabIndex);
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+
+	if (Tabs.empty())
+	{
+		ImGui::TextDisabled("No asset opened. Double-click a SkeletalMesh / AnimSequence in ContentBrowser.");
+		ImGui::End();
+		return;
+	}
+
+	int32 TabIndexToClose = -1;
+
+	if (ImGui::BeginTabBar("##SkeletalEditorTabBar", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll))
+	{
+		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+		{
+			FSkeletalEditorTab* Tab = Tabs[i].get();
+			if (!Tab)
+			{
+				continue;
+			}
+
+			ImGuiTabItemFlags TabFlags = ImGuiTabItemFlags_None;
+			if (RequestedFocusTabId == Tab->GetTabId())
+			{
+				TabFlags |= ImGuiTabItemFlags_SetSelected;
+			}
+
+			bool bTabOpen = true;
+			const FString Label = Tab->GetTabLabel();
+			if (ImGui::BeginTabItem(Label.c_str(), &bTabOpen, TabFlags))
+			{
+				ActiveTabIndex = i;
+				Tab->RenderTabContent(DeltaTime);
+				ImGui::EndTabItem();
+			}
+
+			if (!bTabOpen)
+			{
+				TabIndexToClose = i;
+			}
+		}
+		ImGui::EndTabBar();
+	}
+
+	RequestedFocusTabId = -1;
+
+	if (TabIndexToClose >= 0)
+	{
+		RequestCloseTab(TabIndexToClose);
+	}
+
+	ImGui::End();
 }
