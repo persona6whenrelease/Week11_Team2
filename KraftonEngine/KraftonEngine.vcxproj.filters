@@ -46,6 +46,9 @@
     <Filter Include="Source\Editor\UI">
       <UniqueIdentifier>{d23c3ab5-7e26-ff59-be61-b2a81e9921c0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Editor\UI\SkeletalEditor">
+      <UniqueIdentifier>{8a4e1d3f-1c2b-4e91-9a76-3f5e9d2c8b41}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Editor\UI\ContentBrowser">
       <UniqueIdentifier>{09a2ea7f-e891-b580-bef0-471bcd9b5d4b}</UniqueIdentifier>
     </Filter>
@@ -475,6 +478,18 @@
     </ClCompile>
     <ClCompile Include="Source\Editor\UI\EditorSkeletalMeshViewerWidget.cpp">
       <Filter>Source\Editor\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClCompile>
     <ClCompile Include="Source\Editor\UI\EditorStatWidget.cpp">
       <Filter>Source\Editor\UI</Filter>
@@ -1294,6 +1309,18 @@
     </ClInclude>
     <ClInclude Include="Source\Editor\UI\EditorSkeletalMeshViewerWidget.h">
       <Filter>Source\Editor\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClInclude>
     <ClInclude Include="Source\Editor\UI\EditorStatWidget.h">
       <Filter>Source\Editor\UI</Filter>
