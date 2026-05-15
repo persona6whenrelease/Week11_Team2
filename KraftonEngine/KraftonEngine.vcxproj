@@ -210,7 +210,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Debug\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\debug\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -233,7 +233,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -256,7 +256,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -279,7 +279,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -302,7 +302,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
