@@ -1,8 +1,9 @@
 /**
- * FBX ?뺤쟻 硫붿떆 ?뚯꽌瑜??좎뼵?쒕떎.
+ * FBX 정적 메시 파서를 선언한다.
  *
- * ?섏쭛??FBX 硫뷀? ?뺣낫?먯꽌 mesh node瑜??쒗쉶?섏뿬 FStaticMesh 諛곗뿴??留뚮뱾怨? ?먮낯 mesh id媛 寃곌낵
- * 諛곗뿴???대뒓 ?몃뜳?ㅻ줈 蹂?섎릺?덈뒗吏 湲곕줉?쒕떎. ??而댄룷?뚰듃媛 ?섏쨷???대떦 硫붿떆瑜?李몄“?????꾩슂?? * ?곌껐 ?뺣낫?대떎.
+ * 수집된 FBX 메타 정보에서 mesh node를 순회하여 FStaticMesh 배열을 만들고, 원본 mesh id가 결과
+ * 배열의 어느 인덱스로 변환되었는지 기록한다. 씬 컴포넌트가 나중에 해당 메시를 참조할 때 필요한
+ * 연결 정보이다.
  */
 
 #pragma once
@@ -12,9 +13,10 @@
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 
 /**
- * FBX mesh node瑜??뺤쟻 硫붿떆 ?먯뀑 ?곗씠?곕줈 蹂?섑븯???뚯꽌?대떎.
+ * FBX mesh node를 정적 메시 에셋 데이터로 변환하는 파서이다.
  *
- * ?ㅽ궎?앹씠 ?꾩슂?섏? ?딆? 吏?ㅻ찓?몃━瑜?FStaticMesh 諛곗뿴濡?留뚮뱾怨? FBX ??而댄룷?뚰듃媛 李몄“?????덈룄濡? * ?먮낯 mesh id? 寃곌낵 ?먯뀑 ?몃뜳?ㅼ쓽 留ㅽ븨???④릿??
+ * 스키닝이 필요하지 않은 지오메트리를 FStaticMesh 배열로 만들고, FBX 씬 컴포넌트가 참조할 수 있도록
+ * 원본 mesh id와 결과 에셋 인덱스의 매핑을 남긴다.
  */
 class FFbxStaticMeshParser final
 {
@@ -22,10 +24,10 @@ class FFbxStaticMeshParser final
     explicit FFbxStaticMeshParser(const FFbxImportMeta &InImportMeta) : ImportMeta(InImportMeta) {}
 
     /**
-     * ?섏쭛??FBX 硫뷀? ?뺣낫瑜??붿쭊 ?먯뀑 ?곗씠?곕줈 蹂?섑븳??
+     * 수집된 FBX 메타 정보를 엔진 에셋 데이터로 변환한다.
      *
-     * 異쒕젰 諛곗뿴怨?ID 留ㅽ븨? ?⑥닔 ?쒖옉 ??珥덇린?붾릺硫? ?ㅽ뙣???쇰? ??ぉ? 濡쒓렇瑜??④린怨?嫄대꼫?곕뒗
-     * 諛⑹떇?쇰줈 ?꾩껜 ?꾪룷???먮쫫??媛?ν븳 ??怨꾩냽 吏꾪뻾?섎룄濡??쒕떎.
+     * 출력 배열과 ID 매핑은 함수 시작 시 초기화되며, 실패한 일부 항목은 로그를 남기고 건너뛰는
+     * 방식으로 전체 임포트 흐름이 가능한 한 계속 진행되도록 한다.
      */
     bool Parse(TArray<FStaticMesh> &OutStaticMeshes,
                TMap<int32, int32>  &OutMeshIdToStaticMeshAssetIndex) const;

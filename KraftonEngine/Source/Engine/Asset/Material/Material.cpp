@@ -8,11 +8,11 @@
 
 IMPLEMENT_CLASS(UMaterial, UObject)
 
-// ??? FMaterialTemplate ???
+// ─── FMaterialTemplate ───
 
 void FMaterialTemplate::Create(FShader* InShader)
 {
-	ParameterLayout = InShader->GetParameterLayout(); // ?곗씠?붿뿉??由ы뵆?됱뀡???뚮씪誘명꽣 ?덉씠?꾩썐 ?뺣낫 ?뺣낫
+	ParameterLayout = InShader->GetParameterLayout(); // 셰이더에서 리플렉션된 파라미터 레이아웃 정보 확보
 	Shader = InShader;
 }
 
@@ -30,7 +30,7 @@ bool FMaterialTemplate::GetParameterInfo(const FString& Name, FMaterialParameter
 	}
 }
 
-// ??? FMaterialConstantBuffer ???
+// ─── FMaterialConstantBuffer ───
 
 FMaterialConstantBuffer::~FMaterialConstantBuffer()
 {
@@ -77,7 +77,7 @@ void FMaterialConstantBuffer::Release()
 	bDirty = false;
 }
 
-// ??? UMaterial ???
+// ─── UMaterial ───
 
 UMaterial::~UMaterial()
 {
@@ -148,7 +148,7 @@ bool UMaterial::SetTextureParameter(const FString& ParamName, UTexture2D* Textur
 {
 	TextureParameters[ParamName] = Texture;
 
-	// CachedSRVs 媛깆떊 ???щ’ ?대쫫怨?留ㅼ묶?섎㈃ 利됱떆 諛섏쁺
+	// CachedSRVs 갱신 — 슬롯 이름과 매칭되면 즉시 반영
 	for (int s = 0; s < (int)EMaterialTextureSlot::Max; s++)
 	{
 		FString SlotName = MaterialTextureSlot::ToString(s) + "Texture";

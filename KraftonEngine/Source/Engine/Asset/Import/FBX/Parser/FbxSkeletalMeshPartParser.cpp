@@ -1,8 +1,9 @@
 /**
- * FBX mesh node?먯꽌 ?ㅼ펷?덊깉 硫붿떆 議곕┰??遺遺?硫붿떆瑜??뚯떛?쒕떎.
+ * FBX mesh node에서 스켈레탈 메시 조립용 부분 메시를 파싱한다.
  *
- * skin cluster??control point weight瑜??붿쭊 ?뺤젏??理쒕? 4媛?bone influence濡??뺢퇋?뷀븯怨? ?ㅽ궓?? * ?녿뒗 rigid mesh???뱀젙 蹂몄뿉 遺숈? ?뚰듃濡?蹂?섑븳?? ??寃곌낵???꾩쭅 理쒖쥌 FSkeletalMesh媛 ?꾨땲??
- * ?ㅼ펷?덊넠 ?⑥쐞 蹂묓빀??湲곕떎由щ뒗 以묎컙 ?뚰듃 ?곗씠?곗씠??
+ * skin cluster의 control point weight를 엔진 정점의 최대 4개 bone influence로 정규화하고, 스킨이
+ * 없는 rigid mesh는 특정 본에 붙은 파트로 변환한다. 이 결과는 아직 최종 FSkeletalMesh가 아니라,
+ * 스켈레톤 단위 병합을 기다리는 중간 파트 데이터이다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxSkeletalMeshPartParser.h"

@@ -25,7 +25,7 @@ UTexture2D::~UTexture2D()
 		SRV = nullptr;
 	}
 
-	// 罹먯떆?먯꽌 ?쒓굅
+	// 캐시에서 제거
 	auto It = TextureCache.find(SourceFilePath);
 	if (It != TextureCache.end() && It->second == this)
 	{
@@ -55,14 +55,14 @@ UTexture2D* UTexture2D::LoadFromFile(const FString& FilePath, ID3D11Device* Devi
 {
 	if (FilePath.empty() || !Device) return nullptr;
 
-	// 罹먯떆 ?덊듃
+	// 캐시 히트
 	auto It = TextureCache.find(FilePath);
 	if (It != TextureCache.end())
 	{
 		return It->second;
 	}
 
-	// ??UTexture2D ?앹꽦
+	// 새 UTexture2D 생성
 	UTexture2D* Texture = UObjectManager::Get().CreateObject<UTexture2D>();
 	if (!Texture->LoadInternal(FilePath, Device))
 	{
@@ -105,7 +105,7 @@ bool UTexture2D::LoadInternal(const FString& FilePath, ID3D11Device* Device)
 		D3D11_BIND_SHADER_RESOURCE,           // bindFlags
 		0,                                    // cpuAccessFlags
 		0,                                    // miscFlags
-		DirectX::WIC_LOADER_IGNORE_SRGB,     // sRGB 硫뷀??곗씠??臾댁떆 ??UNORM ?щ㎎ 媛뺤젣
+		DirectX::WIC_LOADER_IGNORE_SRGB,     // sRGB 메타데이터 무시 → UNORM 포맷 강제
 		&Resource, &SRV);
 
 	if (FAILED(hr))
@@ -114,7 +114,7 @@ bool UTexture2D::LoadInternal(const FString& FilePath, ID3D11Device* Device)
 		return false;
 	}
 
-	// ?띿뒪泥??ш린 異붿텧
+	// 텍스처 크기 추출
 	if (Resource)
 	{
 		TrackedTextureMemory = MemoryStats::CalculateTextureMemory(Resource);

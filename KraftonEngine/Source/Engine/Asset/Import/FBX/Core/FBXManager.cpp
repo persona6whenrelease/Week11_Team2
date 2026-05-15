@@ -1,9 +1,9 @@
 /**
- * FBX ??罹먯떆? FBX 湲곕컲 硫붿떆 濡쒕뵫??愿由ы븯??援ы쁽遺?대떎.
+ * FBX 씬 캐시와 FBX 기반 메시 로딩을 관리하는 구현부이다.
  *
- * ?먮낯 FBX瑜??꾪룷?명븯??UFBXSceneAsset?쇰줈 罹먯떆?섍퀬, ???대???StaticMesh/SkeletalMesh 李몄“
- * 臾몄옄?댁쓣 ?ㅼ젣 UObject濡??댁꽍?쒕떎. ?щ윭 ?먮뵒??湲곕뒫???숈씪??FBX瑜?諛섎났 濡쒕뱶?????뚯떛 鍮꾩슜怨?李몄“
- * 遺덉씪移섎? 以꾩씠湲??꾪븳 以묒븰 愿由?怨꾩링?대떎.
+ * 원본 FBX를 임포트하여 UFBXSceneAsset으로 캐시하고, 씬 내부의 StaticMesh/SkeletalMesh 참조
+ * 문자열을 실제 UObject로 해석한다. 여러 에디터 기능이 동일한 FBX를 반복 로드할 때 파싱 비용과 참조
+ * 불일치를 줄이기 위한 중앙 관리 계층이다.
  */
 
 #include "Asset/Import/FBX/Core/FBXManager.h"

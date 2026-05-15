@@ -1,8 +1,9 @@
-﻿/**
- * FBX ?먯뀑 濡쒕뵫, ??罹먯떆, ???대? 李몄“ ?댁꽍???대떦?섎뒗 留ㅻ땲?瑜??좎뼵?쒕떎.
+/**
+ * FBX 에셋 로딩, 씬 캐시, 씬 내부 참조 해석을 담당하는 매니저를 선언한다.
  *
- * FBX ?먮낯 ?뚯씪? ??踰덉쓽 濡쒕뱶濡??щ윭 ?붿쭊 ?먯뀑??留뚮뱾 ???덉쑝誘濡? ???대옒?ㅻ뒗 ???⑥쐞 罹먯떆?
- * 媛쒕퀎 硫붿떆 李몄“ ?댁꽍??遺꾨━?쒕떎. Content Browser??硫붿떆 ?좏깮 UI??臾몄옄??李몄“留?媛吏怨??덉뼱?? * ??留ㅻ땲?瑜??듯빐 ?ㅼ젣 StaticMesh, SkeletalMesh, FBXSceneAsset???살쓣 ???덈떎.
+ * FBX 원본 파일은 한 번의 로드로 여러 엔진 에셋을 만들 수 있으므로, 이 클래스는 씬 단위 캐시와
+ * 개별 메시 참조 해석을 분리한다. Content Browser나 메시 선택 UI는 문자열 참조만 가지고 있어도
+ * 이 매니저를 통해 실제 StaticMesh, SkeletalMesh, FBXSceneAsset을 얻을 수 있다.
  */
 
 #pragma once
@@ -16,10 +17,10 @@ class UFBXSceneAsset;
 class UObject;
 
 /**
- * FBX ??罹먯떆? FBX ?대? ?먯뀑 李몄“ ?댁꽍???대떦?섎뒗 留ㅻ땲??대떎.
+ * FBX 씬 캐시와 FBX 내부 에셋 참조 해석을 담당하는 매니저이다.
  *
- * ?먮낯 FBX瑜????⑥쐞濡??꾪룷?명븯怨? #Mesh_ ?먮뒗 #Skeleton_ 媛숈? ?대? 李몄“ 臾몄옄?댁쓣 ?ㅼ젣 ?붿쭊
- * ?ㅻ툕?앺듃濡?蹂?섑븳?? 諛섎났 濡쒕뱶 ??媛숈? ??罹먯떆瑜?怨듭쑀???뚯떛 鍮꾩슜怨??먯뀑 遺덉씪移섎? 以꾩씤??
+ * 원본 FBX를 씬 단위로 임포트하고, #Mesh_ 또는 #Skeleton_ 같은 내부 참조 문자열을 실제 엔진
+ * 오브젝트로 변환한다. 반복 로드 시 같은 씬 캐시를 공유해 파싱 비용과 에셋 불일치를 줄인다.
  */
 class FFBXManager
 {
@@ -29,17 +30,18 @@ class FFBXManager
   public:
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
     /**
-     * FBX ?먮낯 ?먮뒗 罹먯떆 寃쎈줈瑜?UFBXSceneAsset?쇰줈 濡쒕뱶?쒕떎.
+     * FBX 원본 또는 캐시 경로를 UFBXSceneAsset으로 로드한다.
      *
-     * ?대? 罹먯떆???ъ씠 ?덉쑝硫??ъ궗?⑺븯怨? ?놁쑝硫??먮낯 FBX瑜??꾪룷?명빐 ???먯뀑??援ъ꽦?쒕떎.
+     * 이미 캐시된 씬이 있으면 재사용하고, 없으면 원본 FBX를 임포트해 씬 에셋을 구성한다.
      */
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     static UStaticMesh    *ResolveStaticMeshReference(const FString &PathFileName);
     static USkeletalMesh  *ResolveSkeletalMeshReference(const FString &PathFileName);
     /**
-     * FBX ???대? 硫붿떆 李몄“ 臾몄옄?댁쓣 ?ㅼ젣 UObject濡?蹂?섑븳??
+     * FBX 씬 내부 메시 참조 문자열을 실제 UObject로 변환한다.
      *
-     * #Mesh_, #Skeleton_ 媛숈? 李몄“ 洹쒖튃???댁꽍???대떦 ??罹먯떆 ?덉쓽 StaticMesh ?먮뒗 SkeletalMesh瑜?     * 李얜뒗??
+     * #Mesh_, #Skeleton_ 같은 참조 규칙을 해석해 해당 씬 캐시 안의 StaticMesh 또는 SkeletalMesh를
+     * 찾는다.
      */
     static UObject       *ResolveFbxSceneAssetReference(const FString &PathFileName);
     static UStaticMesh   *LoadStaticMeshFromFbxSceneReference(const FString &PathFileName);

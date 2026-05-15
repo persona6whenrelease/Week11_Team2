@@ -1,9 +1,9 @@
 /**
- * FBX ?먮낯 ?ъ쓣 遺꾩꽍???살? 以묎컙 硫뷀? ?곗씠?곕? ?뺤쓽?쒕떎.
+ * FBX 원본 씬을 분석해 얻은 중간 메타 데이터를 정의한다.
  *
- * ?몃뱶, 硫붿떆, ?ㅽ궓, ?대윭?ㅽ꽣, 蹂? ?ㅼ펷?덊넠, 癒명떚由ъ뼹???먮낯 SDK ?ъ씤?곗? ?붿쭊 ?대? ID瑜??④퍡
- * 蹂닿??쒕떎. ?ㅼ젣 硫붿떆 ?곗씠?곕? 留뚮뱾湲??꾩뿉 ?먮낯 怨꾩링怨?李몄“ 愿怨꾨? ?덉젙?곸쑝濡??뺣━?섎뒗 ?④퀎?대ŉ,
- * ?щ윭 ?뚯꽌媛 媛숈? FBX ???뺣낫瑜?怨듭쑀?????덇쾶 ?섎뒗 怨듯넻 而⑦뀓?ㅽ듃 ??븷???쒕떎.
+ * 노드, 메시, 스킨, 클러스터, 본, 스켈레톤, 머티리얼의 원본 SDK 포인터와 엔진 내부 ID를 함께
+ * 보관한다. 실제 메시 데이터를 만들기 전에 원본 계층과 참조 관계를 안정적으로 정리하는 단계이며,
+ * 여러 파서가 같은 FBX 씬 정보를 공유할 수 있게 하는 공통 컨텍스트 역할을 한다.
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 #include "Engine/Math/Matrix.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
 
-/** FBX ?몃뱶??ID, 怨꾩링, ?먮낯 ?ъ씤?곕? ?④퍡 蹂닿??섎뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX 노드의 ID, 계층, 원본 포인터를 함께 보관하는 메타 데이터이다. */
 struct FFbxNodeMeta
 {
     int32         NodeId = -1;
@@ -31,7 +31,7 @@ struct FFbxNodeMeta
     FMatrix       GlobalTransform = FMatrix::Identity;
 };
 
-/** FBX mesh node???먮낯 ?ъ씤?곗? ???대? ?앸퀎?먮? 臾띕뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX mesh node의 원본 포인터와 씬 내부 식별자를 묶는 메타 데이터이다. */
 struct FFbxMeshMeta
 {
     int32           MeshId = -1;
@@ -60,7 +60,7 @@ struct FFbxMeshMeta
     int32           PolygonCount = 0;
 };
 
-/** FBX skin deformer? ?곌껐??硫붿떆 ?뺣낫瑜?異붿쟻?섎뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX skin deformer와 연결된 메시 정보를 추적하는 메타 데이터이다. */
 struct FFbxSkinMeta
 {
     int32         SkinId = -1;
@@ -74,7 +74,7 @@ struct FFbxSkinMeta
     int32         TotalInfluenceCount = 0;
 };
 
-/** FBX cluster媛 ?대뼡 蹂??몃뱶? control point weight瑜?媛吏?붿? 湲곕줉?섎뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX cluster가 어떤 본 노드와 control point weight를 가지는지 기록하는 메타 데이터이다. */
 struct FFbxClusterMeta
 {
     int32       ClusterId = -1;
@@ -94,7 +94,7 @@ struct FFbxClusterMeta
     bool        bValid = false;
 };
 
-/** FBX ?몃뱶 以??ㅼ펷?덊넠 蹂몄쑝濡??댁꽍????ぉ??怨꾩링 ?뺣낫瑜??대뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX 노드 중 스켈레톤 본으로 해석된 항목의 계층 정보를 담는 메타 데이터이다. */
 struct FFbxBoneMeta
 {
     int32         BoneId = -1;
@@ -116,10 +116,10 @@ struct FFbxBoneMeta
 };
 
 /**
- * ?섎굹???ㅼ펷?덊넠?쇰줈 臾띠씤 蹂?怨꾩링怨?ID 留ㅽ븨??蹂닿??쒕떎.
+ * 하나의 스켈레톤으로 묶인 본 계층과 ID 매핑을 보관한다.
  *
- * FBX?먮뒗 ?щ윭 skeleton root媛 ?덉쓣 ???덉쑝誘濡? 媛??ㅼ펷?덊넠 ?⑥쐞濡?蹂?諛곗뿴怨??먮낯 bone id?먯꽌 ?붿쭊
- * bone index濡?媛??留ㅽ븨??遺꾨━?쒕떎. ?ㅽ궎???뚰듃 議곕┰怨??좊땲硫붿씠???뚯떛??湲곗? ?뚯씠釉붿씠??
+ * FBX에는 여러 skeleton root가 있을 수 있으므로, 각 스켈레톤 단위로 본 배열과 원본 bone id에서 엔진
+ * bone index로 가는 매핑을 분리한다. 스키닝 파트 조립과 애니메이션 파싱의 기준 테이블이다.
  */
 struct FFbxSkeletonMeta
 {
@@ -138,7 +138,7 @@ struct FFbxSkeletonMeta
     bool                   bHasSingleRoot = true;
 };
 
-/** FBX 癒명떚由ъ뼹???대쫫, ?먮낯 ?ъ씤?? 蹂?섎맂 ?먯뀑 寃쎈줈瑜??④퍡 蹂닿??섎뒗 硫뷀? ?곗씠?곗씠?? */
+/** FBX 머티리얼의 이름, 원본 포인터, 변환된 에셋 경로를 함께 보관하는 메타 데이터이다. */
 struct FFbxMaterialInfo
 {
     int32   MaterialId = -1;
@@ -153,9 +153,10 @@ struct FFbxMaterialInfo
 };
 
 /**
- * FBX ?꾪룷???꾩껜媛 怨듭쑀?섎뒗 ?먮낯 ??硫뷀? 而⑦뀓?ㅽ듃?대떎.
+ * FBX 임포트 전체가 공유하는 원본 씬 메타 컨텍스트이다.
  *
- * ?몃뱶, 硫붿떆, ?ㅽ궓, 蹂? ?ㅼ펷?덊넠, 癒명떚由ъ뼹??ID 湲곕컲?쇰줈 ?뺣━???섏쐞 ?뚯꽌?ㅼ씠 媛숈? 湲곗??? * ?ъ슜?섎룄濡??쒕떎. FBX SDK ?ъ씤?곗쓽 吏곸젒 ?쒗쉶 鍮꾩슜怨?以묐났 ?댁꽍??以꾩씠??以묒떖 ?곗씠?곗씠??
+ * 노드, 메시, 스킨, 본, 스켈레톤, 머티리얼을 ID 기반으로 정리해 하위 파서들이 같은 기준을
+ * 사용하도록 한다. FBX SDK 포인터의 직접 순회 비용과 중복 해석을 줄이는 중심 데이터이다.
  */
 struct FFbxImportMeta
 {

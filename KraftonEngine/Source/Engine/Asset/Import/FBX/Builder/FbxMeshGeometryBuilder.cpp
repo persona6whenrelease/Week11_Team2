@@ -1,8 +1,9 @@
 /**
- * FBX Mesh??polygon/control point ?곗씠?곕? ?붿쭊 ?뺤젏 踰꾪띁 ?뺤떇?쇰줈 蹂?섑븳??
+ * FBX Mesh의 polygon/control point 데이터를 엔진 정점 버퍼 형식으로 변환한다.
  *
- * FBX??mapping/reference mode???곕씪 ?꾩튂, ?몃쭚, UV, ?꾩젨?? 癒명떚由ъ뼹 ?몃뜳?ㅻ? ?쎄퀬, ?붿쭊?? * ?ъ슜?섎뒗 ?쇨컖??由ъ뒪?몄? ?뱀뀡 ?뺣낫濡??ш뎄?깊븳?? StaticMesh? SkinnedMeshPart媛 媛숈? 吏?ㅻ찓?몃━
- * ?댁꽍 洹쒖튃??怨듭쑀?섎룄濡?怨듯넻 鍮뚮뜑濡?遺꾨━?섏뼱 ?덈떎.
+ * FBX의 mapping/reference mode에 따라 위치, 노말, UV, 탄젠트, 머티리얼 인덱스를 읽고, 엔진이
+ * 사용하는 삼각형 리스트와 섹션 정보로 재구성한다. StaticMesh와 SkinnedMeshPart가 같은 지오메트리
+ * 해석 규칙을 공유하도록 공통 빌더로 분리되어 있다.
  */
 
 #include "Asset/Import/FBX/Builder/FbxMeshGeometryBuilder.h"

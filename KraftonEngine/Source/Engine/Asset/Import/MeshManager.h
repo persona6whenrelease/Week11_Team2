@@ -1,10 +1,10 @@
-﻿/**
- * 硫붿떆 ?쒖뒪?쒖쓽 怨듦컻 Facade瑜??좎뼵?쒕떎.
+/**
+ * 메시 시스템의 공개 Facade를 선언한다.
  *
- * ?먮뵒?곗? ?고???履?肄붾뱶??OBJManager, FBXManager???몃? 援ы쁽??吏곸젒 ???꾩슂 ?놁씠 ???대옒?ㅻ?
- * ?듯빐 硫붿떆瑜?濡쒕뱶?섍퀬, ?먮낯 ?뚯씪 紐⑸줉???ㅼ틪?섍퀬, GPU 由ъ냼?ㅻ? ?댁젣?쒕떎. FBX ???대????뱀젙
- * 硫붿떆瑜?媛由ы궎??臾몄옄??李몄“ 洹쒖튃???ш린???먮퀎?섎?濡?Content Browser??Asset Editor媛 媛숈?
- * 寃쎈줈 ?댁꽍 諛⑹떇??怨듭쑀?????덈떎.
+ * 에디터와 런타임 쪽 코드는 OBJManager, FBXManager의 세부 구현을 직접 알 필요 없이 이 클래스를
+ * 통해 메시를 로드하고, 원본 파일 목록을 스캔하고, GPU 리소스를 해제한다. FBX 씬 내부의 특정
+ * 메시를 가리키는 문자열 참조 규칙도 여기서 판별하므로 Content Browser나 Asset Editor가 같은
+ * 경로 해석 방식을 공유할 수 있다.
  */
 
 #pragma once
@@ -20,10 +20,11 @@ class USkeletalMesh;
 class UStaticMesh;
 
 /**
- * 硫붿떆 濡쒕뵫怨??ㅼ틪??理쒖긽???묎렐?먯씠??
+ * 메시 로딩과 스캔의 최상위 접근점이다.
  *
- * ?몄텧遺媛 OBJ, FBX ?먮낯, FBX ???대? 硫붿떆 李몄“瑜?吏곸젒 援щ텇?섏? ?딆븘???섎룄濡?寃쎈줈 臾몄옄?댁쓣
- * ?댁꽍?섍퀬 ?뚮쭪? 留ㅻ땲?濡??꾩엫?쒕떎. 硫붿떆 ?쒖뒪???몃????몄텧?섎뒗 API瑜????대옒?ㅻ줈 紐⑥븘 ?먯뼱 ?꾪룷?? * 諛⑹떇?대굹 罹먯떆 ?뺤콉??諛붾뚯뼱???먮뵒???뚮뜑??履?蹂寃?踰붿쐞瑜?以꾩씤??
+ * 호출부가 OBJ, FBX 원본, FBX 씬 내부 메시 참조를 직접 구분하지 않아도 되도록 경로 문자열을
+ * 해석하고 알맞은 매니저로 위임한다. 메시 시스템 외부에 노출되는 API를 이 클래스로 모아 두어 임포트
+ * 방식이나 캐시 정책이 바뀌어도 에디터/렌더러 쪽 변경 범위를 줄인다.
  */
 class FMeshManager
 {
@@ -43,15 +44,16 @@ class FMeshManager
                                             const FImportOptions &Options, ID3D11Device *InDevice);
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
     /**
-     * FBX ?먮낯 ?먮뒗 罹먯떆 寃쎈줈瑜?UFBXSceneAsset?쇰줈 濡쒕뱶?쒕떎.
+     * FBX 원본 또는 캐시 경로를 UFBXSceneAsset으로 로드한다.
      *
-     * ?대? 罹먯떆???ъ씠 ?덉쑝硫??ъ궗?⑺븯怨? ?놁쑝硫??먮낯 FBX瑜??꾪룷?명빐 ???먯뀑??援ъ꽦?쒕떎.
+     * 이미 캐시된 씬이 있으면 재사용하고, 없으면 원본 FBX를 임포트해 씬 에셋을 구성한다.
      */
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     /**
-     * FBX ???대? 硫붿떆 李몄“ 臾몄옄?댁쓣 ?ㅼ젣 UObject濡?蹂?섑븳??
+     * FBX 씬 내부 메시 참조 문자열을 실제 UObject로 변환한다.
      *
-     * #Mesh_, #Skeleton_ 媛숈? 李몄“ 洹쒖튃???댁꽍???대떦 ??罹먯떆 ?덉쓽 StaticMesh ?먮뒗 SkeletalMesh瑜?     * 李얜뒗??
+     * #Mesh_, #Skeleton_ 같은 참조 규칙을 해석해 해당 씬 캐시 안의 StaticMesh 또는 SkeletalMesh를
+     * 찾는다.
      */
     static UObject *ResolveFbxSceneAssetReference(const FString &PathFileName);
 

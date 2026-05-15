@@ -1,8 +1,9 @@
 /**
- * FBX mesh node 以?StaticMesh濡??ъ슜?????덈뒗 ?곗씠?곕? ?뚯떛?쒕떎.
+ * FBX mesh node 중 StaticMesh로 사용할 수 있는 데이터를 파싱한다.
  *
- * 媛?mesh node??bind transform??湲곗??쇰줈 吏?ㅻ찓?몃━瑜??붿쭊 醫뚰몴怨꾩뿉 留욎떠 蹂?섑븯怨? 寃곌낵
- * StaticMesh瑜?FBX ???대? mesh id? ?곌껐?쒕떎. ?ㅽ궎???뺣낫媛 ?꾩슂??遺遺꾩? 蹂꾨룄 ?뚯꽌媛 泥섎━?섎?濡? * ??援ы쁽遺???뺤쟻 吏?ㅻ찓?몃━ 蹂?섏뿉 吏묒쨷?쒕떎.
+ * 각 mesh node의 bind transform을 기준으로 지오메트리를 엔진 좌표계에 맞춰 변환하고, 결과
+ * StaticMesh를 FBX 씬 내부 mesh id와 연결한다. 스키닝 정보가 필요한 부분은 별도 파서가 처리하므로
+ * 이 구현부는 정적 지오메트리 변환에 집중한다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxStaticMeshParser.h"

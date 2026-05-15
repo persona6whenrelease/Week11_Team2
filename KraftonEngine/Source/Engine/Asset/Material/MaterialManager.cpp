@@ -28,7 +28,7 @@ void FMaterialManager::ScanMaterialAssets()
 		const std::filesystem::path& Path = Entry.path();
 
 		if (Path.extension() != L".mat") continue;
-		if (Path.stem() == L"None") continue; // Fallback 癒명떚由ъ뼹? 紐⑸줉?먯꽌 ?쒖쇅
+		if (Path.stem() == L"None") continue; // Fallback 머티리얼은 목록에서 제외
 
 		FMaterialAssetListItem Item;
 		Item.DisplayName = FPaths::ToUtf8(Path.stem().wstring());
@@ -41,35 +41,35 @@ UMaterial* FMaterialManager::GetOrCreateMaterial(const FString& MatFilePath)
 {
 	std::filesystem::path Path(FPaths::ToWide(MatFilePath));
 	FString GenericPath = FPaths::ToUtf8(Path.generic_wstring());
-	// 1. 罹먯떆 諛섑솚
+	// 1. 캐시 반환
 	auto It = MaterialCache.find(GenericPath);
 	if (It != MaterialCache.end())
 	{
 		return It->second;
 	}
 
-	// 2. 罹먯떆???녿떎硫?JSON?먯꽌 ?쎄린 
+	// 2. 캐시에 없다면 JSON에서 읽기 
 	json::JSON JsonData = ReadJsonFile(GenericPath);
 	if (JsonData.IsNull())
 	{
-		// 湲곕낯 癒명떚由ъ뼹 ?앹꽦
+		// 기본 머티리얼 생성
 		UMaterial* DefaultMaterial = UObjectManager::Get().CreateObject<UMaterial>();
 		FMaterialTemplate* Template = GetOrCreateTemplate(DefaultShaderPath);
 		TMap<FString, std::unique_ptr<FMaterialConstantBuffer>> Buffers = CreateConstantBuffers(Template);
 		DefaultMaterial->Create(GenericPath, Template, ERenderPass::Opaque, EBlendState::Opaque, EDepthStencilState::Default, ERasterizerState::SolidBackCull, std::move(Buffers));
-		// ?대갚: ?묓겕?됱쑝濡?誘몄???癒명떚由ъ뼹?꾩쓣 ?쒖떆
+		// 폴백: 핑크색으로 미지정 머티리얼임을 표시
 		DefaultMaterial->SetVector4Parameter("SectionColor", FVector4(1.0f, 0.0f, 1.0f, 1.0f));
 		MaterialCache.emplace(GenericPath, DefaultMaterial);
 		return DefaultMaterial;
 	}
 
-	// 3. JSON?먯꽌 湲곕낯 ?뺣낫 異붿텧
+	// 3. JSON에서 기본 정보 추출
 	FString PathFileName = JsonData[MatKeys::PathFileName].ToString().c_str();
 	FString ShaderPath = JsonData[MatKeys::ShaderPath].ToString().c_str();
 	FString RenderPassStr = JsonData[MatKeys::RenderPass].ToString().c_str();
 	ERenderPass RenderPass = StringToRenderPass(RenderPassStr);
 
-	// ?덈줈???뚮뜑 ?곹깭 異붿텧 (JSON???놁쑝硫??⑥뒪 湲곕컲 湲곕낯媛?
+	// 새로운 렌더 상태 추출 (JSON에 없으면 패스 기반 기본값)
 	FString BlendStr = JsonData.hasKey(MatKeys::BlendState) ? JsonData[MatKeys::BlendState].ToString().c_str() : "";
 	FString DepthStr = JsonData.hasKey(MatKeys::DepthStencilState) ? JsonData[MatKeys::DepthStencilState].ToString().c_str() : "";
 	FString RasterStr = JsonData.hasKey(MatKeys::RasterizerState) ? JsonData[MatKeys::RasterizerState].ToString().c_str() : "";
@@ -78,35 +78,35 @@ UMaterial* FMaterialManager::GetOrCreateMaterial(const FString& MatFilePath)
 	EDepthStencilState DepthState = StringToDepthStencilState(DepthStr, RenderPass);
 	ERasterizerState RasterState = StringToRasterizerState(RasterStr, RenderPass);
 
-	// 4. ?쒗뵆由??뺣낫 (?놁쑝硫?由ы뵆?됱뀡???듯빐 ?앹꽦??
+	// 4. 템플릿 확보 (없으면 리플렉션을 통해 생성됨)
 	FMaterialTemplate* Template = GetOrCreateTemplate(ShaderPath);
 	if (!Template) return nullptr;
 
-	// 5. D3D ?곸닔 踰꾪띁 ?앹꽦
+	// 5. D3D 상수 버퍼 생성
 	auto InjectedBuffers = CreateConstantBuffers(Template);
 
-	// 6. UMaterial ?몄뒪?댁뒪 ?앹꽦 諛?珥덇린??(RenderPass???몄뒪?댁뒪蹂?
+	// 6. UMaterial 인스턴스 생성 및 초기화 (RenderPass는 인스턴스별)
 	UMaterial* Material = UObjectManager::Get().CreateObject<UMaterial>();
 	Material->Create(PathFileName, Template, RenderPass, BlendState, DepthState, RasterState, std::move(InjectedBuffers));
 	MaterialCache.emplace(GenericPath, Material);
 
-	//?쒗뵆由우쓣 ?듯빐 material???ｊ린
+	//템플릿을 통해 material에 넣기
 	bool bInjected = InjectDefaultParameters(JsonData, Template, Material);
 
-	// ?댁쟾 ?곗씠?붿쓽 李뚭볼湲??뚮씪誘명꽣 ?뺣━
+	// 이전 셰이더의 찌꺼기 파라미터 정리
 	bool bPurged = PurgeStaleParameters(JsonData, Template);
 
-	// 5. ?뚮씪誘명꽣 諛??띿뒪泥??곸슜
+	// 5. 파라미터 및 텍스처 적용
 	ApplyParameters(Material, JsonData);
 	ApplyTextures(Material, JsonData);
 	Material->RebuildCachedSRVs();
 
-	// JSON ?곗씠?곗뿉???꾩옱 ?곹깭瑜?湲곕줉 (?섏쨷????????좎??섎룄濡?
+	// JSON 데이터에도 현재 상태를 기록 (나중에 저장 시 유지되도록)
 	JsonData[MatKeys::BlendState] = BlendStr.empty() ? "" : BlendStr.c_str();
 	JsonData[MatKeys::DepthStencilState] = DepthStr.empty() ? "" : DepthStr.c_str();
 	JsonData[MatKeys::RasterizerState] = RasterStr.empty() ? "" : RasterStr.c_str();
 
-	//理쒖쥌?곸쑝濡?material ???
+	//최종적으로 material 저장
 	if (bInjected || bPurged)
 	{
 		SaveToJSON(JsonData, GenericPath);
@@ -125,7 +125,7 @@ json::JSON FMaterialManager::ReadJsonFile(const FString& FilePath) const
 	}
 
 	std::ifstream File(std::filesystem::path(DiskPath), std::ios::binary);
-	if (!File.is_open()) return json::JSON(); // Null JSON 諛섑솚
+	if (!File.is_open()) return json::JSON(); // Null JSON 반환
 
 	std::stringstream Buffer;
 	Buffer << File.rdbuf();
@@ -214,7 +214,7 @@ EBlendState FMaterialManager::StringToBlendState(const FString& Str, ERenderPass
 	if (!Str.empty())
 		return FromString(BlendStateMap, Str, EBlendState::Opaque);
 
-	// 臾몄옄?댁씠 鍮꾩뼱?덉쑝硫?Pass 湲곕컲 湲곕낯媛?
+	// 문자열이 비어있으면 Pass 기반 기본값
 	switch (Pass)
 	{
 	case ERenderPass::AlphaBlend:
@@ -239,7 +239,7 @@ EDepthStencilState FMaterialManager::StringToDepthStencilState(const FString& St
 	if (!Str.empty())
 		return FromString(DepthStencilStateMap, Str, EDepthStencilState::Default);
 
-	// 臾몄옄?댁씠 鍮꾩뼱?덉쑝硫?Pass 湲곕컲 湲곕낯媛?
+	// 문자열이 비어있으면 Pass 기반 기본값
 	switch (Pass)
 	{
 	case ERenderPass::Decal:
@@ -265,7 +265,7 @@ ERasterizerState FMaterialManager::StringToRasterizerState(const FString& Str, E
 	if (!Str.empty())
 		return FromString(RasterizerStateMap, Str, ERasterizerState::SolidBackCull);
 
-	// 臾몄옄?댁씠 鍮꾩뼱?덉쑝硫?Pass 湲곕컲 湲곕낯媛?
+	// 문자열이 비어있으면 Pass 기반 기본값
 	switch (Pass)
 	{
 	case ERenderPass::Decal:
@@ -306,7 +306,7 @@ bool FMaterialManager::InjectDefaultParameters(json::JSON& JsonData, FMaterialTe
 		const FString& ParamName = Pair.first;
 		const FMaterialParameterInfo* Info = Pair.second;
 
-		// ?대? JSON???덉쑝硫??ㅽ궢
+		// 이미 JSON에 있으면 스킵
 		if (!JsonData[MatKeys::Parameters][ParamName].IsNull())
 			continue;
 
@@ -314,28 +314,28 @@ bool FMaterialManager::InjectDefaultParameters(json::JSON& JsonData, FMaterialTe
 
 		switch (Info->Size)
 		{
-			case sizeof(float) : // 4諛붿씠??- Scalar
+			case sizeof(float) : // 4바이트 - Scalar
 			{
 				float Value = 0.f;
 				Material->GetScalarParameter(ParamName, Value);
 				JsonData[MatKeys::Parameters][ParamName] = Value;
 				break;
 			}
-			case sizeof(float) * 3: // 12諛붿씠??- Vector3
+			case sizeof(float) * 3: // 12바이트 - Vector3
 			{
 				FVector Value;
 				Material->GetVector3Parameter(ParamName, Value);
 				JsonData[MatKeys::Parameters][ParamName] = json::Array(Value.X, Value.Y, Value.Z);
 				break;
 			}
-			case sizeof(float) * 4: // 16諛붿씠??- Vector4
+			case sizeof(float) * 4: // 16바이트 - Vector4
 			{
 				FVector4 Value;
 				Material->GetVector4Parameter(ParamName, Value);
 				JsonData[MatKeys::Parameters][ParamName] = json::Array(Value.X, Value.Y, Value.Z, Value.W);
 				break;
 			}
-			case sizeof(float) * 16: // 64諛붿씠??- Matrix
+			case sizeof(float) * 16: // 64바이트 - Matrix
 			{
 				FMatrix Value;
 				Material->GetMatrixParameter(ParamName, Value);
@@ -346,7 +346,7 @@ bool FMaterialManager::InjectDefaultParameters(json::JSON& JsonData, FMaterialTe
 				break;
 			}
 			default:
-				break; // uint, bool ???뱀닔 耳?댁뒪??蹂꾨룄 泥섎━ ?꾩슂
+				break; // uint, bool 등 특수 케이스는 별도 처리 필요
 		}
 	}
 
@@ -384,15 +384,15 @@ bool FMaterialManager::PurgeStaleParameters(json::JSON& JsonData, FMaterialTempl
 
 FMaterialTemplate* FMaterialManager::GetOrCreateTemplate(const FString& ShaderPath)
 {
-	// 1. ?쒗뵆由우씠 罹먯떆???덈뒗吏 ?뺤씤 (?곗씠??寃쎈줈瑜??ㅺ컪?쇰줈 ?ъ슜)
+	// 1. 템플릿이 캐시에 있는지 확인 (셰이더 경로를 키값으로 사용)
 	auto It = TemplateCache.find(ShaderPath);
 	if (It != TemplateCache.end())
 	{
 		return It->second;
 	}
 
-	// 2. ?쒗뵆由우씠 湲곗〈???녿떎硫??덈줈 ?쒖옉
-	//    罹먯떆???덉쑝硫?諛섑솚, ?놁쑝硫?而댄뙆????罹먯떛
+	// 2. 템플릿이 기존에 없다면 새로 제작
+	//    캐시에 있으면 반환, 없으면 컴파일 후 캐싱
 	FShader* Shader = FShaderManager::Get().FindOrCreate(ShaderPath);
 	if (!Shader)
 	{
@@ -416,8 +416,8 @@ FMaterialManager::~FMaterialManager()
 
 void FMaterialManager::Release()
 {
-	// 1. TemplateCache 硫붾え由??댁젣
-	// GetOrCreateTemplate()?먯꽌 new FMaterialTemplate()濡?吏곸젒 ?좊떦?덉쑝誘濡??ш린??delete ?댁쨳?덈떎.
+	// 1. TemplateCache 메모리 해제
+	// GetOrCreateTemplate()에서 new FMaterialTemplate()로 직접 할당했으므로 여기서 delete 해줍니다.
 	for (auto& Pair : TemplateCache)
 	{
 		if (Pair.second != nullptr)
@@ -428,10 +428,10 @@ void FMaterialManager::Release()
 	}
 	TemplateCache.clear();
 
-	// 2. MaterialCache ??UMaterial? UObjectManager媛 ?섎챸??愿由ы븯誘濡?罹먯떆 留듬쭔 鍮꾩?
+	// 2. MaterialCache — UMaterial은 UObjectManager가 수명을 관리하므로 캐시 맵만 비움
 	MaterialCache.clear();
 
-	// 3. Device 李몄“ ?댁젣
-	// ?몃??먯꽌 二쇱엯諛쏆? 由ъ냼?ㅼ씠誘濡??ъ씤?곕쭔 珥덇린?뷀빀?덈떎.
+	// 3. Device 참조 해제
+	// 외부에서 주입받은 리소스이므로 포인터만 초기화합니다.
 	Device = nullptr;
 }
