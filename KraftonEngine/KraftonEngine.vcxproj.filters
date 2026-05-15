@@ -1178,6 +1178,9 @@
     <ClCompile Include="Source\ObjViewer\ObjViewerViewportClient.cpp">
       <Filter>Source\ObjViewer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\pch.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
@@ -1594,6 +1597,9 @@
     </ClInclude>
     <ClInclude Include="Source\Engine\Materials\MaterialManager.h">
       <Filter>Source\Engine\Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Math\Math.h">
+      <Filter>Source\Engine\Math</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Math\MathUtils.h">
       <Filter>Source\Engine\Math</Filter>
@@ -2119,6 +2125,9 @@
     </ClInclude>
     <ClInclude Include="Source\ObjViewer\ObjViewerViewportClient.h">
       <Filter>Source\ObjViewer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\pch.h">
+      <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\FBXSDK\include\fbxsdk.h">
       <Filter>ThirdParty\FBXSDK\include</Filter>

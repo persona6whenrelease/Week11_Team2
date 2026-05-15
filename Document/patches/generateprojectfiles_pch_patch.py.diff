@@ -1,0 +1,59 @@
+--- a/Scripts/generateprojectfiles.py
++++ b/Scripts/generateprojectfiles.py
+@@ -517,6 +517,8 @@ def generate_vcxproj(
+     include_sfml: bool = False,
+     include_fbxsdk: bool = False,
+     include_nuget: bool = False,
++    pch_header: str | None = None,
++    pch_create_source: str | None = None,
+     project_references: list[ProjectReference] | None = None,
+ ):
+     project_references = project_references or []
+@@ -632,6 +634,12 @@ def generate_vcxproj(
+         cl = ET.SubElement(idg, "ClCompile")
+
+         ET.SubElement(cl, "WarningLevel").text = "Level3"
++
++        if pch_header:
++            ET.SubElement(cl, "PrecompiledHeader").text = "Use"
++            ET.SubElement(cl, "PrecompiledHeaderFile").text = pch_header
++            # ForcedInclude removes the need to edit ~233 .cpp files.
++            ET.SubElement(cl, "ForcedIncludeFiles").text = f"{pch_header};%(ForcedIncludeFiles)"
+
+         is_release = props.get("release_like", cfg == "Release")
+         is_win32 = plat == "Win32"
+@@ -707,6 +715,16 @@ def generate_vcxproj(
+             continue
+         ig = ET.SubElement(proj, "ItemGroup")
+         for f in item_files:
+             elem = ET.SubElement(ig, item_name, Include=f)
++            # PCH creator: pch.cpp gets /Yc and must NOT be force-included.
++            if (
++                item_name == "ClCompile"
++                and pch_create_source
++                and f.replace("/", "\\").lower().endswith(pch_create_source.replace("/", "\\").lower())
++            ):
++                ET.SubElement(elem, "PrecompiledHeader").text = "Create"
++                # Empty value clears the ForcedIncludeFiles inherited from the ItemDefinitionGroup.
++                ET.SubElement(elem, "ForcedIncludeFiles").text = ""
+             if item_name == "FxCompile":
+                 for cfg, plat in CONFIGURATIONS:
+                     if plat == "x64":
+@@ -920,6 +938,9 @@ def main():
+         include_paths=INCLUDE_PATHS,
+         application_project=True,
+         include_sfml=True,
+         include_fbxsdk=True,
+         include_nuget=True,
++        # PCH applies only to KraftonEngine.vcxproj.
++        pch_header="pch.h",
++        pch_create_source="Source\\pch.cpp",
+         project_references=app_project_references,
+     )
+
+@@ -960,6 +981,7 @@ def main():
+         include_paths=CROSSY_INCLUDE_PATHS,
+         static_library_project=True,
+         int_dir_prefix="Crossy",
++        # CrossyGame.vcxproj intentionally has no PCH.
+     )
