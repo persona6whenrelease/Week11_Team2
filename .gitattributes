@@ -2,7 +2,10 @@
 * text=auto
 
 # for ubuntu
-* text=auto
 *.cpp text eol=crlf
 *.h text eol=crlf
 *.sh text eol=lf
+
+# FBXSDK binaries
+KraftonEngine/ThirdParty/FBXSDK/**/*.lib filter=lfs diff=lfs merge=lfs -text
+KraftonEngine/ThirdParty/FBXSDK/**/*.dll filter=lfs diff=lfs merge=lfs -text
