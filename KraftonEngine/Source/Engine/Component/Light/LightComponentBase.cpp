@@ -3,7 +3,7 @@
 #include "Object/ObjectFactory.h"
 #include "GameFramework/AActor.h"
 #include "Component/BillboardComponent.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 IMPLEMENT_CLASS(ULightComponentBase, USceneComponent)
 HIDE_FROM_COMPONENT_LIST(ULightComponentBase)

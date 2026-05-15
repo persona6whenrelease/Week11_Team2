@@ -1,4 +1,4 @@
-﻿#include "Editor/UI/EditorPropertyWidget.h"
+#include "Editor/UI/EditorPropertyWidget.h"
 
 #include "Editor/EditorEngine.h"
 #include "Editor/UI/EditorFileUtils.h"
@@ -31,10 +31,10 @@
 #include "Resource/ResourceManager.h"
 #include "Object/FName.h"
 #include "Object/ObjectIterator.h"
-#include "Materials/Material.h"
-#include "Mesh/MeshManager.h"
-#include "Mesh/SkeletalMesh.h"
-#include "Mesh/StaticMesh.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Mesh/StaticMesh/StaticMesh.h"
 #include "Platform/Paths.h"
 
 #include <Windows.h>
@@ -46,7 +46,7 @@
 #include <cwctype>
 #include <filesystem>
 
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 #define SEPARATOR(); ImGui::Spacing(); ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 

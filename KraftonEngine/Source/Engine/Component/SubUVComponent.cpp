@@ -10,7 +10,7 @@
 #include "Component/CameraComponent.h"
 #include "Render/Proxy/SubUVSceneProxy.h"
 #include "Serialization/Archive.h"
-#include "Materials/Material.h"
+#include "Asset/Material/Material.h"
 
 IMPLEMENT_CLASS(USubUVComponent, UBillboardComponent)
 

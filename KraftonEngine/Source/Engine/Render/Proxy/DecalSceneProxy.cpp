@@ -1,11 +1,11 @@
-﻿#include "Render/Proxy/DecalSceneProxy.h"
+#include "Render/Proxy/DecalSceneProxy.h"
 
 #include "Component/DecalComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Render/Shader/ShaderManager.h"
 
-#include "Materials/Material.h"
-#include "Texture/Texture2D.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Texture/Texture2D.h"
 #include "Object/ObjectFactory.h"
 
 namespace

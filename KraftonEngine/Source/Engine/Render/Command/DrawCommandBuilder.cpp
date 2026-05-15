@@ -1,4 +1,4 @@
-﻿#include "DrawCommandBuilder.h"
+#include "DrawCommandBuilder.h"
 
 #include "Resource/ResourceManager.h"
 #include "Render/Types/RenderTypes.h"
@@ -11,8 +11,8 @@
 #include "Render/Types/RenderConstants.h"
 #include "Render/RenderPass/PassRenderStateTable.h"
 #include "Render/Pipeline/RenderCollector.h"
-#include "Materials/Material.h"
-#include "Texture/Texture2D.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Texture/Texture2D.h"
 #include "Core/Log.h"
 
 // UpdateProxyLOD defined in RenderCollector.cpp (shared)

@@ -3,8 +3,8 @@
 #include "Render/Resource/MeshBufferManager.h"
 #include "Render/Types/FrameContext.h"
 #include "GameFramework/AActor.h"
-#include "Materials/Material.h"
-#include "Texture/Texture2D.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Texture/Texture2D.h"
 
 // ============================================================
 // FBillboardSceneProxy
@@ -25,7 +25,7 @@ UBillboardComponent* FBillboardSceneProxy::GetBillboardComponent() const
 }
 
 // ============================================================
-// UpdateTransform — Scale/Location 캐싱
+// UpdateTransform ??Scale/Location 罹먯떛
 // ============================================================
 void FBillboardSceneProxy::UpdateTransform()
 {
@@ -36,7 +36,7 @@ void FBillboardSceneProxy::UpdateTransform()
 }
 
 // ============================================================
-// UpdateMesh — TexturedQuad + Material shader/states
+// UpdateMesh ??TexturedQuad + Material shader/states
 // ============================================================
 void FBillboardSceneProxy::UpdateMesh()
 {
@@ -48,7 +48,7 @@ void FBillboardSceneProxy::UpdateMesh()
 		// TexturedQuad (FVertexPNCT with UVs)
 		MeshBuffer = &FMeshBufferManager::Get().GetMeshBuffer(EMeshShape::TexturedQuad);
 
-		// SectionDraws 단일 항목 — Material의 CachedSRVs로 텍스처 바인딩
+		// SectionDraws ?⑥씪 ??ぉ ??Material??CachedSRVs濡??띿뒪泥?諛붿씤??
 		const uint32 IndexCount = MeshBuffer->GetIndexBuffer().GetIndexCount();
 		SectionDraws.clear();
 		SectionDraws.push_back({ Mat, 0, IndexCount });
@@ -61,13 +61,13 @@ void FBillboardSceneProxy::UpdateMesh()
 }
 
 // ============================================================
-// UpdatePerViewport — 뷰포트 카메라 기반 빌보드 행렬 갱신
+// UpdatePerViewport ??酉고룷??移대찓??湲곕컲 鍮뚮낫???됰젹 媛깆떊
 // ============================================================
 void FBillboardSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 {
 	if (!bVisible) return;
 
-	// Frame 카메라 벡터로 per-view 빌보드 행렬 계산
+	// Frame 移대찓??踰≫꽣濡?per-view 鍮뚮낫???됰젹 怨꾩궛
 	FVector BillboardForward = Frame.CameraForward * -1.0f;
 	FMatrix RotMatrix;
 	RotMatrix.SetAxes(BillboardForward, Frame.CameraRight, Frame.CameraUp);

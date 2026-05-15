@@ -1,8 +1,8 @@
-#include "Render/Proxy/SubUVSceneProxy.h"
+﻿#include "Render/Proxy/SubUVSceneProxy.h"
 #include "Component/SubUVComponent.h"
 #include "Render/Types/FrameContext.h"
 #include "Render/Resource/MeshBufferManager.h"
-#include "Materials/Material.h"
+#include "Asset/Material/Material.h"
 
 // ============================================================
 // FSubUVSceneProxy
@@ -27,15 +27,15 @@ void FSubUVSceneProxy::UpdateMesh()
 
 	UMaterial* SubUVMat = Comp->GetSubUVMaterial();
 
-	// UV region CB를 Material에 바인딩 (b2 슬롯)
+	// UV region CB瑜?Material??諛붿씤??(b2 ?щ’)
 	if (SubUVMat)
 		SubUVMat->BindPerShaderCB<FSubUVRegionConstants>(&UVRegionCB, ECBSlot::PerShader0);
 
-	// Particle/FrameIndex 캐싱
+	// Particle/FrameIndex 罹먯떛
 	CachedParticle = Comp->GetParticle();
 	CachedFrameIndex = Comp->GetFrameIndex();
 
-	// SectionDraws 단일 항목 — SubUVMaterial로 Particle SRV 바인딩
+	// SectionDraws ?⑥씪 ??ぉ ??SubUVMaterial濡?Particle SRV 諛붿씤??
 	SectionDraws.clear();
 	if (SubUVMat)
 	{
@@ -46,12 +46,12 @@ void FSubUVSceneProxy::UpdateMesh()
 
 void FSubUVSceneProxy::UpdateMaterial()
 {
-	// TickComponent에서 FrameIndex 변경 시 Material dirty로 호출됨
+	// TickComponent?먯꽌 FrameIndex 蹂寃???Material dirty濡??몄텧??
 	USubUVComponent* Comp = GetSubUVComponent();
 	CachedFrameIndex = Comp->GetFrameIndex();
 	CachedParticle = Comp->GetParticle();
 
-	// SectionDraws 갱신 — SubUVMaterial의 CachedSRV는 Component가 관리
+	// SectionDraws 媛깆떊 ??SubUVMaterial??CachedSRV??Component媛 愿由?
 	SectionDraws.clear();
 	UMaterial* SubUVMat = Comp->GetSubUVMaterial();
 	if (SubUVMat)

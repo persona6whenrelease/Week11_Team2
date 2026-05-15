@@ -3,7 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include "Engine/Runtime/Engine.h"
-#include "Mesh/MeshManager.h"
+#include "Asset/Import/MeshManager.h"
 #include "Object/ObjectFactory.h"
 #include "Render/Proxy/SkeletalMeshSceneProxy.h"
 #include "Serialization/Archive.h"

@@ -4,7 +4,7 @@
 #include "Engine/Runtime/WindowsWindow.h"
 #include "GameFramework/World.h"
 #include "Object/ObjectFactory.h"
-#include "Mesh/MeshManager.h"
+#include "Asset/Import/MeshManager.h"
 #include "Component/StaticMeshComponent.h"
 #include "GameFramework/AActor.h"
 #include "Viewport/Viewport.h"

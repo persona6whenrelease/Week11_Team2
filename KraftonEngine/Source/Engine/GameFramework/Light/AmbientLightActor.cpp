@@ -2,7 +2,7 @@
 #include "Component/BillboardComponent.h"
 #include "Component/Light/LightComponentBase.h"
 #include "Component/Light/AmbientLightComponent.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 IMPLEMENT_CLASS(AAmbientLightActor, AActor)
 

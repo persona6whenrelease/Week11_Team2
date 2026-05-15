@@ -1,0 +1,81 @@
+﻿/**
+ * 硫붿떆 ?먯뀑 紐⑸줉 ?쒖떆, ?뱀뀡 踰붿쐞, 癒명떚由ъ뼹 ?щ’泥섎읆 ?뺤쟻 硫붿떆? ?ㅼ펷?덊깉 硫붿떆媛 ?④퍡 ?ъ슜?섎뒗
+ * 怨듯넻 ?곗씠??援ъ“瑜??뺤쓽?쒕떎.
+ *
+ * ???뚯씪????낅뱾? ?뚮뜑留?由ъ냼???먯껜媛 ?꾨땲???먯뀑 濡쒕뵫, 吏곷젹?? ?먮뵒??紐⑸줉 ?쒖떆 怨쇱젙?먯꽌
+ * 硫붿떆 ?곗씠?곗쓽 湲곕낯 ?⑥쐞瑜?留욎텛湲??꾪븳 寃쎈웾 援ъ“泥댁씠?? ?뱁엳 ?뱀뀡? ?몃뜳??踰꾪띁??援ш컙怨? * 癒명떚由ъ뼹 ?щ’???곌껐?섍퀬, 癒명떚由ъ뼹 ?뺣낫???????寃쎈줈 臾몄옄?대줈 諛붾뚯뿀?ㅺ? 濡쒕뱶 ?? * MaterialManager瑜??듯빐 ?ㅼ젣 癒명떚由ъ뼹 媛앹껜濡?蹂듦뎄?쒕떎.
+ */
+
+#pragma once
+
+#include "Core/CoreTypes.h"
+#include "Engine/Object/FName.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Material/MaterialManager.h"
+#include "Serialization/Archive.h"
+
+/**
+ * ?먮뵒??紐⑸줉???쒖떆??硫붿떆 ?먯뀑 ??ぉ?대떎.
+ *
+ * ?ъ슜?먯뿉寃?蹂댁뿬以??대쫫怨??ㅼ젣 濡쒕뱶???ъ슜???꾩껜 寃쎈줈瑜?遺꾨━?댁꽌 ??ν븳?? Content Browser?? * ?쒕∼?ㅼ슫 UI??DisplayName???ъ슜?섍퀬, ?좏깮 ?댄썑??濡쒕뱶 寃쎈줈??FullPath瑜??ъ슜?쒕떎.
+ */
+struct FMeshAssetListItem
+{
+    FString DisplayName;
+    FString FullPath;
+};
+
+/**
+ * ?섎굹??硫붿떆 ?덉뿉??媛숈? 癒명떚由ъ뼹???ъ슜?섎뒗 ?몃뜳??踰꾪띁 援ш컙?대떎.
+ *
+ * ?뚮뜑?щ뒗 ?뱀뀡 ?⑥쐞濡?癒명떚由ъ뼹??諛붽씀硫?draw call???섎닃 ???덈떎. FirstIndex? NumTriangles?? * ?몃뜳??踰꾪띁 ?덉뿉?????뱀뀡??李⑥??섎뒗 踰붿쐞瑜??섑??닿퀬, MaterialIndex/MaterialSlotName? ?대떦
+ * 援ш컙???대뼡 癒명떚由ъ뼹 ?щ’???곌껐?섎뒗吏 ?쒗쁽?쒕떎.
+ */
+struct FMeshSection
+{
+    int32   MaterialIndex = -1;
+    FString MaterialSlotName;
+    uint32  FirstIndex = 0;
+    uint32  NumTriangles = 0;
+
+    friend FArchive &operator<<(FArchive &Ar, FMeshSection &Section)
+    {
+        Ar << Section.MaterialSlotName << Section.FirstIndex << Section.NumTriangles;
+        return Ar;
+    }
+};
+
+/**
+ * 硫붿떆??癒명떚由ъ뼹 ?щ’怨??ㅼ젣 癒명떚由ъ뼹 媛앹껜瑜??곌껐?섎뒗 ?곗씠?곗씠??
+ *
+ * ????쒖뿉??UObject ?ъ씤?곕? 洹몃?濡?湲곕줉?????놁쑝誘濡?癒명떚由ъ뼹 ?먯뀑 寃쎈줈瑜?吏곷젹?뷀븯怨?
+ * 濡쒕뱶 ?쒖뿉??MaterialManager瑜??듯빐 ?ㅼ떆 UMaterial ?ъ씤?곕줈 蹂듭썝?쒕떎.
+ */
+struct FMeshMaterial
+{
+    UMaterial *MaterialInterface = nullptr;
+    FString    MaterialSlotName = "None";
+
+    friend FArchive &operator<<(FArchive &Ar, FMeshMaterial &Mat)
+    {
+        Ar << Mat.MaterialSlotName;
+
+        FString JsonPath;
+        if (Ar.IsSaving() && Mat.MaterialInterface)
+        {
+            JsonPath = Mat.MaterialInterface->GetAssetPathFileName();
+        }
+        Ar << JsonPath;
+
+        if (Ar.IsLoading())
+        {
+            Mat.MaterialInterface =
+                JsonPath.empty() ? nullptr : FMaterialManager::Get().GetOrCreateMaterial(JsonPath);
+        }
+
+        return Ar;
+    }
+};
+
+using FStaticMeshSection = FMeshSection;
+using FStaticMaterial = FMeshMaterial;

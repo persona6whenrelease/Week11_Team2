@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "Component/MeshComponent.h"
-#include "Mesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Render/Resource/Buffer.h"
 #include "Render/Types/VertexTypes.h"
 
