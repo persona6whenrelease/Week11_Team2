@@ -212,7 +212,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\FBXSDK\lib\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libfbxsdk.lib;sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libfbxsdk.dll;sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Debug\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\debug\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -237,7 +237,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libfbxsdk.lib;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libfbxsdk.dll;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -262,7 +262,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libfbxsdk.lib;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libfbxsdk.dll;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -287,7 +287,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libfbxsdk.lib;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libfbxsdk.dll;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -312,7 +312,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libfbxsdk.lib;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libfbxsdk.dll;sfml-audio.lib;sfml-window.lib;sfml-system.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>

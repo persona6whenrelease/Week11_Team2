@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copy of the active Directory.Build.targets at the repository root.
+
+  Placement: C:\GitDirectory11\Directory.Build.targets
+  Auto-imported by MSBuild AFTER the .vcxproj body, so the ClCompile item for
+  pch.cpp is already defined when this file is evaluated. Update= can match.
+
+  Why this can't live in Directory.Build.props:
+    MSBuild imports Directory.Build.props BEFORE the project body. At that
+    point, no ClCompile items exist yet, so <ClCompile Update="..."> is a
+    silent no-op and pch.cpp keeps the default PrecompiledHeader=Use, causing
+    the "cannot open precompiled header file" build error.
+
+  Why we use a literal path Update= (not a Condition with %(Filename)):
+    MSBuild rejects "%(Filename) cannot be referenced at position 1" when the
+    metadata is used in a Condition on a ClCompile Update element. Using an
+    explicit path resolves via MSBuild's path-normalization match.
+-->
+<Project>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'KraftonEngine'">
+    <ClCompile Update="$(MSBuildThisFileDirectory)KraftonEngine\Source\pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+  </ItemGroup>
+</Project>

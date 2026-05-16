@@ -1,12 +1,12 @@
-#include "Render/Proxy/PrimitiveSceneProxy.h"
+﻿#include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Component/PrimitiveComponent.h"
 #include "GameFramework/AActor.h"
 #include "Render/Shader/ShaderManager.h"
-#include "Materials/Material.h"
+#include "Asset/Material/Material.h"
 #include "Object/ObjectFactory.h"
 
 // ============================================================
-// FPrimitiveSceneProxy — 기본 구현
+// FPrimitiveSceneProxy ??湲곕낯 援ы쁽
 // ============================================================
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(UPrimitiveComponent* InComponent)
 	: Owner(InComponent)
@@ -49,7 +49,7 @@ void FPrimitiveSceneProxy::UpdateTransform()
 
 void FPrimitiveSceneProxy::UpdateMaterial()
 {
-	// 기본 PrimitiveComponent는 섹션별 머티리얼이 없음 — 서브클래스에서 오버라이드
+	// 湲곕낯 PrimitiveComponent???뱀뀡蹂?癒명떚由ъ뼹???놁쓬 ???쒕툕?대옒?ㅼ뿉???ㅻ쾭?쇱씠??
 }
 
 void FPrimitiveSceneProxy::UpdateVisibility()

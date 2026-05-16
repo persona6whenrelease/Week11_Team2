@@ -2,7 +2,7 @@
 #include "Component/DecalComponent.h"
 #include "Component/BillboardComponent.h"
 #include "Component/TextRenderComponent.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 IMPLEMENT_CLASS(ADecalActor, AActor)
 

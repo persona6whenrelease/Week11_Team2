@@ -1,11 +1,11 @@
-﻿#include "EditorMaterialInspector.h"
-#include "Materials/MaterialManager.h"
+#include "EditorMaterialInspector.h"
+#include "Asset/Material/MaterialManager.h"
 #include "Resource/ResourceManager.h"
 #include "Editor/UI/ContentBrowser/ContentItem.h"
 #include "SimpleJSON/json.hpp"
-#include "Engine/Materials/Material.h"
+#include "Engine/Asset/Material/Material.h"
 #include "Engine/Runtime/Engine.h"
-#include "Engine/Texture/Texture2D.h"
+#include "Engine/Asset/Texture/Texture2D.h"
 
 FEditorMaterialInspector::FEditorMaterialInspector(std::filesystem::path InPath)
 {

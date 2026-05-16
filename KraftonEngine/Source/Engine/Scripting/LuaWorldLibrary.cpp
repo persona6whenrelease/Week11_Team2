@@ -26,11 +26,11 @@
 #include "Component/SpringArmComponent.h"
 #include "Component/TextRenderComponent.h"
 
-#include "Mesh/MeshManager.h"
-#include "Mesh/StaticMesh.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Mesh/StaticMesh/StaticMesh.h"
 
-#include "Materials/Material.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Material/MaterialManager.h"
 
 #include <d3d11.h>
 #include <cctype>

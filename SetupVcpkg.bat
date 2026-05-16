@@ -52,4 +52,5 @@ exit /b 0
 echo.
 echo [SetupVcpkg] Failed. Check the messages above.
 popd >nul
+pause
 exit /b 1

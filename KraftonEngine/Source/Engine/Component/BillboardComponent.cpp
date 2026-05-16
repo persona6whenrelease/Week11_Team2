@@ -5,8 +5,8 @@
 #include "Serialization/Archive.h"
 #include "Object/ObjectFactory.h"
 #include "GameFramework/AActor.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Material/MaterialManager.h"
 
 #include <cstring>
 

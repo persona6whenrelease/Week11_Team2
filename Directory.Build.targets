@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!--
+    KraftonEngine PCH wiring — per-file override for pch.cpp.
+
+    Imported AFTER the .vcxproj body, so the ClCompile item for pch.cpp is
+    already defined by the auto-scanned file list. MSBuild normalizes Update=
+    paths to their full path form for matching, so this absolute path matches
+    the project's relative-path item `Source\pch.cpp`.
+
+    Notes:
+      * %(Filename) / %(Extension) cannot be used in a Condition on an
+        `<ClCompile Update="@(...)" Condition="...">` element (MSBuild emits
+        "built-in metadata cannot be referenced at position 1"). Direct path
+        Update= avoids that limitation.
+      * The outer Condition on the ItemGroup skips this block for
+        CrossyGame.vcxproj (which lives in the same folder).
+      * Even without that outer condition, the absolute path would not match
+        any item in CrossyGame, so the override is a no-op there.
+
+    Pair file: Directory.Build.props sets the default PrecompiledHeader=Use /
+    ForcedIncludeFiles for all ClCompile items.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'KraftonEngine'">
+    <ClCompile Update="$(MSBuildThisFileDirectory)KraftonEngine\Source\pch.cpp">
+      <!-- pch.cpp is the single TU that *creates* the precompiled header (/Yc). -->
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <!-- Empty value clears the inherited ForcedIncludeFiles for pch.cpp only. -->
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+  </ItemGroup>
+</Project>

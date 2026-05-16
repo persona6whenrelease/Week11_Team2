@@ -462,3 +462,6 @@ CMakeLists.txt
 
 # Vcpkg installed
 /vcpkg_installed
+
+# override
+!KraftonEngine/Source/Engine/Asset/Import/OBJ

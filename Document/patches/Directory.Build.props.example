@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copy of the active Directory.Build.props at the repository root.
+
+  Placement: C:\GitDirectory11\Directory.Build.props
+  Auto-imported by MSBuild BEFORE the .vcxproj body.
+
+  Pair file: Directory.Build.targets (per-file override for pch.cpp).
+  Both files together implement the PCH wiring.
+-->
+<Project>
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'KraftonEngine'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

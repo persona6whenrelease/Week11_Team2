@@ -6,7 +6,7 @@
 #include <filesystem>
 #include "SimpleJSON/json.hpp"
 #include <wrl/client.h>
-#include <Engine/Materials/MaterialManager.h>
+#include <Engine/Asset/Material/MaterialManager.h>
 
 struct ID3D11ShaderResourceView;
 

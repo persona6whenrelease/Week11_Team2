@@ -9,7 +9,7 @@
 #include "WICTextureLoader.h"
 #include "Core/Log.h"
 #include "Profiling/MemoryStats.h"
-#include "Engine/Texture/Texture2D.h"
+#include "Engine/Asset/Texture/Texture2D.h"
 
 
 namespace ResourceKey
@@ -37,7 +37,7 @@ void FResourceManager::LoadFromFile(const FString& Path, ID3D11Device* InDevice)
 
 	JSON Root = JSON::Load(Content);
 
-	// Font — { "Name": { "Path": "...", "Columns": 16, "Rows": 16 } }
+	// Font ??{ "Name": { "Path": "...", "Columns": 16, "Rows": 16 } }
 	if (Root.hasKey(ResourceKey::Font))
 	{
 		JSON FontSection = Root[ResourceKey::Font];
@@ -54,7 +54,7 @@ void FResourceManager::LoadFromFile(const FString& Path, ID3D11Device* InDevice)
 		}
 	}
 
-	// Particle — { "Name": { "Path": "...", "Columns": 6, "Rows": 6 } }
+	// Particle ??{ "Name": { "Path": "...", "Columns": 6, "Rows": 6 } }
 	if (Root.hasKey(ResourceKey::Particle))
 	{
 		JSON ParticleSection = Root[ResourceKey::Particle];
@@ -71,7 +71,7 @@ void FResourceManager::LoadFromFile(const FString& Path, ID3D11Device* InDevice)
 		}
 	}
 
-	// Texture — { "Name": { "Path": "..." } }  (Columns/Rows는 항상 1)
+	// Texture ??{ "Name": { "Path": "..." } }  (Columns/Rows????긽 1)
 	if (Root.hasKey(ResourceKey::Texture))
 	{
 		JSON TextureSection = Root[ResourceKey::Texture];
@@ -145,7 +145,7 @@ bool FResourceManager::LoadGPUResources(ID3D11Device* Device)
 			return false;
 		}
 
-		// 확장자에 따라 DDS / WIC 로더 분기
+		// ?뺤옣?먯뿉 ?곕씪 DDS / WIC 濡쒕뜑 遺꾧린
 		std::filesystem::path Ext = std::filesystem::path(Resource.Path).extension();
 		FString ExtStr = Ext.string();
 		for (char& c : ExtStr) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
@@ -167,7 +167,7 @@ bool FResourceManager::LoadGPUResources(ID3D11Device* Device)
 		}
 		else
 		{
-			// .png/.jpg/.bmp/.tga 등 — WIC 경유
+			// .png/.jpg/.bmp/.tga ????WIC 寃쎌쑀
 			hr = DirectX::CreateWICTextureFromFileEx(
 				Device,
 				FullPath.c_str(),
@@ -175,8 +175,8 @@ bool FResourceManager::LoadGPUResources(ID3D11Device* Device)
 				D3D11_USAGE_IMMUTABLE,
 				D3D11_BIND_SHADER_RESOURCE,
 				0, 0,
-				// 이 버전의 DirectXTK 에는 PREMULTIPLY_ALPHA 플래그가 없다.
-				// straight-alpha 보간으로 생기는 검은 헤일로는 PS 측 알파 컷오프(0.5) 로 회피.
+				// ??踰꾩쟾??DirectXTK ?먮뒗 PREMULTIPLY_ALPHA ?뚮옒洹멸? ?녿떎.
+				// straight-alpha 蹂닿컙?쇰줈 ?앷린??寃? ?ㅼ씪濡쒕뒗 PS 痢??뚰뙆 而룹삤??0.5) 濡??뚰뵾.
 				DirectX::WIC_LOADER_FORCE_RGBA32,
 				nullptr,
 				&Resource.SRV

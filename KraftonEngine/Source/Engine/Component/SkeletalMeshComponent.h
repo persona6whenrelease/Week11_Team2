@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "Component/SkinnedMeshComponent.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
@@ -9,6 +10,11 @@ public:
 
 	USkeletalMeshComponent() = default;
 	~USkeletalMeshComponent() override = default;
+
+	void PlayAnimation(UAnimSequence* NewAnimToPlay, bool bLooping = true);
+	void SetAnimation(UAnimSequence* NewAnimToPlay);
+	UAnimSequence* GetAnimation() const { return AnimToPlay; }
+	bool EvaluateAnimationPose(const FAnimationClip& Clip, float TimeSeconds);
 
 	float GetBakedAnimTime() const { return BakedAnimTime; }
 	void SetBakedAnimTime(float InTime) { BakedAnimTime = InTime; }
@@ -32,4 +38,6 @@ protected:
 	int32 BakedAnimClipIndex = 0;
 	bool bBakedAnimPaused = false;
 	float BakedAnimPlaybackSpeed = 1.0f;
+	bool bBakedAnimLooping = true;
+	UAnimSequence* AnimToPlay = nullptr;
 };

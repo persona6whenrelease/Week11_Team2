@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -210,7 +210,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio-d.lib;sfml-window-d.lib;sfml-system-d.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Debug\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\debug\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -233,7 +233,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -256,7 +256,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -279,7 +279,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -302,7 +302,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>sfml-audio.lib;sfml-window.lib;sfml-system.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y /D /I "$(ProjectDir)ThirdParty\SFML\bin\Release\*.dll" "$(OutDir)" &amp; xcopy /Y /D /I "$(ProjectDir)ThirdParty\FBXSDK\lib\x64\release\libfbxsdk.dll" "$(OutDir)"</Command>
@@ -426,31 +426,31 @@
     <ClCompile Include="Source\Engine\GameFramework\World.cpp" />
     <ClCompile Include="Source\Engine\Input\GameplayInputRouter.cpp" />
     <ClCompile Include="Source\Engine\Input\InputSystem.cpp" />
-    <ClCompile Include="Source\Engine\Materials\Material.cpp" />
-    <ClCompile Include="Source\Engine\Materials\MaterialManager.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Material\Material.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Material\MaterialManager.cpp" />
     <ClCompile Include="Source\Engine\Math\MathUtils.cpp" />
     <ClCompile Include="Source\Engine\Math\Matrix.cpp" />
     <ClCompile Include="Source\Engine\Math\Quat.cpp" />
     <ClCompile Include="Source\Engine\Math\Rotator.cpp" />
     <ClCompile Include="Source\Engine\Math\Transform.cpp" />
     <ClCompile Include="Source\Engine\Math\Vector.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXImporter.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXManager.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXSceneAsset.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXUtil.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxAnimationParser.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMaterialImportUtils.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMeshGeometryBuilder.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMetaParser.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshAssembler.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshPartParser.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxStaticMeshParser.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\MeshManager.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\MeshSimplifier.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\ObjImporter.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\ObjManager.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\SkeletalMesh.cpp" />
-    <ClCompile Include="Source\Engine\Mesh\StaticMesh.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXImporter.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXManager.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Types\FBXSceneAsset.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXUtil.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxAnimationParser.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Material\FbxMaterialImportUtils.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxMetaParser.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxSkeletalMeshPartParser.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxStaticMeshParser.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\MeshManager.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Mesh\Processing\MeshSimplifier.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\OBJ\ObjImporter.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Import\OBJ\ObjManager.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMesh.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMesh.cpp" />
     <ClCompile Include="Source\Engine\Object\FName.cpp" />
     <ClCompile Include="Source\Engine\Object\Object.cpp" />
     <ClCompile Include="Source\Engine\Object\UUIDGenerator.cpp" />
@@ -555,7 +555,7 @@
     <ClCompile Include="Source\Engine\Serialization\PrefabSaveManager.cpp" />
     <ClCompile Include="Source\Engine\Serialization\SceneSaveManager.cpp" />
     <ClCompile Include="Source\Engine\Sound\SoundManager.cpp" />
-    <ClCompile Include="Source\Engine\Texture\Texture2D.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Texture\Texture2D.cpp" />
     <ClCompile Include="Source\Engine\UI\ImGui\ImGuiViewportPresenter.cpp" />
     <ClCompile Include="Source\Engine\UI\Rml\RmlD3D11RenderInterface.cpp" />
     <ClCompile Include="Source\Engine\UI\Rml\RmlWin32SystemInterface.cpp" />
@@ -577,6 +577,7 @@
     <ClCompile Include="Source\ObjViewer\ObjViewerPanel.cpp" />
     <ClCompile Include="Source\ObjViewer\ObjViewerRenderPipeline.cpp" />
     <ClCompile Include="Source\ObjViewer\ObjViewerViewportClient.cpp" />
+    <ClCompile Include="Source\pch.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui_draw.cpp" />
@@ -722,36 +723,39 @@
     <ClInclude Include="Source\Engine\Input\GameplayInputRouter.h" />
     <ClInclude Include="Source\Engine\Input\InputFrame.h" />
     <ClInclude Include="Source\Engine\Input\InputSystem.h" />
+    <ClInclude Include="Source\Engine\Asset\Material\Material.h" />
+    <ClInclude Include="Source\Engine\Asset\Material\MaterialManager.h" />
     <ClInclude Include="Source\Engine\Materials\Material.h" />
     <ClInclude Include="Source\Engine\Materials\MaterialManager.h" />
+    <ClInclude Include="Source\Engine\Math\Math.h" />
     <ClInclude Include="Source\Engine\Math\MathUtils.h" />
     <ClInclude Include="Source\Engine\Math\Matrix.h" />
     <ClInclude Include="Source\Engine\Math\Quat.h" />
     <ClInclude Include="Source\Engine\Math\Rotator.h" />
     <ClInclude Include="Source\Engine\Math\Transform.h" />
     <ClInclude Include="Source\Engine\Math\Vector.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImportMeta.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImportTypes.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImporter.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXManager.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXSceneAsset.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXUtil.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxAnimationParser.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMaterialImportUtils.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMeshGeometryBuilder.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMetaParser.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshAssembler.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshPartParser.h" />
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxStaticMeshParser.h" />
-    <ClInclude Include="Source\Engine\Mesh\MeshCommonTypes.h" />
-    <ClInclude Include="Source\Engine\Mesh\MeshManager.h" />
-    <ClInclude Include="Source\Engine\Mesh\MeshSimplifier.h" />
-    <ClInclude Include="Source\Engine\Mesh\ObjImporter.h" />
-    <ClInclude Include="Source\Engine\Mesh\ObjManager.h" />
-    <ClInclude Include="Source\Engine\Mesh\SkeletalMesh.h" />
-    <ClInclude Include="Source\Engine\Mesh\SkeletalMeshAsset.h" />
-    <ClInclude Include="Source\Engine\Mesh\StaticMesh.h" />
-    <ClInclude Include="Source\Engine\Mesh\StaticMeshAsset.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXImportMeta.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXImportTypes.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXImporter.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXManager.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXSceneAsset.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXUtil.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxAnimationParser.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Material\FbxMaterialImportUtils.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxMetaParser.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxSkeletalMeshPartParser.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxStaticMeshParser.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\Common\MeshCommonTypes.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\MeshManager.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\Processing\MeshSimplifier.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\OBJ\ObjImporter.h" />
+    <ClInclude Include="Source\Engine\Asset\Import\OBJ\ObjManager.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMesh.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMeshAsset.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMesh.h" />
+    <ClInclude Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMeshAsset.h" />
     <ClInclude Include="Source\Engine\Object\FName.h" />
     <ClInclude Include="Source\Engine\Object\Object.h" />
     <ClInclude Include="Source\Engine\Object\ObjectFactory.h" />
@@ -872,7 +876,7 @@
     <ClInclude Include="Source\Engine\Serialization\SceneSaveManager.h" />
     <ClInclude Include="Source\Engine\Serialization\WindowsArchive.h" />
     <ClInclude Include="Source\Engine\Sound\SoundManager.h" />
-    <ClInclude Include="Source\Engine\Texture\Texture2D.h" />
+    <ClInclude Include="Source\Engine\Asset\Texture\Texture2D.h" />
     <ClInclude Include="Source\Engine\UI\ImGui\ImGuiViewportPresenter.h" />
     <ClInclude Include="Source\Engine\UI\Rml\RmlD3D11RenderInterface.h" />
     <ClInclude Include="Source\Engine\UI\Rml\RmlUiConfig.h" />
@@ -899,6 +903,7 @@
     <ClInclude Include="Source\ObjViewer\ObjViewerPanel.h" />
     <ClInclude Include="Source\ObjViewer\ObjViewerRenderPipeline.h" />
     <ClInclude Include="Source\ObjViewer\ObjViewerViewportClient.h" />
+    <ClInclude Include="Source\pch.h" />
     <ClInclude Include="ThirdParty\FBXSDK\include\fbxsdk.h" />
     <ClInclude Include="ThirdParty\FBXSDK\include\fbxsdk\core\arch\fbxalloc.h" />
     <ClInclude Include="ThirdParty\FBXSDK\include\fbxsdk\core\arch\fbxarch.h" />

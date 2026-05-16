@@ -1,10 +1,10 @@
-﻿#include "Render/Proxy/CylindricalBillboardSceneProxy.h"
+#include "Render/Proxy/CylindricalBillboardSceneProxy.h"
 #include "Component/CylindricalBillboardComponent.h"
 #include "Render/Resource/MeshBufferManager.h"
 #include "Render/Types/FrameContext.h"
 #include "GameFramework/AActor.h"
-#include "Materials/Material.h"
-#include "Texture/Texture2D.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Texture/Texture2D.h"
 
 // ============================================================
 // FCylindricalBillboardSceneProxy

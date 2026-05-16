@@ -2,7 +2,7 @@
 #include "Component/GizmoComponent.h"
 #include "Render/Shader/ShaderManager.h"
 #include "Render/Types/FrameContext.h"
-#include "Materials/Material.h"
+#include "Asset/Material/Material.h"
 #include "Object/ObjectFactory.h"
 
 // ============================================================

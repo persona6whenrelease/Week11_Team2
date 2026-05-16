@@ -1,9 +1,9 @@
-#include "Component/MeshComponent.h"
+﻿#include "Component/MeshComponent.h"
 
 #include <cstdlib>
 #include <cstring>
-#include "Materials/Material.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/Material.h"
+#include "Asset/Material/MaterialManager.h"
 #include "Object/ObjectFactory.h"
 
 IMPLEMENT_CLASS(UMeshComponent, UPrimitiveComponent)

@@ -8,7 +8,7 @@
 #include "Profiling/Stats.h"
 #include "Profiling/GPUProfiler.h"
 #include "Profiling/StartupProfiler.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 
 
 void FRenderer::Create(HWND hWindow)

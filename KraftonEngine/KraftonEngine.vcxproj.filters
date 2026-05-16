@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Shaders">
@@ -289,7 +289,7 @@
     <Filter Include="ThirdParty\Sol">
       <UniqueIdentifier>{89819dae-4557-ab83-f57d-79039c6f4f48}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\ConstantBuffers.hlsli">
       <Filter>Shaders\Common</Filter>
@@ -396,7 +396,7 @@
     <FxCompile Include="Shaders\UI\SubUV.hlsl">
       <Filter>Shaders\UI</Filter>
     </FxCompile>
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Editor\EditorEngine.cpp">
       <Filter>Source\Editor</Filter>
@@ -746,11 +746,11 @@
     <ClCompile Include="Source\Engine\Input\InputSystem.cpp">
       <Filter>Source\Engine\Input</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Materials\Material.cpp">
-      <Filter>Source\Engine\Materials</Filter>
+    <ClCompile Include="Source\Engine\Asset\Material\Material.cpp">
+      <Filter>Source\Engine\Asset\Material</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Materials\MaterialManager.cpp">
-      <Filter>Source\Engine\Materials</Filter>
+    <ClCompile Include="Source\Engine\Asset\Material\MaterialManager.cpp">
+      <Filter>Source\Engine\Asset\Material</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Math\MathUtils.cpp">
       <Filter>Source\Engine\Math</Filter>
@@ -770,56 +770,56 @@
     <ClCompile Include="Source\Engine\Math\Vector.cpp">
       <Filter>Source\Engine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXImporter.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXImporter.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXManager.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXManager.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXSceneAsset.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Types\FBXSceneAsset.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Types</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FBXUtil.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXUtil.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxAnimationParser.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxAnimationParser.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMaterialImportUtils.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Material\FbxMaterialImportUtils.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Material</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMeshGeometryBuilder.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Builder</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxMetaParser.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxMetaParser.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshAssembler.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Builder</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshPartParser.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxSkeletalMeshPartParser.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\FBX\FbxStaticMeshParser.cpp">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\FBX\Parser\FbxStaticMeshParser.cpp">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\MeshManager.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\MeshManager.cpp">
+      <Filter>Source\Engine\Asset\Import</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\MeshSimplifier.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Mesh\Processing\MeshSimplifier.cpp">
+      <Filter>Source\Engine\Asset\Mesh\Processing</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\ObjImporter.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\OBJ\ObjImporter.cpp">
+      <Filter>Source\Engine\Asset\Import\OBJ</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\ObjManager.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Import\OBJ\ObjManager.cpp">
+      <Filter>Source\Engine\Asset\Import\OBJ</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\SkeletalMesh.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMesh.cpp">
+      <Filter>Source\Engine\Asset\Mesh\SkeletalMesh</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Mesh\StaticMesh.cpp">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClCompile Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMesh.cpp">
+      <Filter>Source\Engine\Asset\Mesh\StaticMesh</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Object\FName.cpp">
       <Filter>Source\Engine\Object</Filter>
@@ -1133,8 +1133,8 @@
     <ClCompile Include="Source\Engine\Sound\SoundManager.cpp">
       <Filter>Source\Engine\Sound</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Texture\Texture2D.cpp">
-      <Filter>Source\Engine\Texture</Filter>
+    <ClCompile Include="Source\Engine\Asset\Texture\Texture2D.cpp">
+      <Filter>Source\Engine\Asset\Texture</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\UI\ImGui\ImGuiViewportPresenter.cpp">
       <Filter>Source\Engine\UI\ImGui</Filter>
@@ -1199,6 +1199,9 @@
     <ClCompile Include="Source\ObjViewer\ObjViewerViewportClient.cpp">
       <Filter>Source\ObjViewer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\pch.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
@@ -1221,7 +1224,7 @@
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Editor\EditorEngine.h">
       <Filter>Source\Editor</Filter>
@@ -1628,11 +1631,14 @@
     <ClInclude Include="Source\Engine\Input\InputSystem.h">
       <Filter>Source\Engine\Input</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Materials\Material.h">
-      <Filter>Source\Engine\Materials</Filter>
+    <ClInclude Include="Source\Engine\Asset\Material\Material.h">
+      <Filter>Source\Engine\Asset\Material</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Materials\MaterialManager.h">
-      <Filter>Source\Engine\Materials</Filter>
+    <ClInclude Include="Source\Engine\Asset\Material\MaterialManager.h">
+      <Filter>Source\Engine\Asset\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Math\Math.h">
+      <Filter>Source\Engine\Math</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Math\MathUtils.h">
       <Filter>Source\Engine\Math</Filter>
@@ -1652,71 +1658,71 @@
     <ClInclude Include="Source\Engine\Math\Vector.h">
       <Filter>Source\Engine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImportMeta.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXImportMeta.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Types</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImportTypes.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXImportTypes.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Types</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXImporter.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXImporter.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXManager.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXManager.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXSceneAsset.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Types\FBXSceneAsset.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Types</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FBXUtil.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Core\FBXUtil.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxAnimationParser.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxAnimationParser.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMaterialImportUtils.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Material\FbxMaterialImportUtils.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Material</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMeshGeometryBuilder.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Builder</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxMetaParser.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxMetaParser.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshAssembler.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Builder</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxSkeletalMeshPartParser.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxSkeletalMeshPartParser.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\FBX\FbxStaticMeshParser.h">
-      <Filter>Source\Engine\Mesh\FBX</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\FBX\Parser\FbxStaticMeshParser.h">
+      <Filter>Source\Engine\Asset\Import\FBX\Parser</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\MeshCommonTypes.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\Common\MeshCommonTypes.h">
+      <Filter>Source\Engine\Asset\Mesh\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\MeshManager.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\MeshManager.h">
+      <Filter>Source\Engine\Asset\Import</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\MeshSimplifier.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\Processing\MeshSimplifier.h">
+      <Filter>Source\Engine\Asset\Mesh\Processing</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\ObjImporter.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\OBJ\ObjImporter.h">
+      <Filter>Source\Engine\Asset\Import\OBJ</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\ObjManager.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Import\OBJ\ObjManager.h">
+      <Filter>Source\Engine\Asset\Import\OBJ</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\SkeletalMesh.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMesh.h">
+      <Filter>Source\Engine\Asset\Mesh\SkeletalMesh</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\SkeletalMeshAsset.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\SkeletalMesh\SkeletalMeshAsset.h">
+      <Filter>Source\Engine\Asset\Mesh\SkeletalMesh</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\StaticMesh.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMesh.h">
+      <Filter>Source\Engine\Asset\Mesh\StaticMesh</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Mesh\StaticMeshAsset.h">
-      <Filter>Source\Engine\Mesh</Filter>
+    <ClInclude Include="Source\Engine\Asset\Mesh\StaticMesh\StaticMeshAsset.h">
+      <Filter>Source\Engine\Asset\Mesh\StaticMesh</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Object\FName.h">
       <Filter>Source\Engine\Object</Filter>
@@ -2078,8 +2084,8 @@
     <ClInclude Include="Source\Engine\Sound\SoundManager.h">
       <Filter>Source\Engine\Sound</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Texture\Texture2D.h">
-      <Filter>Source\Engine\Texture</Filter>
+    <ClInclude Include="Source\Engine\Asset\Texture\Texture2D.h">
+      <Filter>Source\Engine\Asset\Texture</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\UI\ImGui\ImGuiViewportPresenter.h">
       <Filter>Source\Engine\UI\ImGui</Filter>
@@ -2158,6 +2164,9 @@
     </ClInclude>
     <ClInclude Include="Source\ObjViewer\ObjViewerViewportClient.h">
       <Filter>Source\ObjViewer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\pch.h">
+      <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\FBXSDK\include\fbxsdk.h">
       <Filter>ThirdParty\FBXSDK\include</Filter>
@@ -3392,11 +3401,11 @@
     <ClInclude Include="ThirdParty\Sol\sol.hpp">
       <Filter>ThirdParty\Sol</Filter>
     </ClInclude>
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KraftonEngine.rc" />
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
   <ItemGroup>
     <None Include="VcpkgLua.props" />
-  </ItemGroup>
+  `r`n    <Filter Include="Source\Engine\Asset\Material">`r`n      <UniqueIdentifier>{b5bed16d-6bf4-447c-bc27-100f51cc16dc}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Core">`r`n      <UniqueIdentifier>{c28a6100-c06e-46ff-ac42-5905d8c59fb6}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Types">`r`n      <UniqueIdentifier>{cbb368ec-be6c-420b-87c7-aed512ddafbe}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Parser">`r`n      <UniqueIdentifier>{64876a05-4794-4294-89e6-d92631c0b252}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Material">`r`n      <UniqueIdentifier>{d56b0fe0-f299-4c21-be6e-2423da390184}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\FBX\Builder">`r`n      <UniqueIdentifier>{e378c4c2-e094-4130-a2f0-f61175a2771a}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import">`r`n      <UniqueIdentifier>{887013f6-67d0-45df-868f-3c037c3f5cba}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Processing">`r`n      <UniqueIdentifier>{2b51f474-f154-4a4a-9332-0874b270f5f7}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Import\OBJ">`r`n      <UniqueIdentifier>{6c468e0a-532c-4da6-843d-4ff72cbe5193}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\SkeletalMesh">`r`n      <UniqueIdentifier>{070fdfa3-8bb4-41ae-b776-938c8f099838}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\StaticMesh">`r`n      <UniqueIdentifier>{4c72b724-c9d4-4361-82da-530f2d1e3da0}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Texture">`r`n      <UniqueIdentifier>{860ab231-bfdb-40c9-a754-334319dcdc6e}</UniqueIdentifier>`r`n    </Filter>`r`n    <Filter Include="Source\Engine\Asset\Mesh\Common">`r`n      <UniqueIdentifier>{9e8cb805-f501-4eb7-973a-8bf8dad3d040}</UniqueIdentifier>`r`n    </Filter>`r`n  </ItemGroup>
 </Project>

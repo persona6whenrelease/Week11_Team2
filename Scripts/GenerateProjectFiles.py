@@ -209,7 +209,11 @@ SFML_PLATFORMS = {"x64"}
 # ──────────────────────────────────────────────
 FBXSDK_LIB_BASE = "$(ProjectDir)ThirdParty\\FBXSDK\\lib\\x64"
 FBXSDK_INCLUDE_PATH = "$(ProjectDir)ThirdParty\\FBXSDK\\include"
-FBXSDK_LIB_NAMES = ["libfbxsdk.lib"]
+FBXSDK_LIB_NAMES = [
+    "libfbxsdk-md.lib",
+    "libxml2-md.lib",
+    "zlib-md.lib",
+]
 FBXSDK_CONFIG_FLAVOR = {
     "Debug": "debug",
     "Release": "release",

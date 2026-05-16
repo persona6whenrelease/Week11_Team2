@@ -1,6 +1,6 @@
-﻿#include "DecalComponent.h"
+#include "DecalComponent.h"
 #include "Component/BillboardComponent.h"
-#include "Materials/MaterialManager.h"
+#include "Asset/Material/MaterialManager.h"
 #include "Collision/OBB.h"
 #include "Component/StaticMeshComponent.h"
 #include "GameFramework/AActor.h"
@@ -10,8 +10,8 @@
 #include "Render/Proxy/DecalSceneProxy.h"
 #include "Resource/ResourceManager.h"
 #include "Engine/Runtime/Engine.h"
-#include "Texture/Texture2D.h"
-#include "Materials/Material.h"
+#include "Asset/Texture/Texture2D.h"
+#include "Asset/Material/Material.h"
 #include <algorithm>
 
 IMPLEMENT_CLASS(UDecalComponent, UPrimitiveComponent)

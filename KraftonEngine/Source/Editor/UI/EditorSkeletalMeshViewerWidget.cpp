@@ -3,6 +3,10 @@
 #include "Editor/UI/SkeletalEditor/SkeletalMeshEditorTab.h"
 #include "Editor/UI/SkeletalEditor/AnimSequenceEditorTab.h"
 #include "Editor/Settings/EditorSettings.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
 
 FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
