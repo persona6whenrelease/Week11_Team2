@@ -16,6 +16,7 @@
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
+#include "Serialization/ArchiveMath.h"
 
 enum class EFBXLightType
 {
@@ -64,7 +65,7 @@ struct FFBXSceneComponentDesc
         Ar << Desc.SourceSkeletonId;
         Ar << Desc.StaticMeshAssetIndex;
         Ar << Desc.SkeletalMeshAssetIndex;
-        Ar.Serialize(&Desc.RelativeTransform, sizeof(FMatrix));
+        Ar << Desc.RelativeTransform;
         return Ar;
     }
 };

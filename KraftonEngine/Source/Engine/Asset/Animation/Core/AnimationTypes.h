@@ -14,6 +14,7 @@
 #include "Math/Vector.h"
 #include "Object/FName.h"
 #include "Serialization/Archive.h"
+#include "Serialization/ArchiveMath.h"
 
 /**
  * 초당 프레임 수를 분자/분모로 표현하는 간단한 프레임레이트 타입이다.
@@ -50,8 +51,8 @@ struct FBoneInfo
     {
         Ar << Bone.Name;
         Ar << Bone.ParentIndex;
-        Ar.Serialize(&Bone.LocalBindPose, sizeof(FMatrix));
-        Ar.Serialize(&Bone.InverseBindPose, sizeof(FMatrix));
+        Ar << Bone.LocalBindPose;
+        Ar << Bone.InverseBindPose;
         return Ar;
     }
 };
