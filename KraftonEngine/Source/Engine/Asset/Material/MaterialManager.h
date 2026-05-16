@@ -1,4 +1,12 @@
-﻿#pragma once
+/**
+ * 머티리얼 파일 로드와 템플릿/인스턴스 생성을 담당하는 매니저를 선언한다.
+ *
+ * MaterialManager는 Asset/Content의 JSON 머티리얼을 스캔하고, 필요한 시점에 UMaterial을 생성한다.
+ * 문자열로 저장된 렌더 패스, 블렌드, 깊이 스텐실, 래스터라이저 상태를 엔진 enum으로 변환하는 책임도
+ * 이 계층에 모여 있다.
+ */
+
+#pragma once
 
 #include "Core/Singleton.h"
 #include "Core/CoreTypes.h"
@@ -107,6 +115,5 @@ private:
 	bool PurgeStaleParameters(json::JSON& JsonData, FMaterialTemplate* Template);
 	
 	const FString DefaultShaderPath = "Shaders/Geometry/UberLit.hlsl";
-
 
 };

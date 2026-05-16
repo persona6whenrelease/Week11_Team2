@@ -1,4 +1,12 @@
-﻿#pragma once
+/**
+ * 엔진 머티리얼 템플릿, 파라미터, 상수 버퍼, 인스턴스 객체를 선언한다.
+ *
+ * 머티리얼은 셰이더, 렌더 상태, 스칼라/벡터/행렬/텍스처 파라미터를 하나로 묶어 메시 섹션 렌더링에
+ * 필요한 상태를 제공한다. JSON으로 저장된 머티리얼 파일은 MaterialManager를 거쳐 UMaterial 인스턴스로
+ * 복원된다.
+ */
+
+#pragma once
 
 #include "Object/ObjectFactory.h"
 #include "Math/Vector.h"
@@ -156,7 +164,10 @@ public:
 
 	const FString& GetAssetPathFileName() const { return PathFileName; }
 	void SetAssetPathFileName(const FString& InPath) { PathFileName = InPath; }
-	void Serialize(FArchive& Ar);//>>>>>Manager가 위임
+	/**
+	 * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+	 */
+	void Serialize(FArchive& Ar);
 
 	FConstantBuffer* GetGPUBufferBySlot(uint32 InSlot) const
 	{

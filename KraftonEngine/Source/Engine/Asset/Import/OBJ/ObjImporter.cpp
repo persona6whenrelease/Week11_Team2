@@ -44,8 +44,11 @@ namespace std
             return ((size_t)Key.p) ^ (((size_t)Key.t) << 8) ^ (((size_t)Key.n) << 16);
         }
     };
-} // namespace std
+} 
 
+/**
+ * OBJ/MTL 라인을 빠르게 읽기 위한 작은 토큰 파서이다.
+ */
 struct FStringParser
 {
 

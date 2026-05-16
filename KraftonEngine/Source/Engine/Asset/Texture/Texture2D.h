@@ -1,4 +1,12 @@
-﻿#pragma once
+/**
+ * 텍스처 파일을 D3D11 ShaderResourceView로 로드해 보관하는 UObject를 선언한다.
+ *
+ * UTexture2D는 원본 이미지 경로와 GPU SRV를 함께 관리하고, 같은 경로를 여러 번 로드하지 않도록 정적 캐시를
+ * 사용한다. 머티리얼은 이 객체를 통해 텍스처 리소스를 공유하며, 종료 시에는 캐시된 GPU 리소스를 명시적으로
+ * 해제한다.
+ */
+
+#pragma once
 
 #include "Object/Object.h"
 #include "Core/CoreTypes.h"

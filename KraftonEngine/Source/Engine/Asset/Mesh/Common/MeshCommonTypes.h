@@ -14,10 +14,7 @@
 #include "Serialization/Archive.h"
 
 /**
- * 에디터 목록에 표시할 메시 에셋 항목이다.
- *
- * 사용자에게 보여줄 이름과 실제 로드에 사용할 전체 경로를 분리해서 저장한다. Content Browser나
- * 드롭다운 UI는 DisplayName을 사용하고, 선택 이후의 로드 경로는 FullPath를 사용한다.
+ * 에디터 메시 목록에 표시할 에셋 경로와 이름을 담는 구조이다.
  */
 struct FMeshAssetListItem
 {
@@ -26,11 +23,7 @@ struct FMeshAssetListItem
 };
 
 /**
- * 하나의 메시 안에서 같은 머티리얼을 사용하는 인덱스 버퍼 구간이다.
- *
- * 렌더러는 섹션 단위로 머티리얼을 바꾸며 draw call을 나눌 수 있다. FirstIndex와 NumTriangles는
- * 인덱스 버퍼 안에서 이 섹션이 차지하는 범위를 나타내고, MaterialIndex/MaterialSlotName은 해당
- * 구간이 어떤 머티리얼 슬롯에 연결되는지 표현한다.
+ * 메시의 특정 인덱스 범위를 하나의 머티리얼로 렌더링하기 위한 섹션 정보이다.
  */
 struct FMeshSection
 {
@@ -75,5 +68,6 @@ struct FMeshMaterial
     }
 };
 
+// legacy
 using FStaticMeshSection = FMeshSection;
 using FStaticMaterial = FMeshMaterial;
