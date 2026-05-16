@@ -9,6 +9,8 @@
 #pragma once
 
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
+#include "Asset/AssetFileHeader.h"
+#include "Asset/Animation/Core/Skeleton.h"
 #include "Object/Object.h"
 
 struct ID3D11Device;
@@ -20,6 +22,8 @@ class USkeletalMesh : public UObject
 {
   public:
     DECLARE_CLASS(USkeletalMesh, UObject)
+
+    static constexpr uint32 AssetVersion = 1;
 
     USkeletalMesh() = default;
     ~USkeletalMesh() override;

@@ -25,6 +25,19 @@ USkeletalMesh::~USkeletalMesh()
 
 void USkeletalMesh::Serialize(FArchive &Ar)
 {
+    FAssetFileHeader Header;
+    if (Ar.IsSaving())
+    {
+        Header.AssetType = EAssetType::SkeletalMesh;
+        Header.Version = AssetVersion;
+    }
+
+    Ar << Header;
+    if (!Header.IsValid(EAssetType::SkeletalMesh, AssetVersion))
+    {
+        return;
+    }
+
     if (Ar.IsLoading() && !SkeletalMeshAsset)
     {
         SkeletalMeshAsset = new FSkeletalMesh();
