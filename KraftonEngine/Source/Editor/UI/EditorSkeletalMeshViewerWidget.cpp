@@ -1,4 +1,4 @@
-#include "Editor/UI/EditorSkeletalMeshViewerWidget.h"
+﻿#include "Editor/UI/EditorSkeletalMeshViewerWidget.h"
 
 #include "Editor/Settings/EditorSettings.h"
 #include "Asset/Import/MeshManager.h"
@@ -1057,12 +1057,12 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 		}
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
-		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
-		if (!MeshAsset)
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		if (!SelectedMesh || !SkeletonAsset)
 		{
 			ImGui::TextDisabled("No SkeletalMesh selected");
 		}
-		else if (MeshAsset->Bones.empty())
+		else if (SkeletonAsset->GetBones().empty())
 		{
 			ImGui::TextDisabled("No bones found");
 		}
@@ -1072,15 +1072,16 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 			int32 PrevSelectedBoneIndex = SelectedBoneIndex;
 			int32 DoubleClickedBoneIndex = -1;
 
+			const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
 			TArray<int32> VisibleOrder;
-			VisibleOrder.reserve(MeshAsset->Bones.size());
+			VisibleOrder.reserve(Bones.size());
 
-			for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(MeshAsset->Bones.size()); ++BoneIndex)
+			for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones.size()); ++BoneIndex)
 			{
 
-				if (MeshAsset->Bones[BoneIndex].ParentIndex < 0)
+				if (Bones[BoneIndex].ParentIndex < 0)
 				{
-					RenderBoneTreeNode(MeshAsset->Bones, BoneIndex, SelectedBoneIndex, DoubleClickedBoneIndex, VisibleOrder, bScrollToSelectedBone, RequestSetOpenBoneIndex, bRequestSetOpenValue);
+					RenderBoneTreeNode(Bones, BoneIndex, SelectedBoneIndex, DoubleClickedBoneIndex, VisibleOrder, bScrollToSelectedBone, RequestSetOpenBoneIndex, bRequestSetOpenValue);
 				}
 			}
 			bScrollToSelectedBone = false;
@@ -1133,9 +1134,9 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 					const int32 SelBone = SelectedBoneIndex;
 
 					int32 FirstChild = -1;
-					for (int32 j = 0; j < static_cast<int32>(MeshAsset->Bones.size()); ++j)
+					for (int32 j = 0; j < static_cast<int32>(Bones.size()); ++j)
 					{
-						if (MeshAsset->Bones[j].ParentIndex == SelBone)
+						if (Bones[j].ParentIndex == SelBone)
 						{
 							FirstChild = j;
 							break;
@@ -1144,7 +1145,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 					const bool bHasChildren = (FirstChild >= 0);
 					const bool bIsOpen      = bHasChildren
 					                       && Cur + 1 < static_cast<int32>(VisibleOrder.size())
-					                       && MeshAsset->Bones[VisibleOrder[Cur + 1]].ParentIndex == SelBone;
+					                       && Bones[VisibleOrder[Cur + 1]].ParentIndex == SelBone;
 
 					if (bRight && bHasChildren)
 					{
@@ -1165,7 +1166,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 						}
 						else
 						{
-							const int32 Parent = MeshAsset->Bones[SelBone].ParentIndex;
+							const int32 Parent = Bones[SelBone].ParentIndex;
 							if (Parent >= 0)
 							{
 								SelectedBoneIndex     = Parent;
@@ -1272,16 +1273,17 @@ void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
 		}
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
-		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
-		if (!MeshAsset ||
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		if (!SkeletonAsset ||
 			!PreviewMeshComponent ||
 			SelectedBoneIndex < 0 ||
-			SelectedBoneIndex >= static_cast<int32>(MeshAsset->Bones.size()))
+			SelectedBoneIndex >= static_cast<int32>(SkeletonAsset->GetBones().size()))
 		{
 			ImGui::TextDisabled("No bone selected");
 		}
 		else
 		{
+			const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
 			const TArray<FMatrix>& LocalPoses = PreviewMeshComponent->GetLocalBonePoseMatrices();
 			if (SelectedBoneIndex >= static_cast<int32>(LocalPoses.size()))
 			{
@@ -1290,7 +1292,7 @@ void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
 				return;
 			}
 
-			const FBoneInfo& Bone = MeshAsset->Bones[SelectedBoneIndex];
+			const FBoneInfo& Bone = Bones[SelectedBoneIndex];
 			const FMatrix& LocalPose = LocalPoses[SelectedBoneIndex];
 			const FVector LocationVector = LocalPose.GetLocation();
 			const FVector RotationVector = GetRotationEulerNoScale(LocalPose);
@@ -1575,7 +1577,13 @@ void FEditorSkeletalMeshViewerWidget::UpdateBoneDebugLines()
 		return;
 	}
 
-	const auto& Bones = PreviewSkeletalMesh->GetSkeletalMeshAsset()->Bones;
+	const USkeleton* SkeletonAsset = PreviewSkeletalMesh->GetSkeleton();
+	if (!SkeletonAsset)
+	{
+		return;
+	}
+
+	const auto& Bones = SkeletonAsset->GetBones();
 
 	// 연산이 완료된 MeshSpace 배열을 가져옵니다.
 	const auto& BoneMatrices = PreviewMeshComponent->GetMeshSpaceBoneMatrices();
