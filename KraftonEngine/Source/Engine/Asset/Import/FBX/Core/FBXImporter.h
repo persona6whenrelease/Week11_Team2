@@ -12,6 +12,8 @@
 #include "Asset/Import/FBX/Types/FBXImportMeta.h"
 #include "Asset/Import/FBX/Types/FBXImportTypes.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
 
@@ -75,14 +77,16 @@ struct FFBXAsset
     FString                        PathFileName;
     TArray<FStaticMesh>            StaticMeshes;
     TArray<FSkeletalMesh>          SkeletalMeshes;
-    TArray<TArray<FMeshMaterial>>  StaticMeshMaterials;
-    TArray<TArray<FMeshMaterial>>  SkeletalMeshMaterials;
-    TArray<FMeshMaterial>          SkeletalMaterials;
-    TArray<FFBXSceneComponentDesc> SceneComponents;
-    TMap<int32, int32>             MeshIdToStaticMeshAssetIndex;
-    TMap<int32, int32>             SkeletonIdToSkeletalMeshAssetIndex;
-    TArray<FLightAsset>            LightAssets;
-    TArray<FCameraAsset>           CameraAssets;
+    TArray<FSkeleton>               Skeletons;
+    TArray<TArray<UAnimSequence *>> AnimSequences;
+    TArray<TArray<FMeshMaterial>>   StaticMeshMaterials;
+    TArray<TArray<FMeshMaterial>>   SkeletalMeshMaterials;
+    TArray<FMeshMaterial>           SkeletalMaterials;
+    TArray<FFBXSceneComponentDesc>  SceneComponents;
+    TMap<int32, int32>              MeshIdToStaticMeshAssetIndex;
+    TMap<int32, int32>              SkeletonIdToSkeletalMeshAssetIndex;
+    TArray<FLightAsset>             LightAssets;
+    TArray<FCameraAsset>            CameraAssets;
 };
 
 /**

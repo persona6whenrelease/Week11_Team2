@@ -18,6 +18,8 @@
 
 #include <fbxsdk.h>
 
+#include <string>
+
 namespace
 {
     template <typename T> bool IsValidIndex(const TArray<T> &Items, int32 Index)
@@ -33,6 +35,8 @@ namespace
         Asset.PathFileName.clear();
         Asset.StaticMeshes.clear();
         Asset.SkeletalMeshes.clear();
+        Asset.Skeletons.clear();
+        Asset.AnimSequences.clear();
         Asset.StaticMeshMaterials.clear();
         Asset.SkeletalMeshMaterials.clear();
         Asset.SkeletalMaterials.clear();
@@ -110,7 +114,7 @@ namespace
             Asset.SceneComponents.push_back(std::move(Desc));
         }
     }
-} 
+}
 
 bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset)
 {
@@ -178,8 +182,33 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
                 continue;
             }
 
+            FSkeletalMesh& SkeletalMesh = OutFBXAsset.SkeletalMeshes[SkeletalMeshIndex];
+            if (OutFBXAsset.Skeletons.size() <= static_cast<size_t>(SkeletalMeshIndex))
+            {
+                OutFBXAsset.Skeletons.resize(SkeletalMeshIndex + 1);
+            }
+            if (OutFBXAsset.AnimSequences.size() <= static_cast<size_t>(SkeletalMeshIndex))
+            {
+                OutFBXAsset.AnimSequences.resize(SkeletalMeshIndex + 1);
+            }
+
+            SkeletalMesh.SkeletonAssetPath = InFilePath + "#SkeletonAsset_" + std::to_string(SkeletonMeta.SkeletonId);
+            FSkeleton &SkeletonAsset = OutFBXAsset.Skeletons[SkeletalMeshIndex];
+            SkeletonAsset.PathFileName = SkeletalMesh.SkeletonAssetPath;
+            SkeletonAsset.Bones = std::move(SkeletalMesh.Bones);
+            SkeletonAsset.RebuildBoneNameToIndex();
+
             AnimationParser.ParseSkeletonAnimations(Scene, SkeletonMeta,
-                                                    OutFBXAsset.SkeletalMeshes[SkeletalMeshIndex]);
+                                                    SkeletonAsset.Bones,
+                                                    OutFBXAsset.AnimSequences[SkeletalMeshIndex]);
+
+            for (UAnimSequence* AnimSequence : OutFBXAsset.AnimSequences[SkeletalMeshIndex])
+            {
+                if (AnimSequence)
+                {
+                    AnimSequence->SetSkeletonAssetPath(SkeletalMesh.SkeletonAssetPath);
+                }
+            }
         }
     }
 

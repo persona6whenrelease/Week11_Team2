@@ -253,6 +253,8 @@ namespace
         Scene.SourceTimestamp = GetFileTimestamp(SourcePath);
         Scene.StaticMeshes = std::move(ImportedAsset.StaticMeshes);
         Scene.SkeletalMeshes = std::move(ImportedAsset.SkeletalMeshes);
+        Scene.Skeletons = std::move(ImportedAsset.Skeletons);
+        Scene.AnimSequences = std::move(ImportedAsset.AnimSequences);
         for (FStaticMesh &Mesh : Scene.StaticMeshes)
         {
             Mesh.RenderBuffer.reset();
@@ -320,6 +322,26 @@ namespace
             SkeletalMesh->SetSkeletalMeshAsset(MeshAsset);
             SceneAsset->AddSkeletalMesh(SkeletalMesh);
 
+            if (SkeletalMeshIndex < static_cast<int32>(Scene.Skeletons.size()))
+            {
+                USkeleton *Skeleton = UObjectManager::Get().CreateObject<USkeleton>(SceneAsset);
+                Skeleton->SetSkeletonAsset(new FSkeleton(std::move(Scene.Skeletons[SkeletalMeshIndex])));
+                SkeletalMesh->SetSkeleton(Skeleton);
+                SceneAsset->AddSkeleton(Skeleton);
+            }
+            if (SkeletalMeshIndex < static_cast<int32>(Scene.AnimSequences.size()))
+            {
+                for (UAnimSequence* AnimSequence : Scene.AnimSequences[SkeletalMeshIndex])
+                {
+                    if (!AnimSequence)
+                    {
+                        continue;
+                    }
+                    AnimSequence->SetSkeletonAssetPath(MeshAsset->SkeletonAssetPath);
+                    SceneAsset->AddAnimSequence(AnimSequence);
+                }
+            }
+
             const FVector &BC = MeshAsset->BoundsCenter;
             const FVector &BE = MeshAsset->BoundsExtent;
             UE_LOG("[FBXManager] SkeletalMesh[%d] BoundsCenter=(%.2f, %.2f, %.2f) "
@@ -328,13 +350,20 @@ namespace
                    SkeletalMeshIndex, BC.X, BC.Y, BC.Z, BE.X, BE.Y, BE.Z, BE.Z * 2.0f, BE.X * 2.0f,
                    BE.Length());
 
+            const USkeleton *SkeletonAsset = SkeletalMesh->GetSkeleton();
+            const TArray<FBoneInfo> *SkeletonBones =
+                SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
+
             UE_LOG("[FBXManager] SkeletalMesh[%d] BoneCount=%u", SkeletalMeshIndex,
-                   static_cast<uint32>(MeshAsset->Bones.size()));
-            for (size_t BoneIdx = 0; BoneIdx < MeshAsset->Bones.size(); ++BoneIdx)
+                   SkeletonBones ? static_cast<uint32>(SkeletonBones->size()) : 0u);
+            if (SkeletonBones && !SkeletonBones->empty())
             {
-                const FBoneInfo &B = MeshAsset->Bones[BoneIdx];
-                UE_LOG("[FBXManager]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
-                       B.Name.c_str());
+                for (size_t BoneIdx = 0; BoneIdx < SkeletonBones->size(); ++BoneIdx)
+                {
+                    const FBoneInfo &B = (*SkeletonBones)[BoneIdx];
+                    UE_LOG("[FBXManager]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
+                           B.Name.c_str());
+                }
             }
         }
 
@@ -386,7 +415,7 @@ namespace
             OutFiles.push_back(std::move(Item));
         }
     }
-} 
+}
 
 USkeletalMesh *FFBXManager::LoadSkeletalMesh(const FString &PathFileName)
 {
