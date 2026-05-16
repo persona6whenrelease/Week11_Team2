@@ -3,10 +3,11 @@
 
 #include "Component/SkeletalMeshComponent.h"
 #include "Editor/Viewport/SkeletalMeshViewerViewportClient.h"
-#include "Mesh/MeshManager.h"
-#include "Mesh/FBX/FBXSceneAsset.h"
-#include "Mesh/SkeletalMesh.h"
-#include "Mesh/SkeletalMeshAsset.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 
 #include <algorithm>
 #include <cmath>
@@ -46,6 +47,45 @@ namespace
 		return FMatrix::MakeScaleMatrix(Scale) *
 			FMatrix::MakeRotationEuler(Rotation) *
 			FMatrix::MakeTranslationMatrix(Location);
+	}
+
+	UAnimSequence* FindAnimSequenceForMeshClip(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh, int32 ClipIndex, FString* OutPath)
+	{
+		if (!SceneAsset || !PreviewMesh || ClipIndex < 0)
+		{
+			return nullptr;
+		}
+
+		const TArray<UAnimSequence*>& AnimSequences = SceneAsset->GetAnimSequences();
+		int32 SequenceOffset = 0;
+		for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+		{
+			const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
+			if (!MeshAsset)
+			{
+				continue;
+			}
+
+			const int32 SequenceCount = static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
+			if (Mesh == PreviewMesh)
+			{
+				const int32 FlatIndex = SequenceOffset + ClipIndex;
+				if (ClipIndex >= 0 && ClipIndex < SequenceCount &&
+					FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
+				{
+					if (OutPath)
+					{
+						*OutPath = MeshAsset->AnimationSequenceAssetPaths[ClipIndex];
+					}
+					return AnimSequences[FlatIndex];
+				}
+				return nullptr;
+			}
+
+			SequenceOffset += SequenceCount;
+		}
+
+		return nullptr;
 	}
 
 }
@@ -231,24 +271,39 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 	ImGui::TextUnformatted("Animation");
 	ImGui::Separator();
 
-	if (!Asset || Asset->AnimationClips.empty())
+	if (!Asset || Asset->AnimationSequenceAssetPaths.empty())
 	{
-		ImGui::TextDisabled("No baked animation clips.");
+		ImGui::TextDisabled("No animation sequences.");
 		ImGui::Separator();
 		return;
 	}
 
-	const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
+	const int32 ClipCount = static_cast<int32>(Asset->AnimationSequenceAssetPaths.size());
 	int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
-	const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
+	FString CurrentAnimSequencePath;
+	UAnimSequence* CurrentSequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, ClipIdx, &CurrentAnimSequencePath);
+	if (CurrentSequence && PreviewMeshComponent->GetAnimation() != CurrentSequence)
+	{
+		PreviewMeshComponent->SetAnimation(CurrentSequence);
+	}
+	const FAnimationClip* Clip = CurrentSequence ? &CurrentSequence->GetAnimationClip() : nullptr;
+	const char* CurrentClipName = (Clip && !Clip->Name.empty()) ? Clip->Name.c_str() : "<no sequence>";
 
-	if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
+	if (ImGui::BeginCombo("Clip", CurrentClipName))
 	{
 		for (int32 i = 0; i < ClipCount; ++i)
 		{
+			FString AnimSequencePath;
+			UAnimSequence* Sequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, i, &AnimSequencePath);
+			const FAnimationClip* SequenceClip = Sequence ? &Sequence->GetAnimationClip() : nullptr;
+			const char* SequenceName = (SequenceClip && !SequenceClip->Name.empty())
+				? SequenceClip->Name.c_str()
+				: Asset->AnimationSequenceAssetPaths[i].c_str();
+
 			const bool bSelected = (i == ClipIdx);
-			if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
+			if (ImGui::Selectable(SequenceName, bSelected))
 			{
+				PreviewMeshComponent->SetAnimation(Sequence);
 				PreviewMeshComponent->SetBakedAnimClipIndex(i);
 				PreviewMeshComponent->SetBakedAnimTime(0.0f);
 			}
@@ -262,11 +317,14 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 
 	// 현재 선택된 클립을 AnimSequence Editor 탭으로 점프 (임시 트리거 — UAnimSequence asset 도입 전까지)
 	ImGui::SameLine();
-	const bool bCanJump = OpenAnimEditorCallback && PreviewSkeletalMesh && ClipCount > 0;
+	const bool bCanJump = OpenAnimEditorCallback && PreviewSkeletalMesh && CurrentSequence;
 	if (!bCanJump) ImGui::BeginDisabled();
 	if (ImGui::SmallButton("Edit in Anim Editor"))
 	{
-		OpenAnimEditorCallback(CurrentFbxPath, PreviewSkeletalMesh, ClipIdx);
+		if (CurrentSequence)
+		{
+			OpenAnimEditorCallback(CurrentAnimSequencePath, PreviewSkeletalMesh, CurrentSequence);
+		}
 	}
 	if (!bCanJump) ImGui::EndDisabled();
 
@@ -281,11 +339,11 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 	}
 
-	if (Clip.Duration > 0.0f)
+	if (Clip && Clip->Duration > 0.0f)
 	{
-		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
-		if (Time < 0.0f) Time += Clip.Duration;
-		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
+		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip->Duration);
+		if (Time < 0.0f) Time += Clip->Duration;
+		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip->Duration, "%.3f"))
 		{
 			PreviewMeshComponent->SetBakedAnimTime(Time);
 		}
@@ -371,6 +429,15 @@ int32 FSkeletalMeshEditorTab::GetCurrentClipIndex() const
 {
 	const USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
 	return Comp ? Comp->GetBakedAnimClipIndex() : 0;
+}
+
+UAnimSequence* FSkeletalMeshEditorTab::GetCurrentAnimSequence(FString* OutPath) const
+{
+	return FindAnimSequenceForMeshClip(
+		CurrentSceneAsset,
+		PreviewSkeletalMesh,
+		GetCurrentClipIndex(),
+		OutPath);
 }
 
 USkeletalMesh* FSkeletalMeshEditorTab::GetSelectedSkeletalMesh() const

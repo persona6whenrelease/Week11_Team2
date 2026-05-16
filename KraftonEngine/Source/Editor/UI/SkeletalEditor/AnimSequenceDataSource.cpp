@@ -1,73 +1,116 @@
 #include "Editor/UI/SkeletalEditor/AnimSequenceDataSource.h"
 
-#include "Mesh/SkeletalMesh.h"
-#include "Mesh/SkeletalMeshAsset.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Animation/Notify/AnimNotify.h"
 
 namespace
 {
 	const TArray<FBoneAnimTrack> EmptyTracks;
 }
 
-FFbxClipAnimDataSource::FFbxClipAnimDataSource(USkeletalMesh* InMesh, int32 InClipIndex)
-	: Mesh(InMesh)
-	, ClipIndex(InClipIndex)
+FUAnimSequenceDataSource::FUAnimSequenceDataSource(UAnimSequence* InSequence)
+	: Sequence(InSequence)
 {
+	RebuildNotifyCache();
 }
 
-const FAnimationClip* FFbxClipAnimDataSource::GetClip() const
+FString FUAnimSequenceDataSource::GetName() const
 {
-	const FSkeletalMesh* Asset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
-	if (!Asset) return nullptr;
-	if (ClipIndex < 0 || ClipIndex >= static_cast<int32>(Asset->AnimationClips.size())) return nullptr;
-	return &Asset->AnimationClips[ClipIndex];
+	if (!Sequence) return "<no anim sequence>";
+	const FAnimationClip& Clip = Sequence->GetAnimationClip();
+	return Clip.Name.empty() ? Sequence->GetFName().ToString() : Clip.Name;
 }
 
-FString FFbxClipAnimDataSource::GetName() const
+float FUAnimSequenceDataSource::GetDuration() const
 {
-	const FAnimationClip* Clip = GetClip();
-	return Clip ? Clip->Name : FString("<no clip>");
+	return Sequence ? Sequence->GetAnimationClip().Duration : 0.0f;
 }
 
-float FFbxClipAnimDataSource::GetDuration() const
+float FUAnimSequenceDataSource::GetFrameRate() const
 {
-	const FAnimationClip* Clip = GetClip();
-	return Clip ? Clip->Duration : 0.0f;
+	return Sequence ? Sequence->GetAnimationClip().FrameRate : 0.0f;
 }
 
-float FFbxClipAnimDataSource::GetFrameRate() const
+int32 FUAnimSequenceDataSource::GetFrameCount() const
 {
-	const FAnimationClip* Clip = GetClip();
-	return Clip ? Clip->FrameRate : 0.0f;
+	return Sequence ? Sequence->GetAnimationClip().FrameCount : 0;
 }
 
-int32 FFbxClipAnimDataSource::GetFrameCount() const
+const TArray<FBoneAnimTrack>& FUAnimSequenceDataSource::GetTracks() const
 {
-	const FAnimationClip* Clip = GetClip();
-	return Clip ? Clip->FrameCount : 0;
+	return Sequence ? Sequence->GetAnimationClip().Tracks : EmptyTracks;
 }
 
-const TArray<FBoneAnimTrack>& FFbxClipAnimDataSource::GetTracks() const
+int32 FUAnimSequenceDataSource::AddNotify(const FAnimNotifyEntry& Notify)
 {
-	const FAnimationClip* Clip = GetClip();
-	return Clip ? Clip->Tracks : EmptyTracks;
+	if (!Sequence) return -1;
+
+	FAnimNotifyEvent Event;
+	Event.NotifyName = FName(Notify.Name);
+	Event.TriggerTime = Notify.TriggerTime;
+	Event.Duration = Notify.Duration;
+	Sequence->AddNotify(Event);
+
+	CachedNotifyEntries.push_back(Notify);
+	return static_cast<int32>(CachedNotifyEntries.size()) - 1;
 }
 
-int32 FFbxClipAnimDataSource::AddNotify(const FAnimNotifyEntry& Notify)
+bool FUAnimSequenceDataSource::RemoveNotify(int32 Index)
 {
-	SessionNotifies.push_back(Notify);
-	return static_cast<int32>(SessionNotifies.size()) - 1;
-}
+	if (!Sequence || Index < 0 || Index >= static_cast<int32>(CachedNotifyEntries.size()))
+	{
+		return false;
+	}
 
-bool FFbxClipAnimDataSource::RemoveNotify(int32 Index)
-{
-	if (Index < 0 || Index >= static_cast<int32>(SessionNotifies.size())) return false;
-	SessionNotifies.erase(SessionNotifies.begin() + Index);
+	TArray<FAnimNotifyEvent>& AssetNotifies = Sequence->GetMutableNotifies();
+	if (Index >= static_cast<int32>(AssetNotifies.size()))
+	{
+		return false;
+	}
+
+	AssetNotifies.erase(AssetNotifies.begin() + Index);
+	CachedNotifyEntries.erase(CachedNotifyEntries.begin() + Index);
 	return true;
 }
 
-bool FFbxClipAnimDataSource::UpdateNotify(int32 Index, const FAnimNotifyEntry& Notify)
+bool FUAnimSequenceDataSource::UpdateNotify(int32 Index, const FAnimNotifyEntry& Notify)
 {
-	if (Index < 0 || Index >= static_cast<int32>(SessionNotifies.size())) return false;
-	SessionNotifies[Index] = Notify;
+	if (!Sequence || Index < 0 || Index >= static_cast<int32>(CachedNotifyEntries.size()))
+	{
+		return false;
+	}
+
+	TArray<FAnimNotifyEvent>& AssetNotifies = Sequence->GetMutableNotifies();
+	if (Index >= static_cast<int32>(AssetNotifies.size()))
+	{
+		return false;
+	}
+
+	CachedNotifyEntries[Index] = Notify;
+	WriteNotifyToAsset(Index, Notify);
 	return true;
+}
+
+void FUAnimSequenceDataSource::RebuildNotifyCache()
+{
+	CachedNotifyEntries.clear();
+	if (!Sequence) return;
+
+	for (const FAnimNotifyEvent& Notify : Sequence->GetNotifies())
+	{
+		FAnimNotifyEntry Entry;
+		Entry.Name = Notify.NotifyName.ToString();
+		Entry.TriggerTime = Notify.TriggerTime;
+		Entry.Duration = Notify.Duration;
+		CachedNotifyEntries.push_back(Entry);
+	}
+}
+
+void FUAnimSequenceDataSource::WriteNotifyToAsset(int32 Index, const FAnimNotifyEntry& Notify)
+{
+	TArray<FAnimNotifyEvent>& AssetNotifies = Sequence->GetMutableNotifies();
+	FAnimNotifyEvent& Event = AssetNotifies[Index];
+	Event.NotifyName = FName(Notify.Name);
+	Event.TriggerTime = Notify.TriggerTime;
+	Event.Duration = Notify.Duration;
 }

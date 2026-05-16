@@ -17,6 +17,7 @@ class UFBXSceneAsset;
 class UObject;
 class USkeletalMesh;
 class UStaticMesh;
+class UAnimSequence;
 
 /**
  * OBJ와 FBX 로드 경로를 하나로 묶어 제공하는 상위 메시 매니저이다.
@@ -25,7 +26,7 @@ class FMeshManager
 {
   public:
     static constexpr uint32 FbxSceneCacheMagic = 0x4E435346u;
-    static constexpr uint32 FbxSceneCacheVersion = 2u;
+    static constexpr uint32 FbxSceneCacheVersion = 3u;
 
     static bool IsFbxStaticMeshReference(const FString &PathFileName);
     static bool IsFbxSkeletalMeshReference(const FString &PathFileName);
@@ -38,6 +39,7 @@ class FMeshManager
     static UStaticMesh   *LoadObjStaticMesh(const FString        &PathFileName,
                                             const FImportOptions &Options, ID3D11Device *InDevice);
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
+    static UAnimSequence *ResolveAnimSequenceReference(const FString &PathFileName);
     
 
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);

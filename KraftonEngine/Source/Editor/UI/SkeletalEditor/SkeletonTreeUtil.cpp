@@ -1,6 +1,6 @@
 #include "Editor/UI/SkeletalEditor/SkeletonTreeUtil.h"
 
-#include "Mesh/SkeletalMeshAsset.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
 
 #include <algorithm>

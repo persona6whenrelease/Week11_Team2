@@ -40,6 +40,7 @@ public:
 
     void AddNotify(const FAnimNotifyEvent& Notify) { Notifies.push_back(Notify); }
     const TArray<FAnimNotifyEvent>& GetNotifies() const { return Notifies; }
+    TArray<FAnimNotifyEvent>& GetMutableNotifies() { return Notifies; }
 
     float GetPlayLength() const { return AnimationClip.Duration; }
     bool IsValidSequence() const { return AnimationClip.Duration > 0.0f && !AnimationClip.Tracks.empty(); }

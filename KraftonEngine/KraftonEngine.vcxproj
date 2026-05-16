@@ -351,6 +351,10 @@
     <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp" />
     <ClCompile Include="Source\Editor\Viewport\FLevelViewportLayout.cpp" />
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\Skeleton.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.cpp" />
     <ClCompile Include="Source\Engine\Camera\CameraFadeModifier.cpp" />
     <ClCompile Include="Source\Engine\Camera\CameraModifier.cpp" />
     <ClCompile Include="Source\Engine\Camera\CameraShakeModifier.cpp" />
@@ -634,6 +638,12 @@
     <ClInclude Include="Source\Editor\Viewport\FLevelViewportLayout.h" />
     <ClInclude Include="Source\Editor\Viewport\LevelEditorViewportClient.h" />
     <ClInclude Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimationTypes.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\Skeleton.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Notify\AnimNotify.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.h" />
     <ClInclude Include="Source\Engine\Camera\CameraFadeModifier.h" />
     <ClInclude Include="Source\Engine\Camera\CameraModifier.h" />
     <ClInclude Include="Source\Engine\Camera\CameraShakeModifier.h" />

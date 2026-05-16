@@ -15,11 +15,10 @@ public:
 
 	// 정식 entry point — UAnimSequence asset 경로용. 현재는 stub.
 	bool OpenAnimSequenceAsset(const FString& AssetPath);
+	bool OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* InPreviewMesh, UAnimSequence* InSequence);
 
 	// 임시 entry point — FBX의 baked clip 한 개를 anim sequence처럼 다룸.
 	// FbxPath은 mode bar의 "Open SkeletalMesh Editor" 버튼이 같은 FBX를 열기 위해 보관.
-	bool OpenFromFbxClip(const FString& InFbxPath, USkeletalMesh* InPreviewMesh, int32 ClipIndex);
-
 	const FString& GetFbxPath() const { return FbxPath; }
 	int32 GetClipIndex() const { return BakedClipIndex; }
 
@@ -44,6 +43,7 @@ private:
 
 	std::unique_ptr<IAnimSequenceDataSource> DataSource;
 	USkeletalMesh* PreviewMesh = nullptr;
+	UAnimSequence* AnimSequence = nullptr;
 	int32 BakedClipIndex = -1; // PreviewMeshComponent에 setBakedAnimClipIndex로 설정한 값
 	FString FbxPath;           // mode bar 점프용 원본 FBX 경로
 

@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-class USkeletalMesh;
+class UAnimSequence;
 struct FAnimationClip;
 struct FBoneAnimTrack;
 
@@ -42,10 +42,10 @@ public:
 
 // 임시 어댑터: SkeletalMesh asset에 baked되어 있는 FAnimationClip 한 개를 AnimSequence처럼 노출.
 // Notify는 어댑터 인스턴스 안에만 저장 — 탭을 닫으면 사라진다.
-class FFbxClipAnimDataSource : public IAnimSequenceDataSource
+class FUAnimSequenceDataSource : public IAnimSequenceDataSource
 {
 public:
-	FFbxClipAnimDataSource(USkeletalMesh* InMesh, int32 InClipIndex);
+	explicit FUAnimSequenceDataSource(UAnimSequence* InSequence);
 
 	FString GetName() const override;
 	float   GetDuration() const override;
@@ -53,18 +53,17 @@ public:
 	int32   GetFrameCount() const override;
 	const TArray<FBoneAnimTrack>& GetTracks() const override;
 
-	const TArray<FAnimNotifyEntry>& GetNotifies() const override { return SessionNotifies; }
+	const TArray<FAnimNotifyEntry>& GetNotifies() const override { return CachedNotifyEntries; }
 	int32 AddNotify(const FAnimNotifyEntry& Notify) override;
 	bool  RemoveNotify(int32 Index) override;
 	bool  UpdateNotify(int32 Index, const FAnimNotifyEntry& Notify) override;
 
-	int32 GetClipIndex() const { return ClipIndex; }
-	USkeletalMesh* GetMesh() const { return Mesh; }
+	UAnimSequence* GetSequence() const { return Sequence; }
 
 private:
-	const FAnimationClip* GetClip() const;
+	void RebuildNotifyCache();
+	void WriteNotifyToAsset(int32 Index, const FAnimNotifyEntry& Notify);
 
-	USkeletalMesh* Mesh = nullptr;
-	int32 ClipIndex = -1;
-	TArray<FAnimNotifyEntry> SessionNotifies;
+	UAnimSequence* Sequence = nullptr;
+	TArray<FAnimNotifyEntry> CachedNotifyEntries;
 };

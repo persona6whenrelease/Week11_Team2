@@ -88,6 +88,11 @@ USkeletalMesh *FMeshManager::LoadSkeletalMesh(const FString &PathFileName)
     return FFBXManager::LoadSkeletalMesh(PathFileName);
 }
 
+UAnimSequence *FMeshManager::ResolveAnimSequenceReference(const FString &PathFileName)
+{
+    return FFBXManager::ResolveAnimSequenceReference(PathFileName);
+}
+
 UFBXSceneAsset *FMeshManager::LoadFbxScene(const FString &PathFileName)
 {
     return FFBXManager::LoadFbxScene(PathFileName);

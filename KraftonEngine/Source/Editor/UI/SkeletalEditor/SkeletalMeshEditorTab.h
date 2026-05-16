@@ -5,6 +5,7 @@
 #include <functional>
 
 class UFBXSceneAsset;
+class UAnimSequence;
 
 // SkeletalMesh 모드 탭: FBX 한 개 로드, 본 계층/리소스/Transform/베이크드 클립 재생.
 class FSkeletalMeshEditorTab : public FSkeletalEditorTab
@@ -12,7 +13,7 @@ class FSkeletalMeshEditorTab : public FSkeletalEditorTab
 public:
 	// 사용자가 RenderAnimationPlaybackPanel에서 "Edit in Anim Editor" 클릭 시 호출.
 	// Widget(셸)이 새 AnimSequence 탭을 띄우는 콜백을 주입한다.
-	using FOpenAnimEditorCallback = std::function<void(const FString& FbxPath, USkeletalMesh* PreviewMesh, int32 ClipIndex)>;
+	using FOpenAnimEditorCallback = std::function<void(const FString& AnimSequencePath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence)>;
 
 	FSkeletalMeshEditorTab(UEditorEngine* InEditorEngine, int32 InTabId);
 
@@ -27,6 +28,7 @@ public:
 	USkeletalMesh* GetCurrentPreviewMesh() const { return PreviewSkeletalMesh; }
 	const FString& GetCurrentFbxPath() const { return CurrentFbxPath; }
 	int32 GetCurrentClipIndex() const;
+	UAnimSequence* GetCurrentAnimSequence(FString* OutPath = nullptr) const;
 
 protected:
 	USkeletalMesh* GetActivePreviewMesh() const override;

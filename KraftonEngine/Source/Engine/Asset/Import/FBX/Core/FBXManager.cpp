@@ -25,6 +25,7 @@
 #include <cstring>
 #include <cwctype>
 #include <filesystem>
+#include <iterator>
 
 TMap<FString, UFBXSceneAsset *> FFBXManager::FbxSceneCache;
 TArray<FMeshAssetListItem>      FFBXManager::AvailableFbxFiles;
@@ -151,6 +152,48 @@ namespace
         }
 
         OutSourceId = static_cast<int32>(ParsedId);
+        return true;
+    }
+
+    bool ParseFbxSceneAnimSequenceReference(const FString &Path, FString &OutSourcePath,
+                                            int32 &OutSkeletonId, int32 &OutAnimIndex)
+    {
+        const char *Marker = "#Anim_";
+        const size_t MarkerPos = Path.find(Marker);
+        if (MarkerPos == FString::npos)
+        {
+            return false;
+        }
+
+        OutSourcePath = Path.substr(0, MarkerPos);
+        const FString IdText = Path.substr(MarkerPos + std::strlen(Marker));
+        const size_t SeparatorPos = IdText.find('_');
+        if (OutSourcePath.empty() || SeparatorPos == FString::npos)
+        {
+            return false;
+        }
+
+        const FString SkeletonText = IdText.substr(0, SeparatorPos);
+        const FString AnimText = IdText.substr(SeparatorPos + 1);
+        if (SkeletonText.empty() || AnimText.empty())
+        {
+            return false;
+        }
+
+        char *SkeletonEnd = nullptr;
+        char *AnimEnd = nullptr;
+        const long ParsedSkeletonId = std::strtol(SkeletonText.c_str(), &SkeletonEnd, 10);
+        const long ParsedAnimIndex = std::strtol(AnimText.c_str(), &AnimEnd, 10);
+        if (!SkeletonEnd || *SkeletonEnd != '\0' ||
+            !AnimEnd || *AnimEnd != '\0' ||
+            ParsedSkeletonId < 0 || ParsedSkeletonId > INT32_MAX ||
+            ParsedAnimIndex < 0 || ParsedAnimIndex > INT32_MAX)
+        {
+            return false;
+        }
+
+        OutSkeletonId = static_cast<int32>(ParsedSkeletonId);
+        OutAnimIndex = static_cast<int32>(ParsedAnimIndex);
         return true;
     }
 
@@ -530,6 +573,87 @@ USkeletalMesh *FFBXManager::ResolveSkeletalMeshReference(const FString &PathFile
     return SkeletalMesh;
 }
 
+UAnimSequence *FFBXManager::ResolveAnimSequenceReference(const FString &PathFileName)
+{
+    FString SourcePath;
+    int32   SourceSkeletonId = -1;
+    int32   AnimIndex = -1;
+    if (!ParseFbxSceneAnimSequenceReference(PathFileName, SourcePath, SourceSkeletonId, AnimIndex))
+    {
+        return nullptr;
+    }
+
+    UFBXSceneAsset *SceneAsset = LoadFbxScene(SourcePath);
+    if (!SceneAsset)
+    {
+        UE_LOG("[FBXManager] Failed to load FBX scene for anim sequence reference: %s",
+               PathFileName.c_str());
+        return nullptr;
+    }
+
+    const TArray<USkeletalMesh *> &SkeletalMeshes = SceneAsset->GetSkeletalMeshes();
+    const TArray<UAnimSequence *> &AnimSequences = SceneAsset->GetAnimSequences();
+
+    int32 SequenceOffset = 0;
+    for (USkeletalMesh *SkeletalMesh : SkeletalMeshes)
+    {
+        const FSkeletalMesh *MeshAsset = SkeletalMesh ? SkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+        if (!MeshAsset)
+        {
+            continue;
+        }
+
+        const int32 SequenceCount = static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
+        const FString SkeletonRef = SourcePath + "#Skeleton_" + std::to_string(SourceSkeletonId);
+        const bool bMatchesSkeleton =
+            MeshAsset->SkeletonAssetPath == SourcePath + "#SkeletonAsset_" + std::to_string(SourceSkeletonId) ||
+            PathFileName.find(SkeletonRef) != FString::npos;
+
+        if (bMatchesSkeleton)
+        {
+            const int32 FlatIndex = SequenceOffset + AnimIndex;
+            if (AnimIndex >= 0 && AnimIndex < SequenceCount &&
+                FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
+            {
+                return AnimSequences[FlatIndex];
+            }
+            break;
+        }
+
+        SequenceOffset += SequenceCount;
+    }
+
+    int32 FallbackOffset = 0;
+    for (USkeletalMesh *SkeletalMesh : SkeletalMeshes)
+    {
+        const FSkeletalMesh *MeshAsset = SkeletalMesh ? SkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+        if (!MeshAsset)
+        {
+            continue;
+        }
+
+        const auto It = std::find(MeshAsset->AnimationSequenceAssetPaths.begin(),
+                                  MeshAsset->AnimationSequenceAssetPaths.end(),
+                                  PathFileName);
+        if (It != MeshAsset->AnimationSequenceAssetPaths.end())
+        {
+            const int32 LocalIndex = static_cast<int32>(std::distance(
+                MeshAsset->AnimationSequenceAssetPaths.begin(), It));
+            const int32 FlatIndex = FallbackOffset + LocalIndex;
+            if (FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
+            {
+                return AnimSequences[FlatIndex];
+            }
+        }
+
+        FallbackOffset += static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
+    }
+
+    UE_LOG("[FBXManager] Anim sequence reference not found in FBX scene. Ref=%s",
+           PathFileName.c_str());
+    return nullptr;
+}
+
 UObject *FFBXManager::ResolveFbxSceneAssetReference(const FString &PathFileName)
 {
     if (IsFbxPath(PathFileName))
@@ -543,6 +667,10 @@ UObject *FFBXManager::ResolveFbxSceneAssetReference(const FString &PathFileName)
     if (PathFileName.find("#Skeleton_") != FString::npos)
     {
         return ResolveSkeletalMeshReference(PathFileName);
+    }
+    if (PathFileName.find("#Anim_") != FString::npos)
+    {
+        return ResolveAnimSequenceReference(PathFileName);
     }
     return nullptr;
 }

@@ -521,6 +521,18 @@
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\Skeleton.cpp">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.cpp">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.cpp">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Camera\CameraFadeModifier.cpp">
       <Filter>Source\Engine\Camera</Filter>
     </ClCompile>
@@ -1363,6 +1375,24 @@
     </ClInclude>
     <ClInclude Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimationTypes.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\Skeleton.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Notify\AnimNotify.h">
+      <Filter>Source\Engine\Asset\Animation\Notify</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.h">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.h">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Camera\CameraFadeModifier.h">
       <Filter>Source\Engine\Camera</Filter>

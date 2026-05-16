@@ -71,9 +71,9 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	auto NewTab = std::make_unique<FSkeletalMeshEditorTab>(EditorEngine, NextTabId++);
 	FSkeletalMeshEditorTab* RawTab = NewTab.get();
 	NewTab->SetOpenAnimEditorCallback(
-		[this](const FString& Path, USkeletalMesh* Mesh, int32 ClipIdx)
+		[this](const FString& Path, USkeletalMesh* Mesh, UAnimSequence* Sequence)
 		{
-			OpenAnimSequenceFromFbxClip(Path, Mesh, ClipIdx);
+			OpenAnimSequenceAsset(Path, Mesh, Sequence);
 		});
 	// Mode bar: 이미 SkeletalMesh 모드라 좌측 버튼은 그대로 활성 표시(no-op),
 	// 우측은 현재 선택된 클립으로 AnimSequence 탭 열기.
@@ -82,11 +82,11 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 		[this, RawTab]()
 		{
 			USkeletalMesh* Mesh = RawTab->GetCurrentPreviewMesh();
-			const FString& Path = RawTab->GetCurrentFbxPath();
-			if (Mesh && !Path.empty())
+			FString AnimSequencePath;
+			UAnimSequence* Sequence = RawTab->GetCurrentAnimSequence(&AnimSequencePath);
+			if (Mesh && Sequence && !AnimSequencePath.empty())
 			{
-				const int32 ClipIdx = RawTab->GetCurrentClipIndex();
-				OpenAnimSequenceFromFbxClip(Path, Mesh, ClipIdx);
+				OpenAnimSequenceAsset(AnimSequencePath, Mesh, Sequence);
 			}
 		});
 	const bool bOk = NewTab->OpenFbxAsset(FbxPath);
@@ -94,49 +94,6 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	{
 		return false;
 	}
-	RequestedFocusTabId = NewTab->GetTabId();
-	Tabs.emplace_back(std::move(NewTab));
-	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
-	return true;
-}
-
-bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceFromFbxClip(const FString& FbxPath, USkeletalMesh* PreviewMesh, int32 ClipIndex)
-{
-	if (!PreviewMesh)
-	{
-		return false;
-	}
-
-	// 같은 (FBX, clip) 조합이 이미 열려 있으면 그 탭으로 포커싱
-	const FString SourceKey = FbxPath + "#clip" + std::to_string(ClipIndex);
-	if (FSkeletalEditorTab* Existing = FindTabBySource(SourceKey))
-	{
-		RequestedFocusTabId = Existing->GetTabId();
-		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
-		{
-			if (Tabs[i].get() == Existing)
-			{
-				ActiveTabIndex = i;
-				break;
-			}
-		}
-		return true;
-	}
-
-	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextTabId++);
-	FAnimSequenceEditorTab* RawTab = NewTab.get();
-	// Mode bar: SkelMesh 버튼 → 같은 FBX의 SkeletalMesh 탭 열기, Anim 버튼은 현재 활성 (no-op)
-	NewTab->SetOnSwitchToSkeletalMesh(
-		[this, RawTab]()
-		{
-			const FString& Path = RawTab->GetFbxPath();
-			if (!Path.empty())
-			{
-				OpenFbxAsset(Path);
-			}
-		});
-	NewTab->SetOnSwitchToAnimSequence(nullptr);
-	NewTab->OpenFromFbxClip(FbxPath, PreviewMesh, ClipIndex);
 	RequestedFocusTabId = NewTab->GetTabId();
 	Tabs.emplace_back(std::move(NewTab));
 	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
@@ -160,7 +117,65 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 	}
 
 	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextTabId++);
-	NewTab->OpenAnimSequenceAsset(AssetPath);
+	FAnimSequenceEditorTab* RawTab = NewTab.get();
+	NewTab->SetOnSwitchToSkeletalMesh(
+		[this, RawTab]()
+		{
+			const FString& Path = RawTab->GetFbxPath();
+			if (!Path.empty())
+			{
+				OpenFbxAsset(Path);
+			}
+		});
+	NewTab->SetOnSwitchToAnimSequence(nullptr);
+	if (!NewTab->OpenAnimSequenceAsset(AssetPath))
+	{
+		return false;
+	}
+	RequestedFocusTabId = NewTab->GetTabId();
+	Tabs.emplace_back(std::move(NewTab));
+	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
+	return true;
+}
+
+bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence)
+{
+	if (!PreviewMesh || !Sequence)
+	{
+		return false;
+	}
+
+	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
+	{
+		RequestedFocusTabId = Existing->GetTabId();
+		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+		{
+			if (Tabs[i].get() == Existing)
+			{
+				ActiveTabIndex = i;
+				break;
+			}
+		}
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextTabId++);
+	FAnimSequenceEditorTab* RawTab = NewTab.get();
+	NewTab->SetOnSwitchToSkeletalMesh(
+		[this, RawTab]()
+		{
+			const FString& Path = RawTab->GetFbxPath();
+			if (!Path.empty())
+			{
+				OpenFbxAsset(Path);
+			}
+		});
+	NewTab->SetOnSwitchToAnimSequence(nullptr);
+	if (!NewTab->OpenAnimSequenceAsset(AssetPath, PreviewMesh, Sequence))
+	{
+		return false;
+	}
+
 	RequestedFocusTabId = NewTab->GetTabId();
 	Tabs.emplace_back(std::move(NewTab));
 	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;

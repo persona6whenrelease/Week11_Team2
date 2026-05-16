@@ -3,8 +3,11 @@
 
 #include "Component/SkeletalMeshComponent.h"
 #include "Editor/Viewport/SkeletalMeshViewerViewportClient.h"
-#include "Mesh/SkeletalMesh.h"
-#include "Mesh/SkeletalMeshAsset.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
 #include "Runtime/Engine.h"
 #include "Render/Pipeline/Renderer.h"
@@ -115,28 +118,57 @@ FAnimSequenceEditorTab::FAnimSequenceEditorTab(UEditorEngine* InEditorEngine, in
 bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 {
 	// UAnimSequence asset 진입점 — 아직 stub
-	SetSourcePath(AssetPath);
-	return true;
+	UObject* ResolvedAsset = FMeshManager::ResolveFbxSceneAssetReference(AssetPath);
+	UAnimSequence* ResolvedSequence = Cast<UAnimSequence>(ResolvedAsset);
+	if (!ResolvedSequence)
+	{
+		return false;
+	}
+
+	USkeletalMesh* ResolvedPreviewMesh = nullptr;
+	if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
+	{
+		for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+		{
+			const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
+			if (!MeshAsset) continue;
+
+			const auto It = std::find(
+				MeshAsset->AnimationSequenceAssetPaths.begin(),
+				MeshAsset->AnimationSequenceAssetPaths.end(),
+				AssetPath);
+			if (It != MeshAsset->AnimationSequenceAssetPaths.end())
+			{
+				ResolvedPreviewMesh = Mesh;
+				break;
+			}
+		}
+	}
+
+	return OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence);
 }
 
-bool FAnimSequenceEditorTab::OpenFromFbxClip(const FString& InFbxPath, USkeletalMesh* InPreviewMesh, int32 ClipIndex)
+bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* InPreviewMesh, UAnimSequence* InSequence)
 {
-	if (!InPreviewMesh) return false;
+	if (!InPreviewMesh || !InSequence) return false;
 
 	PreviewMesh = InPreviewMesh;
-	FbxPath = InFbxPath;
-	SetSourcePath(InFbxPath + "#clip" + std::to_string(ClipIndex));
-	DataSource = std::make_unique<FFbxClipAnimDataSource>(InPreviewMesh, ClipIndex);
+	AnimSequence = InSequence;
+
+	const size_t AnimMarkerPos = AssetPath.find("#Anim_");
+	FbxPath = AnimMarkerPos == FString::npos ? FString() : AssetPath.substr(0, AnimMarkerPos);
+	SetSourcePath(AssetPath);
+	DataSource = std::make_unique<FUAnimSequenceDataSource>(InSequence);
 
 	PreviewScene.SetPreviewMesh(InPreviewMesh);
 
 	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
 	{
-		Comp->SetBakedAnimClipIndex(ClipIndex);
+		Comp->SetAnimation(InSequence);
 		Comp->SetBakedAnimTime(0.0f);
 		Comp->SetBakedAnimPlaybackSpeed(1.0f);
 		Comp->SetBakedAnimPaused(true);
-		BakedClipIndex = ClipIndex;
+		BakedClipIndex = 0;
 	}
 
 	CurrentTime = 0.0f;
@@ -190,6 +222,10 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
 	if (!Comp || !DataSource) return;
 	Comp->SetBakedAnimClipIndex(BakedClipIndex);
+	if (AnimSequence)
+	{
+		Comp->SetAnimation(AnimSequence);
+	}
 	Comp->SetBakedAnimPaused(true);
 	Comp->SetBakedAnimTime(CurrentTime);
 }
