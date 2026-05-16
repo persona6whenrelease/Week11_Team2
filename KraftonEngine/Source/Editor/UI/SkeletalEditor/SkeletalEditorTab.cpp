@@ -28,6 +28,76 @@
 
 namespace
 {
+	// ===== Mode bar 아이콘 (현재 탭 종류 강조 + 다른 모드로 점프) =====
+	enum class EModeBarIcon : int32
+	{
+		SkeletalMesh = 0,
+		AnimSequence,
+		Count
+	};
+
+	const wchar_t* GetModeBarIconFileName(EModeBarIcon Icon)
+	{
+		switch (Icon)
+		{
+		case EModeBarIcon::SkeletalMesh: return L"SkeletalMesh.png";
+		case EModeBarIcon::AnimSequence: return L"SyncMarker.png";
+		default: return L"";
+		}
+	}
+
+	ID3D11ShaderResourceView** GetModeBarIconTable()
+	{
+		static ID3D11ShaderResourceView* Icons[static_cast<int32>(EModeBarIcon::Count)] = {};
+		return Icons;
+	}
+
+	bool bModeBarIconsLoaded = false;
+
+	void EnsureModeBarIconsLoaded()
+	{
+		if (bModeBarIconsLoaded || !GEngine) return;
+		ID3D11Device* Device = GEngine->GetRenderer().GetFD3DDevice().GetDevice();
+		if (!Device) return;
+
+		ID3D11ShaderResourceView** Icons = GetModeBarIconTable();
+		const std::wstring IconDir = FPaths::Combine(FPaths::RootDir(), L"Asset/Editor/UEIcons/");
+		for (int32 i = 0; i < static_cast<int32>(EModeBarIcon::Count); ++i)
+		{
+			const std::wstring FilePath = IconDir + GetModeBarIconFileName(static_cast<EModeBarIcon>(i));
+			DirectX::CreateWICTextureFromFile(Device, FilePath.c_str(), nullptr, &Icons[i]);
+		}
+		bModeBarIconsLoaded = true;
+	}
+
+	bool DrawModeBarButton(const char* Id, EModeBarIcon Icon, bool bActive, bool bEnabled, const char* FallbackLabel)
+	{
+		constexpr float IconSize = 22.0f;
+		ID3D11ShaderResourceView* SRV = GetModeBarIconTable()[static_cast<int32>(Icon)];
+
+		if (!bEnabled) ImGui::BeginDisabled();
+		if (bActive)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.20f, 0.45f, 0.85f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.28f, 0.55f, 0.95f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.15f, 0.38f, 0.78f, 1.0f));
+		}
+
+		bool bClicked = false;
+		if (SRV)
+		{
+			bClicked = ImGui::ImageButton(Id, reinterpret_cast<ImTextureID>(SRV), ImVec2(IconSize, IconSize));
+		}
+		else
+		{
+			bClicked = ImGui::Button(FallbackLabel);
+		}
+
+		if (bActive) ImGui::PopStyleColor(3);
+		if (!bEnabled) ImGui::EndDisabled();
+		return bClicked;
+	}
+
 	constexpr float BoneDebugJointRadiusScale = 0.005f;
 	const FColor SelectedBoneDebugColor(255, 120, 0);
 
@@ -319,9 +389,55 @@ FString FSkeletalEditorTab::ExtractFileStem(const FString& Path)
 	return (DotPos == FString::npos) ? FileName : FileName.substr(0, DotPos);
 }
 
+void FSkeletalEditorTab::RenderTabModeBar()
+{
+	EnsureModeBarIconsLoaded();
+
+	constexpr float ButtonSize = 22.0f;
+	constexpr float ButtonSpacing = 4.0f;
+	const float FramePadX = ImGui::GetStyle().FramePadding.x * 2.0f;
+	const float TotalWidth = (ButtonSize + FramePadX) * 2.0f + ButtonSpacing;
+
+	// 우측 정렬
+	const float Avail = ImGui::GetContentRegionAvail().x;
+	if (Avail > TotalWidth)
+	{
+		ImGui::Dummy(ImVec2(Avail - TotalWidth, 0.0f));
+		ImGui::SameLine(0.0f, 0.0f);
+	}
+
+	const ESkeletalEditorTabKind Kind = GetKind();
+	const bool bIsSkelMode = (Kind == ESkeletalEditorTabKind::SkeletalMesh);
+	const bool bIsAnimMode = (Kind == ESkeletalEditorTabKind::AnimSequence);
+
+	if (DrawModeBarButton("##SwitchToSkelMesh", EModeBarIcon::SkeletalMesh,
+		bIsSkelMode, OnSwitchToSkeletalMesh != nullptr, "Mesh"))
+	{
+		if (OnSwitchToSkeletalMesh) OnSwitchToSkeletalMesh();
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Open SkeletalMesh Editor for this mesh");
+	}
+
+	ImGui::SameLine(0.0f, ButtonSpacing);
+
+	if (DrawModeBarButton("##SwitchToAnimSeq", EModeBarIcon::AnimSequence,
+		bIsAnimMode, OnSwitchToAnimSequence != nullptr, "Anim"))
+	{
+		if (OnSwitchToAnimSequence) OnSwitchToAnimSequence();
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Open AnimSequence Editor for the current clip");
+	}
+}
+
 void FSkeletalEditorTab::RenderTabContent(float DeltaTime)
 {
 	ImGui::PushID(TabId);
+
+	RenderTabModeBar();
 
 	if (ImGui::BeginTable(
 		"##SkeletalMeshViewerLayout",

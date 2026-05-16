@@ -5,6 +5,8 @@
 
 #include <memory>
 
+class USkeletalMesh;
+
 // 통합 셸: 여러 Skeletal Editor 탭(SkeletalMesh / AnimSequence)을 모은 하나의 ImGui 윈도우.
 class FEditorSkeletalMeshViewerWidget : public FEditorWidget
 {
@@ -16,6 +18,8 @@ public:
 
 	bool OpenFbxAsset(const FString& FbxPath);
 	bool OpenAnimSequenceAsset(const FString& AssetPath);
+	// 임시: FBX 한 클립을 AnimSequence Editor 탭으로 띄움 (UAnimSequence asset 도입 전 stand-in)
+	bool OpenAnimSequenceFromFbxClip(const FString& FbxPath, USkeletalMesh* PreviewMesh, int32 ClipIndex);
 
 	bool WantsMouseCapture() const;
 	bool WantsKeyboardCapture() const;

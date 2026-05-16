@@ -491,6 +491,12 @@
     <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp">
       <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Editor\UI\EditorStatWidget.cpp">
       <Filter>Source\Editor\UI</Filter>
     </ClCompile>
@@ -1320,6 +1326,12 @@
       <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClInclude>
     <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.h">
       <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClInclude>
     <ClInclude Include="Source\Editor\UI\EditorStatWidget.h">
