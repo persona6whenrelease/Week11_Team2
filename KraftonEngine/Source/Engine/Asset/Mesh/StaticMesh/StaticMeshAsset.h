@@ -1,9 +1,8 @@
 /**
  * 정적 메시 에셋의 직렬화 가능한 순수 데이터 구조를 정의한다.
  *
- * 위치, 노말, 탄젠트, UV를 가진 정점 배열과 인덱스, 섹션, 머티리얼 슬롯을 저장한다. FBX/OBJ
- * 임포터는 각자의 원본 포맷을 이 구조로 변환하고, UStaticMesh는 이 데이터를 기반으로 GPU 리소스를
- * 만든다.
+ * 위치, 노말, 탄젠트, UV를 가진 정점 배열과 인덱스, 섹션, 머티리얼 슬롯을 저장한다. FBX/OBJ 임포터는
+ * 각자의 원본 포맷을 이 구조로 변환하고, UStaticMesh는 이 데이터를 기반으로 GPU 리소스를 만든다.
  */
 
 #pragma once
@@ -18,10 +17,7 @@
 #include <algorithm>
 
 /**
- * 정적 메시 렌더링에 사용하는 기본 정점 형식이다.
- *
- * 위치, 노말, 탄젠트, UV를 포함하며 StaticMesh와 메시 간소화, FBX/OBJ 임포터가 공통으로 사용하는
- * 정점 버퍼 단위이다.
+ * 정적 메시 렌더링에 사용하는 위치, 노말, 색상, UV, 탄젠트 포함 정점 형식이다.
  */
 struct FNormalVertex
 {
@@ -33,10 +29,7 @@ struct FNormalVertex
 };
 
 /**
- * 정적 메시 에셋의 저장 단위이다.
- *
- * LOD별 지오메트리, 섹션, 머티리얼 슬롯을 포함하며 UObject나 GPU 버퍼에 의존하지 않는다. 원본
- * 임포트 결과를 저장하거나 다시 로드할 때 사용하는 순수 데이터 모델이다.
+ * 정적 메시의 정점, 인덱스, 섹션, 머티리얼 슬롯, 바운딩 정보를 저장하는 순수 데이터이다.
  */
 struct FStaticMesh
 {
@@ -52,6 +45,9 @@ struct FStaticMesh
     FVector BoundsExtent = FVector(0, 0, 0);
     bool    bBoundsValid = false;
 
+    /**
+     * 정점 배열을 순회해 메시의 로컬 바운딩 박스 중심과 반경을 계산한다.
+     */
     void CacheBounds()
     {
         bBoundsValid = false;
@@ -75,6 +71,9 @@ struct FStaticMesh
         bBoundsValid = true;
     }
 
+    /**
+     * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+     */
     void Serialize(FArchive &Ar)
     {
         Ar << PathFileName;

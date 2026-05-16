@@ -1,9 +1,8 @@
 /**
- * FBX SDK 타입을 엔진 수학 타입과 메시 속성 값으로 변환하는 공통 함수를 구현한다.
+ * FBX SDK 타입을 엔진 수학 타입과 메시 속성으로 변환하는 로직을 구현한다.
  *
- * 좌표, 행렬, 노말, UV, 탄젠트, 머티리얼 인덱스처럼 여러 파서가 반복해서 필요로 하는 읽기 규칙을
- * 한곳에 모은다. FBX의 mapping/reference mode 차이와 누락된 데이터에 대한 fallback 처리를 여기서
- * 통일하여 StaticMesh와 SkeletalMesh 임포트 결과가 같은 기준을 따르게 한다.
+ * 노드 이름, 위치, 노말, UV, 탄젠트를 읽을 때 FBX의 MappingMode와 ReferenceMode를 해석한다. 데이터가
+ * 없거나 인덱스가 잘못된 경우에는 기본값과 통계 정보를 사용해 임포트가 중단되지 않도록 처리한다.
  */
 
 #include "Asset/Import/FBX/Core/FBXUtil.h"
@@ -111,7 +110,7 @@ namespace
         OutUV = FBXUtil::ConvertFbxVector2(UVElement->GetDirectArray().GetAt(DirectIndex));
         return true;
     }
-} // namespace
+} 
 
 int32 FBXUtil::GetNodeDepth(FbxNode *Node)
 {

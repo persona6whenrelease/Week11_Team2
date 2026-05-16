@@ -1,8 +1,8 @@
 /**
- * FBX SDK와 엔진 타입 사이의 변환 유틸리티를 선언한다.
+ * FBX SDK 데이터 접근을 엔진 타입으로 감싸는 공통 유틸리티를 선언한다.
  *
- * FBX 원본 데이터는 SDK 고유 타입과 layer element 규칙을 사용하므로, 각 파서가 직접 읽으면 처리
- * 방식이 쉽게 달라진다. 이 클래스는 기본값, fallback, 통계 수집을 포함한 공통 읽기 경로를 제공한다.
+ * FBX는 매핑 모드와 참조 모드에 따라 노말, UV, 탄젠트의 실제 인덱싱 방식이 달라진다. 이 유틸리티는
+ * 그 차이를 한곳에 모아 각 파서가 동일한 규칙으로 메시 속성을 읽도록 한다.
  */
 
 #pragma once
@@ -22,7 +22,7 @@ namespace fbxsdk
     class FbxSurfaceMaterial;
     class FbxVector2;
     class FbxVector4;
-} // namespace fbxsdk
+} 
 
 using FbxAMatrix = fbxsdk::FbxAMatrix;
 using FbxCluster = fbxsdk::FbxCluster;
@@ -36,10 +36,7 @@ using FbxVector2 = fbxsdk::FbxVector2;
 using FbxVector4 = fbxsdk::FbxVector4;
 
 /**
- * FBX UV 읽기 과정에서 어떤 경로가 사용되었는지 집계하는 디버그 통계이다.
- *
- * preferred UV set, fallback, 기본값 사용 횟수를 기록해 특정 모델의 UV 누락 문제를 추적할 때
- * 사용한다.
+ * FBX UV 읽기 과정에서 누락, 기본값 사용, 미러 보정 같은 상태를 집계한다.
  */
 struct FFbxUVReadStats
 {
@@ -52,24 +49,42 @@ struct FFbxUVReadStats
 };
 
 /**
- * FBX SDK 타입과 엔진 메시 타입 사이의 공통 변환 함수 모음이다.
- *
- * 좌표/행렬 변환, 노말/UV/탄젠트 읽기, 머티리얼 인덱스 해석을 통일한다. FBX layer element의 다양한
- * mapping/reference mode 처리를 이 클래스에 모아 임포터 전체가 같은 fallback 규칙을 사용하게 한다.
+ * FBX SDK의 다양한 데이터 접근 방식을 엔진 타입으로 통일하는 유틸리티 모음이다.
  */
 class FBXUtil
 {
   public:
     static int32    GetNodeDepth(FbxNode *Node);
+    /**
+     * 외부 포맷 또는 중간 데이터를 엔진 내부 표현으로 변환한다.
+     */
     static FVector  ConvertFbxVector(const FbxVector4 &V);
+    /**
+     * 외부 포맷 또는 중간 데이터를 엔진 내부 표현으로 변환한다.
+     */
     static FVector2 ConvertFbxVector2(const FbxVector2 &V);
+    /**
+     * 외부 포맷 또는 중간 데이터를 엔진 내부 표현으로 변환한다.
+     */
     static FMatrix  ConvertFbxMatrix(const FbxAMatrix &M);
+    /**
+     * FBX polygon의 material index layer를 읽어 섹션 분리에 사용할 슬롯을 구한다.
+     */
     static int32    ReadMaterialIndex(FbxMesh *Mesh, int32 PolyIndex);
+    /**
+     * 원본 포맷에서 필요한 속성 값을 읽어 엔진 타입으로 변환한다.
+     */
     static FVector  ReadPosition(FbxMesh *Mesh, int32 ControlPointIndex);
+    /**
+     * FBX normal layer element의 매핑/참조 모드를 해석해 폴리곤 정점 노말을 읽는다.
+     */
     static FVector  ReadNormal(FbxMesh *Mesh, int32 PolyIndex, int32 CornerIndex);
     static FVector2 ReadUV(FbxMesh *Mesh, int32 PolyIndex, int32 CornerIndex,
                            int32 ControlPointIndex, int32 PolygonVertexCounter,
                            const char *PreferredUVSetName, FFbxUVReadStats *Stats = nullptr);
+    /**
+     * FBX tangent layer element의 매핑/참조 모드를 해석해 폴리곤 정점 탄젠트를 읽는다.
+     */
     static FVector4 ReadTangent(FbxMesh *Mesh, int32 ControlPointIndex, int32 PolygonVertexIndex);
     static int32    QuantizeFloat(float Value);
     static FString  GetNodeName(FbxNode *Node);

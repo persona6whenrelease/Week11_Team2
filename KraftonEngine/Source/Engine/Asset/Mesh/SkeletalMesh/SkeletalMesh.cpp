@@ -1,30 +1,46 @@
 /**
- * USkeletalMesh의 런타임 객체 동작을 구현한다.
+ * 스켈레탈 메시 에셋 객체의 직렬화와 섹션 보정, 스켈레톤 연결 복원을 구현한다.
  *
- * 스켈레탈 메시 에셋 데이터로부터 렌더링에 필요한 버퍼를 만들고, 머티리얼 슬롯과 본/애니메이션
- * 정보를 객체 레벨에서 접근할 수 있게 한다. 현재 구조에서는 CPU skinning이나 프리뷰 포즈 편집 쪽이
- * 이 데이터를 참조하므로, 에셋 데이터와 렌더 리소스의 소유 경계를 명확히 유지하는 역할을 한다.
+ * 저장/로드 시 공통 에셋 헤더로 SkeletalMesh 타입과 버전을 검증하고, 메시 본문과 머티리얼 슬롯을
+ * 함께 직렬화한다. 로드 이후에는 섹션의 머티리얼 인덱스를 다시 맞추고, 스켈레톤 포인터는 필요 시
+ * 외부 FBXSceneAsset에서 다시 찾을 수 있도록 초기화한다.
  */
-
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 
-#include "Object/ObjectFactory.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 
 #include <utility>
 
 IMPLEMENT_CLASS(USkeletalMesh, UObject)
 
-static const FString              EmptySkeletalPath;
-static const TArray<FMeshSection> EmptySkeletalSections;
+namespace
+{
+    const FString              EmptySkeletalPath;
+    const TArray<FMeshSection> EmptySkeletalSections;
+} // namespace
 
 USkeletalMesh::~USkeletalMesh()
 {
     delete SkeletalMeshAsset;
     SkeletalMeshAsset = nullptr;
+    Skeleton = nullptr;
 }
 
 void USkeletalMesh::Serialize(FArchive &Ar)
 {
+    FAssetFileHeader Header;
+    if (Ar.IsSaving())
+    {
+        Header.AssetType = EAssetType::SkeletalMesh;
+        Header.Version = AssetVersion;
+    }
+
+    Ar << Header;
+    if (!Header.IsValid(EAssetType::SkeletalMesh, AssetVersion))
+    {
+        return;
+    }
+
     if (Ar.IsLoading() && !SkeletalMeshAsset)
     {
         SkeletalMeshAsset = new FSkeletalMesh();
@@ -38,6 +54,7 @@ void USkeletalMesh::Serialize(FArchive &Ar)
 
     if (Ar.IsLoading())
     {
+        Skeleton = nullptr;
         RebuildSectionMaterialIndices();
     }
 }
@@ -53,6 +70,7 @@ void USkeletalMesh::SetSkeletalMeshAsset(FSkeletalMesh *InMesh)
     {
         delete SkeletalMeshAsset;
         SkeletalMeshAsset = InMesh;
+        Skeleton = nullptr;
     }
 
     if (SkeletalMeshAsset && !SkeletalMeshAsset->bBoundsValid)
@@ -60,6 +78,58 @@ void USkeletalMesh::SetSkeletalMeshAsset(FSkeletalMesh *InMesh)
         SkeletalMeshAsset->CacheBounds();
     }
     RebuildSectionMaterialIndices();
+}
+
+void USkeletalMesh::SetSkeleton(USkeleton *InSkeleton)
+{
+    Skeleton = InSkeleton;
+
+    if (SkeletalMeshAsset && Skeleton && !Skeleton->GetAssetPathFileName().empty())
+    {
+        SkeletalMeshAsset->SkeletonAssetPath = Skeleton->GetAssetPathFileName();
+    }
+}
+
+USkeleton *USkeletalMesh::GetSkeleton()
+{
+    if (Skeleton && IsAliveObject(Skeleton))
+    {
+        return Skeleton;
+    }
+
+    Skeleton = nullptr;
+    if (!SkeletalMeshAsset || SkeletalMeshAsset->SkeletonAssetPath.empty())
+    {
+        return nullptr;
+    }
+
+    UFBXSceneAsset *SceneAsset = GetTypedOuter<UFBXSceneAsset>();
+    if (!SceneAsset)
+    {
+        return nullptr;
+    }
+
+    // 저장된 에셋 경로를 기준으로 같은 FBX scene 안의 스켈레톤을 다시 연결한다.
+    for (USkeleton *Candidate : SceneAsset->GetSkeletons())
+    {
+        if (!Candidate)
+        {
+            continue;
+        }
+
+        if (Candidate->GetAssetPathFileName() == SkeletalMeshAsset->SkeletonAssetPath)
+        {
+            Skeleton = Candidate;
+            break;
+        }
+    }
+
+    return Skeleton;
+}
+
+const USkeleton *USkeletalMesh::GetSkeleton() const
+{
+    return const_cast<USkeletalMesh *>(this)->GetSkeleton();
 }
 
 void USkeletalMesh::SetMaterials(TArray<FMeshMaterial> &&InMaterials)
@@ -83,11 +153,12 @@ void USkeletalMesh::RebuildSectionMaterialIndices()
     for (FMeshSection &Section : SkeletalMeshAsset->Sections)
     {
         Section.MaterialIndex = -1;
-        for (int32 i = 0; i < static_cast<int32>(Materials.size()); ++i)
+        for (int32 MaterialIndex = 0; MaterialIndex < static_cast<int32>(Materials.size());
+             ++MaterialIndex)
         {
-            if (Materials[i].MaterialSlotName == Section.MaterialSlotName)
+            if (Materials[MaterialIndex].MaterialSlotName == Section.MaterialSlotName)
             {
-                Section.MaterialIndex = i;
+                Section.MaterialIndex = MaterialIndex;
                 break;
             }
         }

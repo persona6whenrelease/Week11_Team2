@@ -1,9 +1,9 @@
 /**
- * FBX 원본 씬을 분석해 얻은 중간 메타 데이터를 정의한다.
+ * FBX 씬 분석 단계에서 사용하는 메타 데이터 구조를 정의한다.
  *
- * 노드, 메시, 스킨, 클러스터, 본, 스켈레톤, 머티리얼의 원본 SDK 포인터와 엔진 내부 ID를 함께
- * 보관한다. 실제 메시 데이터를 만들기 전에 원본 계층과 참조 관계를 안정적으로 정리하는 단계이며,
- * 여러 파서가 같은 FBX 씬 정보를 공유할 수 있게 하는 공통 컨텍스트 역할을 한다.
+ * 이 파일의 구조체들은 원본 FBX 객체의 고유 ID와 엔진 임포트 분류 결과를 연결한다. 노드, 메시, 스킨,
+ * 클러스터, 본, 스켈레톤, 머티리얼의 관계를 먼저 정리해 두면 이후 지오메트리/애니메이션 파서가 복잡한
+ * FBX 씬 그래프를 다시 순회하지 않아도 된다.
  */
 
 #pragma once
@@ -12,7 +12,13 @@
 #include "Engine/Math/Matrix.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
 
-/** FBX 노드의 ID, 계층, 원본 포인터를 함께 보관하는 메타 데이터이다. */
+// ====================================================
+// Per-Object Metadata
+// ====================================================
+
+/**
+ * FBX 노드의 계층, 타입, 연결 정보를 저장하는 메타 데이터이다.
+ */
 struct FFbxNodeMeta
 {
     int32         NodeId = -1;
@@ -31,7 +37,9 @@ struct FFbxNodeMeta
     FMatrix       GlobalTransform = FMatrix::Identity;
 };
 
-/** FBX mesh node의 원본 포인터와 씬 내부 식별자를 묶는 메타 데이터이다. */
+/**
+ * FBX mesh node가 어떤 스킨/스켈레톤/머티리얼과 연결되는지 저장한다.
+ */
 struct FFbxMeshMeta
 {
     int32           MeshId = -1;
@@ -60,7 +68,9 @@ struct FFbxMeshMeta
     int32           PolygonCount = 0;
 };
 
-/** FBX skin deformer와 연결된 메시 정보를 추적하는 메타 데이터이다. */
+/**
+ * FBX skin deformer와 그 cluster 목록을 저장한다.
+ */
 struct FFbxSkinMeta
 {
     int32         SkinId = -1;
@@ -74,7 +84,9 @@ struct FFbxSkinMeta
     int32         TotalInfluenceCount = 0;
 };
 
-/** FBX cluster가 어떤 본 노드와 control point weight를 가지는지 기록하는 메타 데이터이다. */
+/**
+ * 하나의 본이 mesh control point에 미치는 가중치 정보를 가리키는 메타 데이터이다.
+ */
 struct FFbxClusterMeta
 {
     int32       ClusterId = -1;
@@ -94,7 +106,9 @@ struct FFbxClusterMeta
     bool        bValid = false;
 };
 
-/** FBX 노드 중 스켈레톤 본으로 해석된 항목의 계층 정보를 담는 메타 데이터이다. */
+/**
+ * FBX 노드가 본으로 해석될 때 필요한 부모/자식 관계와 스켈레톤 연결을 저장한다.
+ */
 struct FFbxBoneMeta
 {
     int32         BoneId = -1;
@@ -116,10 +130,7 @@ struct FFbxBoneMeta
 };
 
 /**
- * 하나의 스켈레톤으로 묶인 본 계층과 ID 매핑을 보관한다.
- *
- * FBX에는 여러 skeleton root가 있을 수 있으므로, 각 스켈레톤 단위로 본 배열과 원본 bone id에서 엔진
- * bone index로 가는 매핑을 분리한다. 스키닝 파트 조립과 애니메이션 파싱의 기준 테이블이다.
+ * 하나의 스켈레톤 루트와 그 본 목록을 저장하는 메타 데이터이다.
  */
 struct FFbxSkeletonMeta
 {
@@ -138,7 +149,9 @@ struct FFbxSkeletonMeta
     bool                   bHasSingleRoot = true;
 };
 
-/** FBX 머티리얼의 이름, 원본 포인터, 변환된 에셋 경로를 함께 보관하는 메타 데이터이다. */
+/**
+ * FBX 머티리얼의 이름, 색상, 텍스처 참조를 엔진 임포트 단계에서 보관하는 구조이다.
+ */
 struct FFbxMaterialInfo
 {
     int32   MaterialId = -1;
@@ -153,14 +166,18 @@ struct FFbxMaterialInfo
 };
 
 /**
- * FBX 임포트 전체가 공유하는 원본 씬 메타 컨텍스트이다.
- *
- * 노드, 메시, 스킨, 본, 스켈레톤, 머티리얼을 ID 기반으로 정리해 하위 파서들이 같은 기준을
- * 사용하도록 한다. FBX SDK 포인터의 직접 순회 비용과 중복 해석을 줄이는 중심 데이터이다.
+ * FBX 씬 분석 결과 전체를 담는 공유 메타 데이터 컨테이너이다.
  */
+// ====================================================
+// Import Metadata Container
+// ====================================================
+
 struct FFbxImportMeta
 {
+    // Source file
     FString                           SourceFilePath;
+
+    // Collected metadata tables
     TArray<FFbxNodeMeta>              Nodes;
     TArray<FFbxMeshMeta>              Meshes;
     TArray<FFbxSkinMeta>              Skins;
@@ -168,12 +185,16 @@ struct FFbxImportMeta
     TArray<FFbxBoneMeta>              Bones;
     TArray<FFbxSkeletonMeta>          Skeletons;
     TArray<FFbxMaterialInfo>          Materials;
+
+    // Classified result lists
     TArray<int32>                     StaticMeshIds;
     TArray<int32>                     SkeletalMeshIds;
     TArray<int32>                     RigidAttachedMeshIds;
     TArray<int32>                     IndependentStaticMeshIds;
     TArray<int32>                     LightNodeIds;
     TArray<int32>                     CameraNodeIds;
+
+    // Reverse lookup maps
     TMap<FbxNode *, int32>            NodeToNodeId;
     TMap<FbxMesh *, int32>            MeshToMeshId;
     TMap<FbxMesh *, TArray<int32>>    FbxMeshToMeshIds;

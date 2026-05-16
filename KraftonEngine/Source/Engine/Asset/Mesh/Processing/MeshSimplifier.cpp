@@ -1,10 +1,8 @@
 /**
- * StaticMesh LOD 생성을 위한 메시 간소화 알고리즘을 구현한다.
+ * Quadric Error Metric 기반 메시 간소화 로직을 구현한다.
  *
- * Quadric Error Metrics 기반 edge collapse를 사용하며, UV seam이나 hard edge 때문에 같은 위치에
- * 중복 생성된 정점들을 위치 기준으로 묶어 균열이 생기지 않도록 처리한다. 결과 메시의 삼각형 수를
- * 목표 비율에 맞춰 줄이되 섹션 단위의 머티리얼 범위가 다시 구성될 수 있도록 인덱스와 섹션 정보를
- * 함께 갱신한다.
+ * 정점을 weld한 뒤 삼각형 평면에서 quadric을 만들고, edge collapse 후보 비용을 계산해 목표 삼각형 수까지
+ * 반복적으로 줄인다. 섹션 경계와 퇴화 삼각형을 정리하면서 렌더링 가능한 LOD 메시를 생성한다.
  */
 
 #include "Asset/Mesh/Processing/MeshSimplifier.h"
@@ -15,6 +13,9 @@
 
 namespace
 {
+    /**
+     * QEM 메시 간소화에서 한 정점에 누적되는 평면 오차 행렬이다.
+     */
     struct FQuadric
     {
         double D[10] = {};
@@ -95,6 +96,9 @@ namespace
             V.push_back(Val);
     }
 
+    /**
+     * edge collapse 후보와 그 비용을 우선순위 큐에 넣기 위한 구조이다.
+     */
     struct FCandidate
     {
         float   Cost;
@@ -103,6 +107,9 @@ namespace
         uint32  Version;
     };
 
+    /**
+     * 간소화 후보 큐에서 비용이 낮은 collapse를 먼저 꺼내기 위한 비교자이다.
+     */
     struct FCandLess
     {
         bool operator()(const FCandidate &A, const FCandidate &B) const { return A.Cost > B.Cost; }
@@ -178,7 +185,7 @@ namespace
         for (size_t i = 0; i < InIndices.size(); ++i)
             OutIndices[i] = WeldMap[InIndices[i]];
     }
-} // namespace
+} 
 
 FSimplifiedMesh FMeshSimplifier::Simplify(const TArray<FNormalVertex>      &InVertices,
                                           const TArray<uint32>             &InIndices,
@@ -254,6 +261,9 @@ FSimplifiedMesh FMeshSimplifier::Simplify(const TArray<FNormalVertex>      &InVe
 
         std::vector<bool> IsBnd(NV, false);
         {
+            /**
+             * 간소화 과정에서 인접 정점과 경계 여부를 추적하는 half-edge 보조 구조이다.
+             */
             struct HE
             {
                 uint32 A, B;

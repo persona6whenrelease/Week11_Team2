@@ -1,9 +1,8 @@
 /**
- * FBX mesh node 중 StaticMesh로 사용할 수 있는 데이터를 파싱한다.
+ * FBX 정적 메시 노드의 파싱 절차를 구현한다.
  *
- * 각 mesh node의 bind transform을 기준으로 지오메트리를 엔진 좌표계에 맞춰 변환하고, 결과
- * StaticMesh를 FBX 씬 내부 mesh id와 연결한다. 스키닝 정보가 필요한 부분은 별도 파서가 처리하므로
- * 이 구현부는 정적 지오메트리 변환에 집중한다.
+ * 메타 파서가 static mesh로 분류한 노드를 순회하고, 각 노드의 FBX mesh 데이터를 StaticMesh 빌더에
+ * 전달한다. 변환된 결과는 FBX 씬 에셋의 static mesh 배열에 추가된다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxStaticMeshParser.h"

@@ -1,4 +1,4 @@
-#include "Editor/UI/EditorSkeletalMeshViewerWidget.h"
+﻿#include "Editor/UI/EditorSkeletalMeshViewerWidget.h"
 
 #include "Editor/Settings/EditorSettings.h"
 #include "Asset/Import/MeshManager.h"
@@ -674,7 +674,7 @@ void FEditorSkeletalMeshViewerWidget::SetPreviewMesh(USkeletalMesh* InMesh, bool
 	// Default the viewer to a paused state so the user explicitly hits Play to preview.
 	PreviewMeshComponent->SetBakedAnimPaused(true);
 	PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	PreviewMeshComponent->SetBakedAnimClipIndex(0);
+	// PreviewMeshComponent->SetBakedAnimClipIndex(0);
 	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(1.0f);
 
 	// [추가] 뷰포트 클라이언트의 본 셀렉션 매니저에 타겟 컴포넌트 전달
@@ -1057,12 +1057,12 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 		}
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
-		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
-		if (!MeshAsset)
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		if (!SelectedMesh || !SkeletonAsset)
 		{
 			ImGui::TextDisabled("No SkeletalMesh selected");
 		}
-		else if (MeshAsset->Bones.empty())
+		else if (SkeletonAsset->GetBones().empty())
 		{
 			ImGui::TextDisabled("No bones found");
 		}
@@ -1072,15 +1072,16 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 			int32 PrevSelectedBoneIndex = SelectedBoneIndex;
 			int32 DoubleClickedBoneIndex = -1;
 
+			const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
 			TArray<int32> VisibleOrder;
-			VisibleOrder.reserve(MeshAsset->Bones.size());
+			VisibleOrder.reserve(Bones.size());
 
-			for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(MeshAsset->Bones.size()); ++BoneIndex)
+			for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones.size()); ++BoneIndex)
 			{
 
-				if (MeshAsset->Bones[BoneIndex].ParentIndex < 0)
+				if (Bones[BoneIndex].ParentIndex < 0)
 				{
-					RenderBoneTreeNode(MeshAsset->Bones, BoneIndex, SelectedBoneIndex, DoubleClickedBoneIndex, VisibleOrder, bScrollToSelectedBone, RequestSetOpenBoneIndex, bRequestSetOpenValue);
+					RenderBoneTreeNode(Bones, BoneIndex, SelectedBoneIndex, DoubleClickedBoneIndex, VisibleOrder, bScrollToSelectedBone, RequestSetOpenBoneIndex, bRequestSetOpenValue);
 				}
 			}
 			bScrollToSelectedBone = false;
@@ -1133,9 +1134,9 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 					const int32 SelBone = SelectedBoneIndex;
 
 					int32 FirstChild = -1;
-					for (int32 j = 0; j < static_cast<int32>(MeshAsset->Bones.size()); ++j)
+					for (int32 j = 0; j < static_cast<int32>(Bones.size()); ++j)
 					{
-						if (MeshAsset->Bones[j].ParentIndex == SelBone)
+						if (Bones[j].ParentIndex == SelBone)
 						{
 							FirstChild = j;
 							break;
@@ -1144,7 +1145,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 					const bool bHasChildren = (FirstChild >= 0);
 					const bool bIsOpen      = bHasChildren
 					                       && Cur + 1 < static_cast<int32>(VisibleOrder.size())
-					                       && MeshAsset->Bones[VisibleOrder[Cur + 1]].ParentIndex == SelBone;
+					                       && Bones[VisibleOrder[Cur + 1]].ParentIndex == SelBone;
 
 					if (bRight && bHasChildren)
 					{
@@ -1165,7 +1166,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 						}
 						else
 						{
-							const int32 Parent = MeshAsset->Bones[SelBone].ParentIndex;
+							const int32 Parent = Bones[SelBone].ParentIndex;
 							if (Parent >= 0)
 							{
 								SelectedBoneIndex     = Parent;
@@ -1192,6 +1193,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 	ImGui::EndChild();
 }
 
+// TODO
 void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 {
 	const FSkeletalMesh* Asset = (PreviewSkeletalMesh && PreviewMeshComponent)
@@ -1200,61 +1202,61 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	ImGui::TextUnformatted("Animation");
 	ImGui::Separator();
 
-	if (!Asset || Asset->AnimationClips.empty())
-	{
-		ImGui::TextDisabled("No baked animation clips.");
-		ImGui::Separator();
-		return;
-	}
+	// if (!Asset || Asset->AnimationClips.empty())
+	// {
+	// 	ImGui::TextDisabled("No baked animation clips.");
+	// 	ImGui::Separator();
+	// 	return;
+	// }
 
-	const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
-	int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
-	const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
+	// const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
+	// int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
+	// const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
 
-	if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
-	{
-		for (int32 i = 0; i < ClipCount; ++i)
-		{
-			const bool bSelected = (i == ClipIdx);
-			if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
-			{
-				PreviewMeshComponent->SetBakedAnimClipIndex(i);
-				PreviewMeshComponent->SetBakedAnimTime(0.0f);
-			}
-			if (bSelected)
-			{
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
+	// if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
+	// {
+	// 	for (int32 i = 0; i < ClipCount; ++i)
+	// 	{
+	// 		const bool bSelected = (i == ClipIdx);
+	// 		if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
+	// 		{
+	// 			PreviewMeshComponent->SetBakedAnimClipIndex(i);
+	// 			PreviewMeshComponent->SetBakedAnimTime(0.0f);
+	// 		}
+	// 		if (bSelected)
+	// 		{
+	// 			ImGui::SetItemDefaultFocus();
+	// 		}
+	// 	}
+	// 	ImGui::EndCombo();
+	// }
 
-	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
-	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
-	{
-		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
-	{
-		PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	}
+	//const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
+	//if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
+	//}
+	//ImGui::SameLine();
+	//if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimTime(0.0f);
+	//}
 
-	if (Clip.Duration > 0.0f)
-	{
-		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
-		if (Time < 0.0f) Time += Clip.Duration;
-		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
-		{
-			PreviewMeshComponent->SetBakedAnimTime(Time);
-		}
-	}
+	// if (Clip.Duration > 0.0f)
+	// {
+	// 	float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
+	// 	if (Time < 0.0f) Time += Clip.Duration;
+	// 	if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
+	// 	{
+	// 		PreviewMeshComponent->SetBakedAnimTime(Time);
+	// 	}
+	// }
 
-	float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
-	if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
-	{
-		PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
-	}
+	//float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
+	//if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
+	//}
 
 	ImGui::Separator();
 }
@@ -1272,16 +1274,17 @@ void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
 		}
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
-		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
-		if (!MeshAsset ||
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		if (!SkeletonAsset ||
 			!PreviewMeshComponent ||
 			SelectedBoneIndex < 0 ||
-			SelectedBoneIndex >= static_cast<int32>(MeshAsset->Bones.size()))
+			SelectedBoneIndex >= static_cast<int32>(SkeletonAsset->GetBones().size()))
 		{
 			ImGui::TextDisabled("No bone selected");
 		}
 		else
 		{
+			const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
 			const TArray<FMatrix>& LocalPoses = PreviewMeshComponent->GetLocalBonePoseMatrices();
 			if (SelectedBoneIndex >= static_cast<int32>(LocalPoses.size()))
 			{
@@ -1290,7 +1293,7 @@ void FEditorSkeletalMeshViewerWidget::RenderTransformPanel()
 				return;
 			}
 
-			const FBoneInfo& Bone = MeshAsset->Bones[SelectedBoneIndex];
+			const FBoneInfo& Bone = Bones[SelectedBoneIndex];
 			const FMatrix& LocalPose = LocalPoses[SelectedBoneIndex];
 			const FVector LocationVector = LocalPose.GetLocation();
 			const FVector RotationVector = GetRotationEulerNoScale(LocalPose);
@@ -1575,7 +1578,13 @@ void FEditorSkeletalMeshViewerWidget::UpdateBoneDebugLines()
 		return;
 	}
 
-	const auto& Bones = PreviewSkeletalMesh->GetSkeletalMeshAsset()->Bones;
+	const USkeleton* SkeletonAsset = PreviewSkeletalMesh->GetSkeleton();
+	if (!SkeletonAsset)
+	{
+		return;
+	}
+
+	const auto& Bones = SkeletonAsset->GetBones();
 
 	// 연산이 완료된 MeshSpace 배열을 가져옵니다.
 	const auto& BoneMatrices = PreviewMeshComponent->GetMeshSpaceBoneMatrices();

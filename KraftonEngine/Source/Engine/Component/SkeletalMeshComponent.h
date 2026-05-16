@@ -1,35 +1,89 @@
-﻿#pragma once
+#pragma once
 
 #include "Component/SkinnedMeshComponent.h"
 
+class UAnimationAsset;
+class UAnimSequence;
+class USkeleton;
+
+enum class EAnimationMode
+{
+    AnimationSingleNode
+};
+
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
-public:
-	DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
+  public:
+    DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
 
-	USkeletalMeshComponent() = default;
-	~USkeletalMeshComponent() override = default;
+    USkeletalMeshComponent() = default;
+    ~USkeletalMeshComponent() override = default;
 
-	float GetBakedAnimTime() const { return BakedAnimTime; }
-	void SetBakedAnimTime(float InTime) { BakedAnimTime = InTime; }
+    /**
+     * 단일 애니메이션 에셋을 재생 (AnimationSingleNode만 상정)
+     */
+    void PlayAnimation(UAnimationAsset *NewAnimToPlay, bool bLooping = true);
+    void SetAnimation(UAnimationAsset *NewAnimToPlay);
+    UAnimationAsset *GetAnimation() const
+    {
+        return AnimToPlay;
+    }
 
-	int32 GetBakedAnimClipIndex() const { return BakedAnimClipIndex; }
-	void SetBakedAnimClipIndex(int32 InIndex) { BakedAnimClipIndex = InIndex; }
+    void SetAnimationMode(EAnimationMode InAnimationMode)
+    {
+        AnimationMode = InAnimationMode;
+    }
+    EAnimationMode GetAnimationMode() const
+    {
+        return AnimationMode;
+    }
 
-	bool IsBakedAnimPaused() const { return bBakedAnimPaused; }
-	void SetBakedAnimPaused(bool bInPaused) { bBakedAnimPaused = bInPaused; }
+    void Play(bool bLooping = true);
+    void Stop();
 
-	float GetBakedAnimPlaybackSpeed() const { return BakedAnimPlaybackSpeed; }
-	void SetBakedAnimPlaybackSpeed(float InSpeed) { BakedAnimPlaybackSpeed = InSpeed; }
+    /**
+     * UAnimSequence -> UAnimDataModel -> USkeleton 기준으로 현재 로컬 포즈를 평가한다.
+     */
+    bool EvaluateAnimationPose(const UAnimSequence *Sequence, float TimeSeconds);
 
-protected:
-	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction) override;
-	void ApplyDebugRandomBoneAnimation(float DeltaTime);
-	bool ApplyBakedAnimation(float DeltaTime);
+    float GetBakedAnimTime() const
+    {
+        return BakedAnimTime;
+    }
+    void SetBakedAnimTime(float InTime)
+    {
+        BakedAnimTime = InTime;
+    }
 
-	float DebugBoneAnimTime = 0.0f;
-	float BakedAnimTime = 0.0f;
-	int32 BakedAnimClipIndex = 0;
-	bool bBakedAnimPaused = false;
-	float BakedAnimPlaybackSpeed = 1.0f;
+    bool IsBakedAnimPaused() const
+    {
+        return bBakedAnimPaused;
+    }
+    void SetBakedAnimPaused(bool bInPaused)
+    {
+        bBakedAnimPaused = bInPaused;
+    }
+
+    float GetBakedAnimPlaybackSpeed() const
+    {
+        return BakedAnimPlaybackSpeed;
+    }
+    void SetBakedAnimPlaybackSpeed(float InSpeed)
+    {
+        BakedAnimPlaybackSpeed = InSpeed;
+    }
+
+  protected:
+    void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction &ThisTickFunction) override;
+    void ApplyDebugRandomBoneAnimation(float DeltaTime);
+    bool ApplyBakedAnimation(float DeltaTime);
+
+    float DebugBoneAnimTime = 0.0f;
+    float BakedAnimTime = 0.0f;
+    bool bBakedAnimPaused = true;
+    float BakedAnimPlaybackSpeed = 1.0f;
+    bool bBakedAnimLooping = true;
+
+    EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
+    UAnimationAsset *AnimToPlay = nullptr;
 };

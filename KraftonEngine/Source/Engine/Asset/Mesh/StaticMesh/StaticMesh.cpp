@@ -1,9 +1,8 @@
 /**
- * UStaticMesh의 렌더 리소스 생성과 LOD 접근 동작을 구현한다.
+ * 정적 메시 UObject의 직렬화, 리소스 생성, 피킹 보조 로직을 구현한다.
  *
- * StaticMeshAsset의 정점/인덱스/섹션 데이터를 실제 D3D 버퍼로 올리고, 머티리얼 슬롯과 LOD 데이터를
- * 렌더링 단계에서 사용할 수 있게 정리한다. 원본 임포트 데이터와 GPU 리소스 사이의 변환을 담당하는
- * 런타임 객체 구현부이다.
+ * 공통 에셋 헤더로 StaticMesh 파일을 검증한 뒤 메시 데이터와 머티리얼 슬롯을 저장/로드한다. 로드된 메시에는
+ * GPU 버퍼와 LOD 버퍼를 생성하고, 에디터 선택을 위해 triangle BVH 기반 로컬 공간 raycast도 제공한다.
  */
 
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
@@ -32,6 +31,18 @@ UStaticMesh::~UStaticMesh()
 
 void UStaticMesh::Serialize(FArchive &Ar)
 {
+    FAssetFileHeader Header;
+    if (Ar.IsSaving())
+    {
+        Header.AssetType = EAssetType::StaticMesh;
+        Header.Version = AssetVersion;
+    }
+
+    Ar << Header;
+    if (!Header.IsValid(EAssetType::StaticMesh, AssetVersion))
+    {
+        return;
+    }
 
     if (Ar.IsLoading() && !StaticMeshAsset)
     {

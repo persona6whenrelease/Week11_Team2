@@ -12,16 +12,14 @@
 #include "Collision/MeshTriangleBVH.h"
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
+#include "Asset/AssetFileHeader.h"
 
 #include <memory>
 
 struct ID3D11Device;
 
 /**
- * StaticMesh의 특정 LOD가 렌더링에 필요한 데이터를 묶은 구조이다.
- *
- * 각 LOD는 별도의 정점/인덱스 버퍼와 섹션 정보를 가진다. 렌더링 단계에서는 거리나 설정에 따라
- * 사용할 LOD를 선택하고 이 구조의 버퍼를 draw call에 바인딩한다.
+ * 정적 메시의 추가 LOD가 사용하는 섹션과 GPU 버퍼를 묶어 보관한다.
  */
 struct FLODMeshData
 {
@@ -30,10 +28,7 @@ struct FLODMeshData
 };
 
 /**
- * 정적 메시 에셋 데이터를 렌더링 가능한 UObject로 감싼 타입이다.
- *
- * FStaticMesh의 LOD 데이터와 머티리얼 슬롯을 보관하고, D3D 버퍼 생성/해제를 담당한다. OBJ/FBX
- * 임포터가 만든 순수 데이터는 이 타입을 거쳐 실제 렌더 파이프라인에서 사용할 수 있는 리소스가 된다.
+ * FStaticMesh 데이터를 렌더링 가능한 UObject로 감싸고 LOD/GPU 리소스를 관리하는 에셋 타입이다.
  */
 class UStaticMesh : public UObject
 {
@@ -41,10 +36,14 @@ class UStaticMesh : public UObject
     DECLARE_CLASS(UStaticMesh, UObject)
 
     static constexpr uint32 MAX_LOD_COUNT = 4;
+    static constexpr uint32 AssetVersion = 1;
 
     UStaticMesh() = default;
     ~UStaticMesh() override;
 
+    /**
+     * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+     */
     void Serialize(FArchive &Ar);
 
     const FString                 &GetAssetPathFileName() const;
@@ -53,8 +52,14 @@ class UStaticMesh : public UObject
     void                           SetStaticMaterials(TArray<FStaticMaterial> &&InMaterials);
     const TArray<FStaticMaterial> &GetStaticMaterials() const;
 
+    /**
+     * 로드된 메시 데이터를 기반으로 렌더링에 필요한 GPU 버퍼를 생성한다.
+     */
     void InitResources(ID3D11Device *InDevice);
 
+    /**
+     * 에디터 피킹을 위해 메시 삼각형 BVH가 없으면 지연 생성한다.
+     */
     void EnsureMeshTrianglePickingBVHBuilt() const;
     bool RaycastMeshTrianglesWithBVHLocal(const FVector &LocalOrigin, const FVector &LocalDirection,
                                           FHitResult &OutHitResult) const;

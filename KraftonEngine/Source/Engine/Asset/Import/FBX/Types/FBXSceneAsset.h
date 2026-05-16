@@ -1,23 +1,24 @@
 /**
- * FBX 씬 전체를 보존하기 위한 에셋 데이터와 UObject 래퍼를 선언한다.
+ * 하나의 FBX 파일에서 생성된 하위 에셋들을 씬 단위로 저장하는 UObject를 선언한다.
  *
- * FBX 원본의 계층형 컴포넌트, 정적 메시 배열, 스켈레탈 메시 배열, 라이트 정보를 하나의 단위로
- * 묶는다. FBX 내부 메시 참조를 나중에 다시 해석할 수 있도록 씬 에셋이 중심 인덱스 역할을 한다.
+ * FBX 하나는 여러 StaticMesh, SkeletalMesh, Skeleton, AnimSequence를 포함할 수 있다. UFBXSceneAsset은
+ * 이 결과물을 한 캐시 파일에 묶고, FBX 노드 ID와 하위 에셋 인덱스의 대응 관계를 함께 저장해 나중에 특정
+ * 하위 에셋만 다시 꺼낼 수 있게 한다.
  */
 
 #pragma once
 
 #include "Asset/Import/FBX/Core/FBXImporter.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
 #include "Object/Object.h"
+#include "Object/ObjectFactory.h"
 #include "Serialization/Archive.h"
 
 /**
- * FBX 씬 전체를 직렬화하기 위한 순수 데이터 묶음이다.
- *
- * 원본 파일 경로, 컴포넌트 계층, 메시 배열, 라이트 정보를 함께 저장한다. 개별 메시만으로는 표현할
- * 수 없는 원본 FBX의 씬 구성을 보존하는 단위이다.
+ * FBX 하나에서 생성된 여러 하위 에셋과 씬 컴포넌트 설명을 묶는 직렬화 구조이다.
  */
 struct FFBXScene
 {
@@ -25,18 +26,25 @@ struct FFBXScene
     int64                           SourceTimestamp = 0;
     TArray<FStaticMesh>             StaticMeshes;
     TArray<FSkeletalMesh>           SkeletalMeshes;
+    TArray<FSkeleton>               Skeletons;
+    TArray<TArray<UAnimSequence *>> AnimSequences;
     TArray<TArray<FStaticMaterial>> StaticMeshMaterials;
     TArray<TArray<FMeshMaterial>>   SkeletalMeshMaterials;
     TArray<FFBXSceneComponentDesc>  SceneComponents;
     TMap<int32, int32>              MeshIdToStaticMeshAssetIndex;
     TMap<int32, int32>              SkeletonIdToSkeletalMeshAssetIndex;
 
+    /**
+     * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+     */
     void Serialize(FArchive &Ar)
     {
         Ar << SourcePath;
         Ar << SourceTimestamp;
         SerializeMeshArray(Ar, StaticMeshes);
         SerializeMeshArray(Ar, SkeletalMeshes);
+        Ar << Skeletons;
+        SerializeAnimSequenceArray(Ar, AnimSequences);
         Ar << StaticMeshMaterials;
         Ar << SkeletalMeshMaterials;
         Ar << SceneComponents;
@@ -57,6 +65,42 @@ struct FFBXScene
         for (MeshType &Mesh : Meshes)
         {
             Mesh.Serialize(Ar);
+        }
+    }
+
+
+
+    static void SerializeAnimSequenceArray(FArchive &Ar, TArray<TArray<UAnimSequence*>> &Sequences)
+    {
+        uint32 OuterCount = static_cast<uint32>(Sequences.size());
+        Ar << OuterCount;
+        if (Ar.IsLoading())
+        {
+            Sequences.clear();
+            Sequences.resize(OuterCount);
+        }
+
+        for (uint32 OuterIndex = 0; OuterIndex < OuterCount; ++OuterIndex)
+        {
+            uint32 InnerCount = static_cast<uint32>(Sequences[OuterIndex].size());
+            Ar << InnerCount;
+            if (Ar.IsLoading())
+            {
+                Sequences[OuterIndex].clear();
+                Sequences[OuterIndex].resize(InnerCount, nullptr);
+            }
+
+            for (uint32 InnerIndex = 0; InnerIndex < InnerCount; ++InnerIndex)
+            {
+                if (Ar.IsLoading() && !Sequences[OuterIndex][InnerIndex])
+                {
+                    Sequences[OuterIndex][InnerIndex] = UObjectManager::Get().CreateObject<UAnimSequence>();
+                }
+                if (Sequences[OuterIndex][InnerIndex])
+                {
+                    Sequences[OuterIndex][InnerIndex]->Serialize(Ar);
+                }
+            }
         }
     }
 
@@ -89,10 +133,7 @@ struct FFBXScene
 };
 
 /**
- * FFBXScene 데이터를 엔진 에셋으로 다루기 위한 UObject 래퍼이다.
- *
- * Content Browser와 Asset Editor가 FBX 씬 전체를 하나의 에셋으로 열고, 내부 메시 참조를 다시 해석할
- * 수 있도록 순수 씬 데이터와 엔진 객체 시스템을 연결한다.
+ * FBX 씬 캐시를 UObject로 저장해 하위 에셋을 나중에 다시 꺼낼 수 있게 하는 타입이다.
  */
 class UFBXSceneAsset : public UObject
 {
@@ -104,6 +145,8 @@ class UFBXSceneAsset : public UObject
 
     void AddStaticMesh(UStaticMesh *Mesh) { StaticMeshes.push_back(Mesh); }
     void AddSkeletalMesh(USkeletalMesh *Mesh) { SkeletalMeshes.push_back(Mesh); }
+    void AddSkeleton(USkeleton *Skeleton) { Skeletons.push_back(Skeleton); }
+    void AddAnimSequence(UAnimSequence *Sequence) { AnimSequences.push_back(Sequence); }
     void SetMeshIdToStaticMeshAssetIndex(TMap<int32, int32> &&InMeshIdToStaticMeshAssetIndex)
     {
         MeshIdToStaticMeshAssetIndex = std::move(InMeshIdToStaticMeshAssetIndex);
@@ -120,6 +163,8 @@ class UFBXSceneAsset : public UObject
 
     const TArray<UStaticMesh *>          &GetStaticMeshes() const { return StaticMeshes; }
     const TArray<USkeletalMesh *>        &GetSkeletalMeshes() const { return SkeletalMeshes; }
+    const TArray<USkeleton *>            &GetSkeletons() const { return Skeletons; }
+    const TArray<UAnimSequence *>        &GetAnimSequences() const { return AnimSequences; }
     const TArray<FFBXSceneComponentDesc> &GetSceneComponents() const { return SceneComponents; }
     UStaticMesh                          *FindStaticMeshBySourceMeshId(int32 SourceMeshId) const
     {
@@ -156,6 +201,8 @@ class UFBXSceneAsset : public UObject
     FString                        SourcePath;
     TArray<UStaticMesh *>          StaticMeshes;
     TArray<USkeletalMesh *>        SkeletalMeshes;
+    TArray<USkeleton *>            Skeletons;
+    TArray<UAnimSequence *>        AnimSequences;
     TArray<FFBXSceneComponentDesc> SceneComponents;
     TMap<int32, int32>             MeshIdToStaticMeshAssetIndex;
     TMap<int32, int32>             SkeletonIdToSkeletalMeshAssetIndex;

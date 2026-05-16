@@ -21,13 +21,19 @@ FMatrix USkeletalGizmoComponent::CalculateParentWorldMatrix(int32 BoneIndex) con
 		return FMatrix::Identity;
 	}
 
-	const FSkeletalMesh* Asset = TargetSkelMeshComp->GetSkeletalMesh()->GetSkeletalMeshAsset();
-	if (!Asset || BoneIndex < 0 || BoneIndex >= Asset->Bones.size())
+	const USkeleton* SkeletonAsset = TargetSkelMeshComp->GetSkeletalMesh()->GetSkeleton();
+	if (!SkeletonAsset)
 	{
 		return TargetSkelMeshComp->GetWorldMatrix();
 	}
 
-	int32 ParentIndex = Asset->Bones[BoneIndex].ParentIndex;
+	const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
+	if (BoneIndex < 0 || BoneIndex >= static_cast<int32>(Bones.size()))
+	{
+		return TargetSkelMeshComp->GetWorldMatrix();
+	}
+
+	int32 ParentIndex = Bones[BoneIndex].ParentIndex;
 	FMatrix CompWorld = TargetSkelMeshComp->GetWorldMatrix();
 
 	// 부모 본이 있다면 [부모의 메시 기준 행렬] * [컴포넌트 월드 행렬]

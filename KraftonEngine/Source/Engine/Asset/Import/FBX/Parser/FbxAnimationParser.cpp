@@ -1,15 +1,22 @@
 /**
- * FBX 씬 안의 애니메이션 스택과 커브를 엔진의 AnimationClip 데이터로 변환한다.
+ * FBX 애니메이션 데이터를 UAnimSequence 에셋으로 변환한다.
  *
- * FBX의 시간 단위, 노드별 TRS 커브, 본 계층 메타 정보를 함께 해석하여 각 본 트랙에 샘플을 채운다.
- * 임포트 결과는 스켈레탈 메시 에셋에 포함될 수 있는 순수 애니메이션 데이터이며, 런타임 포즈 계산은
- * 이 단계에서 정규화된 시간과 transform 샘플을 기준으로 동작한다.
+ * FBX animation stack마다 하나의 UAnimSequence를 생성한다. 단, stack 내부에 여러 animation layer가
+ * 있더라도 현재 importer는 0번 layer, 즉 base layer만 사용한다. FBX SDK의 EvaluateGlobalTransform()
+ * 기반 평가는 stack 전체 layer가 합성될 수 있으므로 사용하지 않고, 0번 layer의 LclTranslation,
+ * LclRotation, LclScaling curve만 직접 샘플링한다.
+ *
+ * 이 파일은 animation blending layer를 지원하지 않는다. 여러 layer가 존재하면 로그만 남기고 첫 번째
+ * layer만 bake한다. Runtime은 이미 bake된 UAnimDataModel만 재생하므로 layer 개념을 알 필요가 없다.
  */
+
+// TODO: 다중 레이어 합성 처리
 
 #include "Asset/Import/FBX/Parser/FbxAnimationParser.h"
 
 #include "Core/Log.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
+#include "Object/ObjectFactory.h"
 
 #include <fbxsdk.h>
 
@@ -19,17 +26,63 @@
 
 namespace
 {
-    template <typename T> bool IsValidIndex(const TArray<T> &Items, int32 Index)
+    template <typename T>
+    bool IsValidIndex(const TArray<T>& Items, int32 Index)
     {
         return Index >= 0 && static_cast<size_t>(Index) < Items.size();
     }
-} // namespace
 
-void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
-                                                  const FFbxSkeletonMeta &SkeletonMeta,
-                                                  FSkeletalMesh &OutMesh, float SampleRate) const
+    double SampleCurveOrDefault(FbxAnimCurve* Curve, FbxTime Time, double DefaultValue)
+    {
+        return Curve ? Curve->Evaluate(Time) : DefaultValue;
+    }
+
+    FbxVector4 SampleDouble3PropertyFromLayer(FbxPropertyT<FbxDouble3>& Property,
+                                              FbxAnimLayer* Layer,
+                                              FbxTime Time)
+    {
+        const FbxDouble3 DefaultValue = Property.Get();
+
+        FbxAnimCurve* CurveX = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_X);
+        FbxAnimCurve* CurveY = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Y);
+        FbxAnimCurve* CurveZ = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+        return FbxVector4(
+            SampleCurveOrDefault(CurveX, Time, DefaultValue[0]),
+            SampleCurveOrDefault(CurveY, Time, DefaultValue[1]),
+            SampleCurveOrDefault(CurveZ, Time, DefaultValue[2]),
+            0.0);
+    }
+
+    FbxAMatrix SampleLocalMatrixFromBaseLayer(FbxNode* Node, FbxAnimLayer* BaseLayer, FbxTime Time)
+    {
+        FbxAMatrix LocalMatrix;
+        LocalMatrix.SetIdentity();
+
+        if (!Node || !BaseLayer)
+        {
+            return LocalMatrix;
+        }
+
+        const FbxVector4 Translation = SampleDouble3PropertyFromLayer(Node->LclTranslation, BaseLayer, Time);
+        const FbxVector4 Rotation = SampleDouble3PropertyFromLayer(Node->LclRotation, BaseLayer, Time);
+        const FbxVector4 Scaling = SampleDouble3PropertyFromLayer(Node->LclScaling, BaseLayer, Time);
+
+        LocalMatrix.SetT(Translation);
+        LocalMatrix.SetR(Rotation);
+        LocalMatrix.SetS(Scaling);
+
+        return LocalMatrix;
+    }
+}
+
+void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
+                                                  const FFbxSkeletonMeta& SkeletonMeta,
+                                                  const TArray<FBoneInfo>& SkeletonBones,
+                                                  TArray<UAnimSequence*>& OutAnimSequences,
+                                                  float SampleRate) const
 {
-    OutMesh.AnimationClips.clear();
+    OutAnimSequences.clear();
 
     if (!Scene || !SkeletonMeta.bValid || SkeletonMeta.BoneIds.empty())
     {
@@ -41,8 +94,9 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
         SampleRate = 30.0f;
     }
 
-    const int32       BoneCount = static_cast<int32>(SkeletonMeta.BoneIds.size());
-    TArray<FbxNode *> BoneNodes;
+    const int32 BoneCount = static_cast<int32>(SkeletonMeta.BoneIds.size());
+
+    TArray<FbxNode*> BoneNodes;
     BoneNodes.resize(BoneCount, nullptr);
     for (int32 SkeletonBoneIndex = 0; SkeletonBoneIndex < BoneCount; ++SkeletonBoneIndex)
     {
@@ -56,12 +110,13 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
     const int32 TotalSrcObjectCount = Scene->GetSrcObjectCount();
     for (int32 ObjIndex = 0; ObjIndex < TotalSrcObjectCount; ++ObjIndex)
     {
-        FbxObject *Obj = Scene->GetSrcObject(ObjIndex);
+        FbxObject* Obj = Scene->GetSrcObject(ObjIndex);
         if (!Obj)
         {
             continue;
         }
-        const char *ClassName = Obj->GetClassId().GetName();
+
+        const char* ClassName = Obj->GetClassId().GetName();
         if (!ClassName)
         {
             continue;
@@ -71,12 +126,33 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
         {
             continue;
         }
-        FbxAnimStack *AnimStack = static_cast<FbxAnimStack *>(Obj);
+
+        FbxAnimStack* AnimStack = static_cast<FbxAnimStack*>(Obj);
+        if (!AnimStack)
+        {
+            continue;
+        }
+
+        FbxAnimLayer* BaseLayer = AnimStack->GetMember<FbxAnimLayer>(0);
+        if (!BaseLayer)
+        {
+            UE_LOG("[FBXImporter] Skip animation stack. Stack=%s Reason=NoAnimLayer",
+                   AnimStack->GetName() ? AnimStack->GetName() : "Unnamed");
+            continue;
+        }
+
+        const int32 LayerCount = AnimStack->GetMemberCount<FbxAnimLayer>();
+        if (LayerCount > 1)
+        {
+            UE_LOG("[FBXImporter] Animation stack has %d layers. Only first layer will be imported. Stack=%s",
+                   LayerCount,
+                   AnimStack->GetName() ? AnimStack->GetName() : "Unnamed");
+        }
 
         Scene->SetCurrentAnimationStack(AnimStack);
 
-        FbxTimeSpan  TimeSpan;
-        FbxTakeInfo *TakeInfo = Scene->GetTakeInfo(AnimStack->GetName());
+        FbxTimeSpan TimeSpan;
+        FbxTakeInfo* TakeInfo = Scene->GetTakeInfo(AnimStack->GetName());
         if (TakeInfo)
         {
             TimeSpan = TakeInfo->mLocalTimeSpan;
@@ -88,7 +164,7 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
 
         const FbxTime StartTime = TimeSpan.GetStart();
         const FbxTime StopTime = TimeSpan.GetStop();
-        const double  DurationSeconds = std::max(0.0, (StopTime - StartTime).GetSecondDouble());
+        const double DurationSeconds = std::max(0.0, (StopTime - StartTime).GetSecondDouble());
         if (DurationSeconds <= 0.0)
         {
             continue;
@@ -97,67 +173,91 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
         const int32 FrameCount =
             std::max(2, static_cast<int32>(std::round(DurationSeconds * SampleRate)) + 1);
 
-        FAnimationClip Clip;
-        Clip.Name = AnimStack->GetName() ? AnimStack->GetName() : "Anim";
-        Clip.Duration = static_cast<float>(DurationSeconds);
-        Clip.FrameRate = SampleRate;
-        Clip.FrameCount = FrameCount;
-        Clip.Tracks.resize(BoneCount);
+        UAnimSequence* Sequence = UObjectManager::Get().CreateObject<UAnimSequence>();
+        UAnimDataModel* DataModel = UObjectManager::Get().CreateObject<UAnimDataModel>(Sequence);
+
+        const FString SequenceName = AnimStack->GetName() ? AnimStack->GetName() : "Anim";
+        Sequence->SetSequenceName(SequenceName);
+        Sequence->SetDataModel(DataModel);
+
+        DataModel->SetPlayLength(static_cast<float>(DurationSeconds));
+
+        FFrameRate FrameRate;
+        FrameRate.Numerator = static_cast<int32>(std::round(SampleRate));
+        FrameRate.Denominator = 1;
+        DataModel->SetFrameRate(FrameRate);
+        DataModel->SetNumberOfFrames(FrameCount);
+        DataModel->SetNumberOfKeys(FrameCount * BoneCount);
+
+        TArray<FBoneAnimationTrack> Tracks;
+        Tracks.resize(BoneCount);
         for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
         {
-            Clip.Tracks[BoneIndex].BoneIndex = BoneIndex;
-            Clip.Tracks[BoneIndex].Samples.resize(FrameCount);
+            Tracks[BoneIndex].Name = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
+                                         ? FName(SkeletonBones[BoneIndex].Name.c_str())
+                                         : FName();
+            Tracks[BoneIndex].InternalTrack.LocalMatrixKeys.resize(FrameCount, FMatrix::Identity);
         }
 
-        TArray<FMatrix> BoneGlobals;
-        BoneGlobals.resize(BoneCount, FMatrix::Identity);
+        TArray<FMatrix> LocalMatrices;
+        LocalMatrices.resize(BoneCount, FMatrix::Identity);
+
+        TArray<FMatrix> GlobalMatrices;
+        GlobalMatrices.resize(BoneCount, FMatrix::Identity);
 
         for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
         {
-            const double FrameAlpha = (FrameCount > 1) ? static_cast<double>(FrameIndex) /
-                                                             static_cast<double>(FrameCount - 1)
-                                                       : 0.0;
+            const double FrameAlpha = (FrameCount > 1)
+                                          ? static_cast<double>(FrameIndex) / static_cast<double>(FrameCount - 1)
+                                          : 0.0;
             const double FrameSeconds = FrameAlpha * DurationSeconds;
-            FbxTime      SampleTime;
+
+            FbxTime SampleTime;
             SampleTime.SetSecondDouble(StartTime.GetSecondDouble() + FrameSeconds);
 
             for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
             {
-                FbxNode *Node = BoneNodes[BoneIndex];
+                FbxNode* Node = BoneNodes[BoneIndex];
                 if (!Node)
                 {
-                    BoneGlobals[BoneIndex] = FMatrix::Identity;
+                    LocalMatrices[BoneIndex] = FMatrix::Identity;
+                    GlobalMatrices[BoneIndex] = FMatrix::Identity;
                     continue;
                 }
-                BoneGlobals[BoneIndex] =
-                    FBXUtil::ConvertFbxMatrix(Node->EvaluateGlobalTransform(SampleTime));
-            }
 
-            for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
-            {
-                const int32 ParentIndex = (BoneIndex < static_cast<int32>(OutMesh.Bones.size()))
-                                              ? OutMesh.Bones[BoneIndex].ParentIndex
+                LocalMatrices[BoneIndex] =
+                    FBXUtil::ConvertFbxMatrix(SampleLocalMatrixFromBaseLayer(Node, BaseLayer, SampleTime));
+
+                const int32 ParentIndex = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
+                                              ? SkeletonBones[BoneIndex].ParentIndex
                                               : -1;
 
-                FMatrix LocalMatrix;
                 if (ParentIndex >= 0 && ParentIndex < BoneCount)
                 {
-                    LocalMatrix = BoneGlobals[BoneIndex] * BoneGlobals[ParentIndex].GetInverse();
+                    // 기존 importer의 local 계산식이 Local = Global * ParentGlobal^-1 이므로,
+                    // 같은 행렬 규약을 유지하기 위해 Global = Local * ParentGlobal 로 누적한다.
+                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex] * GlobalMatrices[ParentIndex];
                 }
                 else
                 {
-                    LocalMatrix = BoneGlobals[BoneIndex];
+                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex];
                 }
 
-                Clip.Tracks[BoneIndex].Samples[FrameIndex].LocalMatrix = LocalMatrix;
+                Tracks[BoneIndex].InternalTrack.LocalMatrixKeys[FrameIndex] = LocalMatrices[BoneIndex];
             }
         }
 
-        UE_LOG("[FBXImporter] Baked animation clip. Skeleton=%d Name=%s Duration=%.3fs Frames=%d "
-               "Bones=%d",
-               SkeletonMeta.SkeletonId, Clip.Name.c_str(), Clip.Duration, Clip.FrameCount,
-               BoneCount);
+        DataModel->SetBoneAnimationTracks(std::move(Tracks));
 
-        OutMesh.AnimationClips.push_back(std::move(Clip));
+        UE_LOG("[FBXImporter] Baked animation sequence. Skeleton=%d Name=%s Duration=%.3fs Frames=%d "
+               "Bones=%d Layer=0/%d",
+               SkeletonMeta.SkeletonId,
+               SequenceName.c_str(),
+               static_cast<float>(DurationSeconds),
+               FrameCount,
+               BoneCount,
+               LayerCount);
+
+        OutAnimSequences.push_back(Sequence);
     }
 }

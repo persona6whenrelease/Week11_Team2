@@ -1,9 +1,9 @@
 /**
- * FBX Mesh의 polygon/control point 데이터를 엔진 정점 버퍼 형식으로 변환한다.
+ * FBX 메시의 폴리곤 데이터를 엔진 정점/인덱스 버퍼로 변환한다.
  *
- * FBX의 mapping/reference mode에 따라 위치, 노말, UV, 탄젠트, 머티리얼 인덱스를 읽고, 엔진이
- * 사용하는 삼각형 리스트와 섹션 정보로 재구성한다. StaticMesh와 SkinnedMeshPart가 같은 지오메트리
- * 해석 규칙을 공유하도록 공통 빌더로 분리되어 있다.
+ * FBX의 control point, polygon vertex, material slot, UV set, skin weight를 엔진의 삼각형 기반 섹션과
+ * 정점 배열로 재구성한다. 동일한 속성을 가진 정점은 키 기반으로 공유하고, mirrored transform이나 UV
+ * 누락 같은 임포트 오류를 통계와 보정 로직으로 추적한다.
  */
 
 #include "Asset/Import/FBX/Builder/FbxMeshGeometryBuilder.h"
@@ -68,6 +68,9 @@ namespace
         }
     }
 
+    /**
+     * FBX 지오메트리 빌드 중 UV/노말/정점 보정 상태를 추적하는 통계 구조이다.
+     */
     struct FFbxGeometryBuildStats
     {
         FFbxUVReadStats UVReadStats;
@@ -107,6 +110,9 @@ namespace
         }
     }
 
+    /**
+     * 정적 메시 정점 중복 제거를 위해 위치/속성 조합을 비교하는 키이다.
+     */
     struct FFbxStaticVertexKey
     {
         std::array<uint32, 3> Position = {};
@@ -123,6 +129,9 @@ namespace
         }
     };
 
+    /**
+     * 스켈레탈 메시 정점 중복 제거를 위해 지오메트리 속성과 본 가중치를 함께 비교하는 키이다.
+     */
     struct FFbxSkeletalVertexKey
     {
         std::array<uint32, 3> Position = {};
@@ -236,6 +245,9 @@ namespace
         return NewIndex;
     }
 
+    /**
+     * 임포트 중간 데이터에서 다음 단계가 사용할 구조를 구성한다.
+     */
     FString BuildUVSetNameList(FbxMesh *Mesh)
     {
         if (!Mesh)
@@ -260,6 +272,9 @@ namespace
         return UVSetNameList.empty() ? "None" : UVSetNameList;
     }
 
+    /**
+     * 임포트 중간 데이터에서 다음 단계가 사용할 구조를 구성한다.
+     */
     FString BuildPreferredUVSetNameList(const FFbxMeshMeta &MeshMeta)
     {
         FString PreferredUVSetNameList;
@@ -388,10 +403,13 @@ namespace
                          MeshMeta.MaterialSlotNames[MaterialIndex])
                    : "None";
     }
-} // namespace
+} 
 
 namespace FbxMeshGeometryBuilder
 {
+    /**
+     * FBX 노드의 geometric transform을 엔진 행렬로 변환한다.
+     */
     FMatrix BuildGeometricTransform(FbxNode *Node)
     {
         if (!Node)
@@ -406,6 +424,9 @@ namespace FbxMeshGeometryBuilder
         return FBXUtil::ConvertFbxMatrix(GeometricTransform);
     }
 
+    /**
+     * FBX mesh bind 기준 공간을 에셋 로컬 공간에 맞추는 변환 행렬을 만든다.
+     */
     FMatrix BuildMeshToAssetBindMatrix(FbxNode *MeshNode, const FMatrix &MeshBindGlobal)
     {
         const FMatrix GeometricTransform = BuildGeometricTransform(MeshNode);
@@ -707,4 +728,4 @@ namespace FbxMeshGeometryBuilder
 
         return !OutMesh.Vertices.empty() && !OutMesh.Indices.empty();
     }
-} // namespace FbxMeshGeometryBuilder
+} 

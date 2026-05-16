@@ -1,9 +1,9 @@
 /**
- * FBX 파일 전체를 씬 단위 에셋으로 임포트하는 상위 흐름을 구현한다.
+ * FBX 임포트 전체 절차를 조립하고 실행한다.
  *
- * FBX SDK 초기화, 씬 로드, 메타 파싱, 정적 메시/스켈레탈 메시/머티리얼/라이트/컴포넌트 변환을 묶어
- * 하나의 FFBXAsset 결과로 만든다. 하위 파서들이 각각의 세부 데이터를 만들고, 이 구현부는 원본 FBX의
- * 계층 구조와 엔진 에셋 사이의 연결 관계가 끊기지 않도록 조립한다.
+ * 씬을 로드한 뒤 전처리로 단위와 축을 맞추고, 메타 파서가 만든 분류 결과를 기반으로 StaticMesh,
+ * SkeletalMeshPart, Skeleton, Animation을 순서대로 만든다. 여러 FBX 노드가 하나의 스켈레탈 메시로
+ * 합쳐질 수 있으므로, 파싱 단계와 조립 단계를 분리해 처리한다.
  */
 
 #include "Asset/Import/FBX/Core/FBXImporter.h"
@@ -18,6 +18,8 @@
 
 #include <fbxsdk.h>
 
+#include <string>
+
 namespace
 {
     template <typename T> bool IsValidIndex(const TArray<T> &Items, int32 Index)
@@ -25,11 +27,16 @@ namespace
         return Index >= 0 && static_cast<size_t>(Index) < Items.size();
     }
 
+    /**
+     * 이전 임포트 결과와 SDK 객체 상태를 정리해 다음 로드가 독립적으로 실행되게 한다.
+     */
     void ClearAsset(FFBXAsset &Asset)
     {
         Asset.PathFileName.clear();
         Asset.StaticMeshes.clear();
         Asset.SkeletalMeshes.clear();
+        Asset.Skeletons.clear();
+        Asset.AnimSequences.clear();
         Asset.StaticMeshMaterials.clear();
         Asset.SkeletalMeshMaterials.clear();
         Asset.SkeletalMaterials.clear();
@@ -40,6 +47,9 @@ namespace
         Asset.CameraAssets.clear();
     }
 
+    /**
+     * 임포트 중간 데이터에서 다음 단계가 사용할 구조를 구성한다.
+     */
     void BuildSceneComponents(const FFbxImportMeta &ImportMeta, FFBXAsset &Asset)
     {
         TSet<int32> MeshIdsConsumedBySkeletal;
@@ -104,7 +114,7 @@ namespace
             Asset.SceneComponents.push_back(std::move(Desc));
         }
     }
-} // namespace
+}
 
 bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset)
 {
@@ -172,8 +182,33 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
                 continue;
             }
 
+            FSkeletalMesh& SkeletalMesh = OutFBXAsset.SkeletalMeshes[SkeletalMeshIndex];
+            if (OutFBXAsset.Skeletons.size() <= static_cast<size_t>(SkeletalMeshIndex))
+            {
+                OutFBXAsset.Skeletons.resize(SkeletalMeshIndex + 1);
+            }
+            if (OutFBXAsset.AnimSequences.size() <= static_cast<size_t>(SkeletalMeshIndex))
+            {
+                OutFBXAsset.AnimSequences.resize(SkeletalMeshIndex + 1);
+            }
+
+            SkeletalMesh.SkeletonAssetPath = InFilePath + "#SkeletonAsset_" + std::to_string(SkeletonMeta.SkeletonId);
+            FSkeleton &SkeletonAsset = OutFBXAsset.Skeletons[SkeletalMeshIndex];
+            SkeletonAsset.PathFileName = SkeletalMesh.SkeletonAssetPath;
+            SkeletonAsset.Bones = std::move(SkeletalMesh.Bones);
+            SkeletonAsset.RebuildBoneNameToIndex();
+
             AnimationParser.ParseSkeletonAnimations(Scene, SkeletonMeta,
-                                                    OutFBXAsset.SkeletalMeshes[SkeletalMeshIndex]);
+                                                    SkeletonAsset.Bones,
+                                                    OutFBXAsset.AnimSequences[SkeletalMeshIndex]);
+
+            for (UAnimSequence* AnimSequence : OutFBXAsset.AnimSequences[SkeletalMeshIndex])
+            {
+                if (AnimSequence)
+                {
+                    AnimSequence->SetSkeletonAssetPath(SkeletalMesh.SkeletonAssetPath);
+                }
+            }
         }
     }
 
@@ -329,6 +364,9 @@ void FBXImporter::PreprocessScene()
     const FbxSystemUnit CentimeterUnit(100.0);
     CentimeterUnit.ConvertScene(Scene, UnitOptions);
 
+    /**
+     * 외부 포맷 또는 중간 데이터를 엔진 내부 표현으로 변환한다.
+     */
     FbxGeometryConverter Converter(Manager);
     Converter.Triangulate(Scene, true);
 }
