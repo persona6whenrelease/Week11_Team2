@@ -1,9 +1,9 @@
 /**
- * FBX 씬 안의 애니메이션 스택과 커브를 엔진의 AnimationClip 데이터로 변환한다.
+ * FBX 애니메이션을 프레임 샘플 기반 FAnimationClip으로 변환한다.
  *
- * FBX의 시간 단위, 노드별 TRS 커브, 본 계층 메타 정보를 함께 해석하여 각 본 트랙에 샘플을 채운다.
- * 임포트 결과는 스켈레탈 메시 에셋에 포함될 수 있는 순수 애니메이션 데이터이며, 런타임 포즈 계산은
- * 이 단계에서 정규화된 시간과 transform 샘플을 기준으로 동작한다.
+ * FBX의 각 animation stack을 하나의 클립처럼 다루고, 해당 스택의 시간 구간에서 본 변환을 일정
+ * 프레임 간격으로 샘플링한다. 이렇게 얻은 프레임별 로컬 변환 트랙은 스켈레톤별 FAnimationClip
+ * 배열로 저장되며 AnimSequence 에셋 생성에 사용된다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxAnimationParser.h"
@@ -44,6 +44,7 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
     const int32       BoneCount = static_cast<int32>(SkeletonMeta.BoneIds.size());
     TArray<FbxNode *> BoneNodes;
     BoneNodes.resize(BoneCount, nullptr);
+
     for (int32 SkeletonBoneIndex = 0; SkeletonBoneIndex < BoneCount; ++SkeletonBoneIndex)
     {
         const int32 BoneId = SkeletonMeta.BoneIds[SkeletonBoneIndex];

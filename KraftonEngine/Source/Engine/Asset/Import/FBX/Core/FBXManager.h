@@ -1,9 +1,9 @@
 /**
- * FBX 에셋 로딩, 씬 캐시, 씬 내부 참조 해석을 담당하는 매니저를 선언한다.
+ * FBX 원본 파일과 캐시된 씬 에셋을 관리하는 매니저를 선언한다.
  *
- * FBX 원본 파일은 한 번의 로드로 여러 엔진 에셋을 만들 수 있으므로, 이 클래스는 씬 단위 캐시와
- * 개별 메시 참조 해석을 분리한다. Content Browser나 메시 선택 UI는 문자열 참조만 가지고 있어도
- * 이 매니저를 통해 실제 StaticMesh, SkeletalMesh, FBXSceneAsset을 얻을 수 있다.
+ * FFBXManager는 Asset/Source의 FBX를 스캔하고, 필요한 경우 임포트를 수행해 UFBXSceneAsset 캐시를
+ * 만든다. 외부에서는 FBX 하위 에셋 참조 문자열을 통해 static/skeletal mesh를 요청할 수 있으며, 매니저는
+ * 참조 해석과 GPU 리소스 생성을 함께 담당한다.
  */
 
 #pragma once
@@ -17,10 +17,10 @@ class UFBXSceneAsset;
 class UObject;
 
 /**
- * FBX 씬 캐시와 FBX 내부 에셋 참조 해석을 담당하는 매니저이다.
+ * FBX 원본 스캔, 씬 캐시, 하위 에셋 참조 해석을 담당하는 매니저이다.
  *
- * 원본 FBX를 씬 단위로 임포트하고, #Mesh_ 또는 #Skeleton_ 같은 내부 참조 문자열을 실제 엔진
- * 오브젝트로 변환한다. 반복 로드 시 같은 씬 캐시를 공유해 파싱 비용과 에셋 불일치를 줄인다.
+ * 외부 API는 특정 FBX 내부의 static/skeletal mesh 참조를 요청하고, 이 매니저는 캐시 유효성 검사와 UObject
+ * 복원을 수행한다.
  */
 class FFBXManager
 {
@@ -29,25 +29,24 @@ class FFBXManager
 
   public:
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
-    /**
-     * FBX 원본 또는 캐시 경로를 UFBXSceneAsset으로 로드한다.
-     *
-     * 이미 캐시된 씬이 있으면 재사용하고, 없으면 원본 FBX를 임포트해 씬 에셋을 구성한다.
-     */
+    
+
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     static UStaticMesh    *ResolveStaticMeshReference(const FString &PathFileName);
     static USkeletalMesh  *ResolveSkeletalMeshReference(const FString &PathFileName);
-    /**
-     * FBX 씬 내부 메시 참조 문자열을 실제 UObject로 변환한다.
-     *
-     * #Mesh_, #Skeleton_ 같은 참조 규칙을 해석해 해당 씬 캐시 안의 StaticMesh 또는 SkeletalMesh를
-     * 찾는다.
-     */
+    
+
     static UObject       *ResolveFbxSceneAssetReference(const FString &PathFileName);
     static UStaticMesh   *LoadStaticMeshFromFbxSceneReference(const FString &PathFileName);
     static USkeletalMesh *LoadSkeletalMeshFromFbxSceneReference(const FString &PathFileName);
+    /**
+     * 프로젝트 원본 폴더에서 FBX 파일을 찾아 에디터 목록용 항목으로 수집한다.
+     */
     static void           ScanFbxSourceFiles();
     static const TArray<FMeshAssetListItem> &GetAvailableFbxSourceFiles();
 
+    /**
+     * 캐시에 남아 있는 모든 텍스처의 GPU 리소스를 해제한다.
+     */
     static void ReleaseAllGPU();
 };

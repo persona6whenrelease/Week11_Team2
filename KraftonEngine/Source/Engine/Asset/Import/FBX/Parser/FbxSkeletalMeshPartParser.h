@@ -1,9 +1,9 @@
 /**
- * FBX 스키닝 메시 부분 파서를 선언한다.
+ * FBX 스켈레탈 메시 파트를 파싱하는 타입을 선언한다.
  *
- * FBX 원본 mesh와 skin 정보를 읽어 FFbxSkinnedMeshPart 배열을 만든다. 스켈레톤 조립 단계가 본
- * 계층과 메시 파트를 안정적으로 결합할 수 있도록, 각 파트의 본 인덱스와 섹션 정보를 엔진 기준으로
- * 정리한다.
+ * 스킨 클러스터가 있는 메시와 본에 rigid하게 붙은 메시를 모두 스켈레탈 메시 파트로 변환한다. 최종
+ * 병합은 Assembler가 담당하므로, 이 파서는 파트 단위의 정점, 가중치, 바인드 포즈 기준을 정확히
+ * 만드는 데 집중한다.
  */
 
 #pragma once
@@ -13,10 +13,7 @@
 #include "Asset/Import/FBX/Types/FBXImportTypes.h"
 
 /**
- * FBX mesh node에서 스키닝 가능한 부분 메시 데이터를 읽어오는 파서이다.
- *
- * skin cluster의 weight를 엔진 정점 형식으로 정규화하고, 스킨이 없는 rigid mesh도 본에 붙은 메시
- * 파트로 표현할 수 있게 변환한다.
+ * FBX의 skinned mesh와 rigid attached mesh를 스켈레탈 메시 파트로 변환하는 파서이다.
  */
 class FFbxSkeletalMeshPartParser final
 {
@@ -27,15 +24,18 @@ class FFbxSkeletalMeshPartParser final
     }
 
     /**
-     * 수집된 FBX 메타 정보를 엔진 에셋 데이터로 변환한다.
-     *
-     * 출력 배열과 ID 매핑은 함수 시작 시 초기화되며, 실패한 일부 항목은 로그를 남기고 건너뛰는
-     * 방식으로 전체 임포트 흐름이 가능한 한 계속 진행되도록 한다.
+     * 메타 정보와 FBX 노드를 입력으로 받아 해당 파서가 담당하는 메시 데이터를 생성한다.
      */
     bool Parse(TArray<FFbxSkinnedMeshPart> &OutSkinnedMeshParts) const;
 
   private:
+    /**
+     * 스킨 가중치를 가진 메시를 스켈레탈 메시 파트로 변환한다.
+     */
     bool ParseSkinnedMeshPart(int32 MeshId, FFbxSkinnedMeshPart &OutPart) const;
+    /**
+     * 특정 본에 강체로 부착된 메시를 스켈레탈 메시 파트로 변환한다.
+     */
     bool ParseRigidAttachedMeshPart(int32 MeshId, FFbxSkinnedMeshPart &OutPart) const;
 
   private:

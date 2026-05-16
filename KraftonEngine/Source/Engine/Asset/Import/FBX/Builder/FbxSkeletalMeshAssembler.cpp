@@ -1,9 +1,9 @@
 /**
- * FBX에서 파싱된 여러 스키닝 메시 파트를 최종 FSkeletalMesh로 조립한다.
+ * 스켈레탈 메시 파트 병합과 섹션 재배치를 구현한다.
  *
- * 같은 스켈레톤을 공유하는 mesh part를 모으고, 각 파트의 정점/인덱스/섹션/본 가중치를 하나의 메시
- * 데이터로 병합한다. rigid attached mesh처럼 특정 본에 붙은 파트도 스켈레탈 메시로 표현될 수 있도록
- * 유효성 검증과 본 인덱스 매핑을 함께 수행한다.
+ * 각 파트의 본 인덱스, 섹션 머티리얼, 정점 인덱스 범위를 보정해 하나의 메시 버퍼로 연결한다. rigid
+ * attached mesh와 skinned mesh가 같은 스켈레톤 기준으로 렌더링될 수 있도록 입력 파트의 유효성을 먼저
+ * 확인한다.
  */
 
 #include "Asset/Import/FBX/Builder/FbxSkeletalMeshAssembler.h"
@@ -20,7 +20,7 @@ namespace
     {
         return Index >= 0 && static_cast<size_t>(Index) < Items.size();
     }
-} // namespace
+} 
 
 bool FFbxSkeletalMeshAssembler::Assemble(
     const TArray<FFbxSkinnedMeshPart> &SkinnedMeshParts,

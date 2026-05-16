@@ -1,10 +1,9 @@
 /**
- * OBJ/MTL 원본 파일을 엔진의 StaticMesh 데이터로 변환하는 파서를 구현한다.
+ * OBJ와 MTL 텍스트 파일을 엔진 정적 메시 데이터로 파싱한다.
  *
- * 텍스트 기반 OBJ 라인을 읽어 위치, UV, 노말, face, material library 정보를 수집하고, OBJ의
- * 인덱스 조합을 엔진 정점 버퍼 형식으로 재구성한다. ImportOptions에 따라 forward 축, winding,
- * 스케일, 기본 머티리얼 생성 여부를 반영하며, 변환 결과는 ObjManager가 바이너리 캐시나
- * UStaticMesh로 이어서 사용할 수 있는 중간 데이터가 된다.
+ * 라인 단위 토큰 파서로 vertex, normal, uv, face, material library를 읽고, 위치/UV/노말 조합을 기준으로
+ * 정점을 중복 제거한다. 축 변환, winding order, 머티리얼 섹션 분리까지 이 단계에서 처리해 FStaticMesh를
+ * 바로 만들 수 있는 형태로 만든다.
  */
 
 #include "Asset/Import/OBJ/ObjImporter.h"
@@ -24,6 +23,9 @@
 const FVector  FallbackColor3 = FVector(1.0f, 0.0f, 1.0f);
 const FVector4 FallbackColor4 = FVector4(1.0f, 0.0f, 1.0f, 1.0f);
 
+/**
+ * OBJ의 위치/UV/노말 인덱스 조합을 엔진 정점 하나로 재사용하기 위한 키이다.
+ */
 struct FVertexKey
 {
     uint32 p, t, n;
@@ -99,6 +101,9 @@ struct FStringParser
         }
     }
 
+    /**
+     * 원본 포맷 데이터를 엔진 임포트 중간 구조로 분석한다.
+     */
     static bool ParseInt(std::string_view Str, int &OutValue)
     {
         if (Str.empty())
@@ -108,6 +113,9 @@ struct FStringParser
         return result.ec == std::errc();
     }
 
+    /**
+     * 원본 포맷 데이터를 엔진 임포트 중간 구조로 분석한다.
+     */
     static bool ParseFloat(std::string_view Str, float &OutValue)
     {
         if (Str.empty())
@@ -118,6 +126,9 @@ struct FStringParser
     }
 };
 
+/**
+ * OBJ face 항목 하나에 들어 있는 위치, UV, 노말 인덱스를 임시로 저장한다.
+ */
 struct FRawFaceVertex
 {
     int32 PosIndex = -1;
@@ -125,6 +136,9 @@ struct FRawFaceVertex
     int32 NormalIndex = -1;
 };
 
+/**
+ * 원본 포맷 데이터를 엔진 임포트 중간 구조로 분석한다.
+ */
 FRawFaceVertex ParseSingleFaceVertex(std::string_view FaceToken)
 {
     FRawFaceVertex Result;

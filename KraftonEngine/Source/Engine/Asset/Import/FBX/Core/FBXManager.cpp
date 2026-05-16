@@ -1,9 +1,9 @@
 /**
- * FBX 씬 캐시와 FBX 기반 메시 로딩을 관리하는 구현부이다.
+ * FBX 씬 캐시 저장, 로드, 하위 에셋 참조 해석을 구현한다.
  *
- * 원본 FBX를 임포트하여 UFBXSceneAsset으로 캐시하고, 씬 내부의 StaticMesh/SkeletalMesh 참조
- * 문자열을 실제 UObject로 해석한다. 여러 에디터 기능이 동일한 FBX를 반복 로드할 때 파싱 비용과 참조
- * 불일치를 줄이기 위한 중앙 관리 계층이다.
+ * 원본 FBX를 매번 파싱하지 않도록 별도의 바이너리 캐시를 사용하고, 캐시 헤더에는 원본 경로와 수정 시간을
+ * 기록해 오래된 캐시를 걸러낸다. 또한 씬 단위로 저장된 여러 StaticMesh/SkeletalMesh 중 요청된 하위
+ * 에셋을 찾아 UObject로 복원한다.
  */
 
 #include "Asset/Import/FBX/Core/FBXManager.h"
@@ -31,6 +31,9 @@ TArray<FMeshAssetListItem>      FFBXManager::AvailableFbxFiles;
 
 namespace
 {
+    /**
+     * FBX 씬 캐시가 어떤 원본 파일과 버전을 기준으로 만들어졌는지 기록하는 헤더이다.
+     */
     struct FFBXSceneCacheHeader
     {
         uint32  Magic = 0;
@@ -39,6 +42,9 @@ namespace
         int64   SourceTimestamp = 0;
     };
 
+    /**
+     * FBX 씬 캐시 로드 결과가 성공, 누락, 오래됨, 손상 중 어디에 해당하는지 나타낸다.
+     */
     enum class EFBXSceneCacheStatus
     {
         MemoryHit,
@@ -70,6 +76,9 @@ namespace
         }
     }
 
+    /**
+     * 저장된 참조 문자열이나 후보 경로를 실제 에셋/파일 경로로 해석한다.
+     */
     std::wstring ResolveDiskPath(const FString &Path)
     {
         std::wstring DiskPath;
@@ -180,6 +189,9 @@ namespace
             return false;
         }
 
+        /**
+         * 원본 포맷에서 필요한 속성 값을 읽어 엔진 타입으로 변환한다.
+         */
         FWindowsBinReader Reader(CachePath);
         if (!Reader.IsValid())
         {
@@ -208,6 +220,9 @@ namespace
         return true;
     }
 
+    /**
+     * 임포트 결과 씬을 다음 로드에서 재사용할 수 있도록 바이너리 캐시에 저장한다.
+     */
     void SaveSceneToCache(FFBXScene &Scene)
     {
         const FString     CachePath = FMeshManager::GetFbxSceneCacheFilePath(Scene.SourcePath);
@@ -228,6 +243,9 @@ namespace
         Scene.Serialize(Writer);
     }
 
+    /**
+     * FBX 임포트 중간 결과를 직렬화 가능한 UFBXSceneAsset 데이터로 변환한다.
+     */
     FFBXScene ConvertImportedAssetToScene(const FString &SourcePath, FFBXAsset &&ImportedAsset)
     {
         FFBXScene Scene;
@@ -368,7 +386,7 @@ namespace
             OutFiles.push_back(std::move(Item));
         }
     }
-} // namespace
+} 
 
 USkeletalMesh *FFBXManager::LoadSkeletalMesh(const FString &PathFileName)
 {

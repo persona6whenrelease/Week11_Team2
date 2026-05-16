@@ -1,3 +1,10 @@
+/**
+ * 텍스처 로드 캐시와 D3D11 리소스 생명주기를 구현한다.
+ *
+ * 패키지 경로를 실제 디스크 경로로 해석한 뒤 WICTextureLoader로 SRV를 생성한다. 로드된 텍스처는 경로를
+ * 키로 캐시되고, 메모리 통계에는 생성된 D3D11 texture 크기를 반영한다.
+ */
+
 #include "Asset/Texture/Texture2D.h"
 #include "Object/ObjectFactory.h"
 #include "Core/Log.h"
@@ -25,7 +32,7 @@ UTexture2D::~UTexture2D()
 		SRV = nullptr;
 	}
 
-	// 캐시에서 제거
+	
 	auto It = TextureCache.find(SourceFilePath);
 	if (It != TextureCache.end() && It->second == this)
 	{
@@ -55,14 +62,14 @@ UTexture2D* UTexture2D::LoadFromFile(const FString& FilePath, ID3D11Device* Devi
 {
 	if (FilePath.empty() || !Device) return nullptr;
 
-	// 캐시 히트
+	
 	auto It = TextureCache.find(FilePath);
 	if (It != TextureCache.end())
 	{
 		return It->second;
 	}
 
-	// 새 UTexture2D 생성
+	
 	UTexture2D* Texture = UObjectManager::Get().CreateObject<UTexture2D>();
 	if (!Texture->LoadInternal(FilePath, Device))
 	{
@@ -100,12 +107,12 @@ bool UTexture2D::LoadInternal(const FString& FilePath, ID3D11Device* Device)
 	ID3D11Resource* Resource = nullptr;
 	HRESULT hr = DirectX::CreateWICTextureFromFileEx(
 		Device, WidePath.c_str(),
-		0,                                    // maxsize
-		D3D11_USAGE_DEFAULT,                  // usage
-		D3D11_BIND_SHADER_RESOURCE,           // bindFlags
-		0,                                    // cpuAccessFlags
-		0,                                    // miscFlags
-		DirectX::WIC_LOADER_IGNORE_SRGB,     // sRGB 메타데이터 무시 → UNORM 포맷 강제
+		0,                                    
+		D3D11_USAGE_DEFAULT,                  
+		D3D11_BIND_SHADER_RESOURCE,           
+		0,                                    
+		0,                                    
+		DirectX::WIC_LOADER_IGNORE_SRGB,     
 		&Resource, &SRV);
 
 	if (FAILED(hr))
@@ -114,7 +121,7 @@ bool UTexture2D::LoadInternal(const FString& FilePath, ID3D11Device* Device)
 		return false;
 	}
 
-	// 텍스처 크기 추출
+	
 	if (Resource)
 	{
 		TrackedTextureMemory = MemoryStats::CalculateTextureMemory(Resource);

@@ -1,9 +1,9 @@
 /**
  * 스켈레탈 메시 에셋의 직렬화 가능한 순수 데이터 구조를 정의한다.
  *
- * 정점의 bone id/weight, 본 계층, inverse bind pose, 애니메이션 트랙과 클립 정보를 포함한다.
- * 이 파일의 타입들은 UObject 수명이나 GPU 리소스에 의존하지 않으며, FBX 임포터가 만든 결과를
- * .uasset 또는 바이너리 데이터로 저장하고 다시 로드하기 위한 에셋 포맷의 중심이 된다.
+ * 정점은 위치/노말/UV/탄젠트뿐 아니라 최대 4개의 본 인덱스와 가중치를 포함한다. 이 데이터는 CPU skinning
+ * 또는 향후 GPU skinning이 참조하는 기본 입력이며, 섹션과 머티리얼 슬롯을 함께 저장해 렌더링 단위도
+ * 보존한다.
  */
 
 #pragma once
@@ -16,11 +16,12 @@
 
 #include <algorithm>
 
+// ====================================================
+// Vertex Data
+// ====================================================
+
 /**
- * 스키닝에 필요한 본 영향 정보를 포함한 정점 형식이다.
- *
- * 일반 메시 정점 속성에 최대 4개의 bone id와 weight를 추가해 CPU/GPU skinning 단계에서 본 행렬을
- * 적용할 수 있게 한다. FBX 임포터는 여러 cluster weight를 이 형식으로 정규화한다.
+ * 스키닝에 필요한 위치, 노말, UV, 탄젠트, 본 인덱스, 가중치를 가진 정점 형식이다.
  */
 struct FSkeletalVertex
 {
@@ -33,10 +34,7 @@ struct FSkeletalVertex
 };
 
 /**
- * 스켈레톤의 단일 본 정보를 표현한다.
- *
- * 본 이름, 부모 인덱스, bind pose 기준 행렬을 담아 계층 구조와 inverse bind pose 계산의 기준이
- * 된다.
+ * 스켈레탈 메시의 정점, 인덱스, 섹션, 머티리얼 슬롯, 바운딩 정보를 저장하는 순수 데이터이다.
  */
 struct FBoneInfo
 {
@@ -133,10 +131,14 @@ struct FSkeletalMesh
     TArray<FBoneInfo>       Bones;
     TArray<FAnimationClip>  AnimationClips;
 
+    // Cached bounds
     FVector BoundsCenter = FVector(0, 0, 0);
     FVector BoundsExtent = FVector(0, 0, 0);
     bool    bBoundsValid = false;
 
+    /**
+     * 정점 배열을 순회해 메시의 로컬 바운딩 박스 중심과 반경을 계산한다.
+     */
     void CacheBounds()
     {
         bBoundsValid = false;
@@ -160,6 +162,9 @@ struct FSkeletalMesh
         bBoundsValid = true;
     }
 
+    /**
+     * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+     */
     void Serialize(FArchive &Ar)
     {
         Ar << PathFileName;

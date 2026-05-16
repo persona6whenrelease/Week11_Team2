@@ -1,9 +1,9 @@
 /**
- * FBX 씬을 순회하며 임포트에 필요한 메타 정보를 수집한다.
+ * FBX 씬 그래프를 임포트용 메타 데이터로 분류하는 로직을 구현한다.
  *
- * 노드 계층, 메시 노드, 스킨/클러스터, 본 후보, 스켈레톤 루트, 머티리얼 정보를 먼저 정리해 이후의
- * 지오메트리/애니메이션 파서가 원본 FBX를 다시 복잡하게 탐색하지 않도록 한다. 이 단계의 결과가
- * FBXImportMeta이며, FBX 임포트 전체의 기준 테이블 역할을 한다.
+ * 노드 계층, skin cluster, material, texture 참조를 수집하고 스켈레톤 루트와 본 부모 관계를 구성한다.
+ * 텍스처 경로는 원본 파일의 절대경로가 깨진 경우가 많으므로, 프로젝트 내부 후보 경로와 파일명 휴리스틱을
+ * 사용해 복구를 시도한다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxMetaParser.h"
@@ -114,6 +114,9 @@ namespace
         return Name.empty() ? "None" : Name;
     }
 
+    /**
+     * 원본 포맷에서 필요한 속성 값을 읽어 엔진 타입으로 변환한다.
+     */
     FVector ReadDiffuseColor(FbxSurfaceMaterial *SurfaceMaterial)
     {
         if (!SurfaceMaterial)
@@ -355,6 +358,9 @@ namespace
         return nullptr;
     }
 
+    /**
+     * 실패할 수 있는 변환 또는 검색을 수행하고 성공 여부로 결과를 돌려준다.
+     */
     bool TryMakeProjectRelativePath(const std::filesystem::path &DiskPath, FString &OutPath)
     {
         if (!std::filesystem::exists(DiskPath))
@@ -626,6 +632,9 @@ namespace
         return ReadTexturePath(SurfaceMaterial, SourceFilePath, Texture, TextureRole);
     }
 
+    /**
+     * 원본 포맷에서 필요한 속성 값을 읽어 엔진 타입으로 변환한다.
+     */
     FString ReadDiffuseUVSetName(FbxSurfaceMaterial *SurfaceMaterial)
     {
         FbxFileTexture *Texture =
@@ -642,7 +651,7 @@ namespace
         const char *UVSetName = Texture->UVSet.Get();
         return (UVSetName && UVSetName[0] != '\0') ? FString(UVSetName) : FString();
     }
-} // namespace
+} 
 
 #pragma region Build Orchestration
 

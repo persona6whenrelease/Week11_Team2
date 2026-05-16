@@ -1,3 +1,10 @@
+/**
+ * 머티리얼 파라미터 저장과 GPU 바인딩 보조 로직을 구현한다.
+ *
+ * 각 파라미터는 이름을 키로 하는 맵에 저장되며, 렌더링 시 상수 버퍼와 텍스처 슬롯으로 전달된다. 템플릿이
+ * 제공하는 기본 셰이더/렌더 상태와 인스턴스가 가진 파라미터 값을 조합해 최종 머티리얼 상태를 만든다.
+ */
+
 #include "Asset/Material/Material.h"
 #include "Serialization/Archive.h"
 #include "Render/Shader/Shader.h"
@@ -8,11 +15,9 @@
 
 IMPLEMENT_CLASS(UMaterial, UObject)
 
-// ─── FMaterialTemplate ───
-
 void FMaterialTemplate::Create(FShader* InShader)
 {
-	ParameterLayout = InShader->GetParameterLayout(); // 셰이더에서 리플렉션된 파라미터 레이아웃 정보 확보
+	ParameterLayout = InShader->GetParameterLayout(); 
 	Shader = InShader;
 }
 
@@ -29,8 +34,6 @@ bool FMaterialTemplate::GetParameterInfo(const FString& Name, FMaterialParameter
 		return false;
 	}
 }
-
-// ─── FMaterialConstantBuffer ───
 
 FMaterialConstantBuffer::~FMaterialConstantBuffer()
 {
@@ -76,8 +79,6 @@ void FMaterialConstantBuffer::Release()
 	Size = 0;
 	bDirty = false;
 }
-
-// ─── UMaterial ───
 
 UMaterial::~UMaterial()
 {
@@ -126,7 +127,6 @@ bool UMaterial::SetParameter(const FString& Name, const void* Data, uint32 Size)
 	return true;
 }
 
-
 bool UMaterial::SetScalarParameter(const FString& ParamName, float Value)
 {
 	return SetParameter(ParamName, &Value, sizeof(float));
@@ -148,7 +148,7 @@ bool UMaterial::SetTextureParameter(const FString& ParamName, UTexture2D* Textur
 {
 	TextureParameters[ParamName] = Texture;
 
-	// CachedSRVs 갱신 — 슬롯 이름과 매칭되면 즉시 반영
+	
 	for (int s = 0; s < (int)EMaterialTextureSlot::Max; s++)
 	{
 		FString SlotName = MaterialTextureSlot::ToString(s) + "Texture";
@@ -318,7 +318,7 @@ void UMaterial::Serialize(FArchive& Ar)
 			Ar << TexturePath;
 		}
 	}
-	else // IsLoading
+	else 
 	{
 		for (uint32 i = 0; i < TextureCount; ++i)
 		{
