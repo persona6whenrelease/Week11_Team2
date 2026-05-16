@@ -1193,6 +1193,7 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 	ImGui::EndChild();
 }
 
+// TODO
 void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 {
 	const FSkeletalMesh* Asset = (PreviewSkeletalMesh && PreviewMeshComponent)
@@ -1230,16 +1231,16 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	// 	ImGui::EndCombo();
 	// }
 
-	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
-	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
-	{
-		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
-	{
-		PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	}
+	//const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
+	//if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
+	//}
+	//ImGui::SameLine();
+	//if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimTime(0.0f);
+	//}
 
 	// if (Clip.Duration > 0.0f)
 	// {
@@ -1251,11 +1252,11 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	// 	}
 	// }
 
-	float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
-	if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
-	{
-		PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
-	}
+	//float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
+	//if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
+	//{
+	//	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
+	//}
 
 	ImGui::Separator();
 }
