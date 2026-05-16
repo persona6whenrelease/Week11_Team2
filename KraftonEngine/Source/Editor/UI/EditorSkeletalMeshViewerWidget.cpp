@@ -674,7 +674,7 @@ void FEditorSkeletalMeshViewerWidget::SetPreviewMesh(USkeletalMesh* InMesh, bool
 	// Default the viewer to a paused state so the user explicitly hits Play to preview.
 	PreviewMeshComponent->SetBakedAnimPaused(true);
 	PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	PreviewMeshComponent->SetBakedAnimClipIndex(0);
+	// PreviewMeshComponent->SetBakedAnimClipIndex(0);
 	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(1.0f);
 
 	// [추가] 뷰포트 클라이언트의 본 셀렉션 매니저에 타겟 컴포넌트 전달
@@ -1200,34 +1200,34 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	ImGui::TextUnformatted("Animation");
 	ImGui::Separator();
 
-	if (!Asset || Asset->AnimationClips.empty())
-	{
-		ImGui::TextDisabled("No baked animation clips.");
-		ImGui::Separator();
-		return;
-	}
+	// if (!Asset || Asset->AnimationClips.empty())
+	// {
+	// 	ImGui::TextDisabled("No baked animation clips.");
+	// 	ImGui::Separator();
+	// 	return;
+	// }
 
-	const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
-	int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
-	const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
+	// const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
+	// int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
+	// const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
 
-	if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
-	{
-		for (int32 i = 0; i < ClipCount; ++i)
-		{
-			const bool bSelected = (i == ClipIdx);
-			if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
-			{
-				PreviewMeshComponent->SetBakedAnimClipIndex(i);
-				PreviewMeshComponent->SetBakedAnimTime(0.0f);
-			}
-			if (bSelected)
-			{
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
+	// if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
+	// {
+	// 	for (int32 i = 0; i < ClipCount; ++i)
+	// 	{
+	// 		const bool bSelected = (i == ClipIdx);
+	// 		if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
+	// 		{
+	// 			PreviewMeshComponent->SetBakedAnimClipIndex(i);
+	// 			PreviewMeshComponent->SetBakedAnimTime(0.0f);
+	// 		}
+	// 		if (bSelected)
+	// 		{
+	// 			ImGui::SetItemDefaultFocus();
+	// 		}
+	// 	}
+	// 	ImGui::EndCombo();
+	// }
 
 	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
 	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
@@ -1240,15 +1240,15 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 	}
 
-	if (Clip.Duration > 0.0f)
-	{
-		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
-		if (Time < 0.0f) Time += Clip.Duration;
-		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
-		{
-			PreviewMeshComponent->SetBakedAnimTime(Time);
-		}
-	}
+	// if (Clip.Duration > 0.0f)
+	// {
+	// 	float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
+	// 	if (Time < 0.0f) Time += Clip.Duration;
+	// 	if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
+	// 	{
+	// 		PreviewMeshComponent->SetBakedAnimTime(Time);
+	// 	}
+	// }
 
 	float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
 	if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
