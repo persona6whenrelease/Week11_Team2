@@ -26,7 +26,7 @@ class FMeshManager
 {
   public:
     static constexpr uint32 FbxSceneCacheMagic = 0x4E435346u;
-    static constexpr uint32 FbxSceneCacheVersion = 3u;
+    static constexpr uint32 FbxSceneCacheVersion = 5u;
 
     static bool IsFbxStaticMeshReference(const FString &PathFileName);
     static bool IsFbxSkeletalMeshReference(const FString &PathFileName);

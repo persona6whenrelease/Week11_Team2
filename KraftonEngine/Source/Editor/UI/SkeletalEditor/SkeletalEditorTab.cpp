@@ -383,10 +383,17 @@ FSkeletalEditorTab::~FSkeletalEditorTab()
 
 FString FSkeletalEditorTab::ExtractFileStem(const FString& Path)
 {
-	const size_t SepPos = Path.find_last_of("/\\");
+	// FBX 애니메이션 이름 등에서 쓰이는 '|' 도 디렉터리 구분자로 처리
+	const size_t SepPos = Path.find_last_of("/\\|");
 	const FString FileName = (SepPos == FString::npos) ? Path : Path.substr(SepPos + 1);
 	const size_t DotPos = FileName.find_last_of('.');
 	return (DotPos == FString::npos) ? FileName : FileName.substr(0, DotPos);
+}
+
+FString FSkeletalEditorTab::ExtractFileName(const FString& Path)
+{
+	const size_t SepPos = Path.find_last_of("/\\|");
+	return (SepPos == FString::npos) ? Path : Path.substr(SepPos + 1);
 }
 
 void FSkeletalEditorTab::RenderTabModeBar()

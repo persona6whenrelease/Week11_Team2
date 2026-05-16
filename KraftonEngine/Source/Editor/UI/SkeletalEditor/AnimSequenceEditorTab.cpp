@@ -15,6 +15,7 @@
 #include "WICTextureLoader.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -183,7 +184,12 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 FString FAnimSequenceEditorTab::GetTabLabel() const
 {
 	FString Base = DataSource ? DataSource->GetName() : FString();
-	if (Base.empty())
+	if (!Base.empty())
+	{
+		// "Skeleton|Skeleton|Ahri_skin14_run.anm" → "Ahri_skin14_run.anm"
+		Base = ExtractFileName(Base);
+	}
+	else
 	{
 		Base = GetSourcePath().empty() ? FString("AnimSequence") : ExtractFileStem(GetSourcePath());
 	}
@@ -855,7 +861,15 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 
 void FAnimSequenceEditorTab::RenderRightPanel()
 {
-	if (ImGui::BeginChild("##AnimSeqDetails", ImVec2(0, 0), false))
+	const ImVec2 Avail = ImGui::GetContentRegionAvail();
+	constexpr float SplitterH = 5.0f;
+	constexpr float MinTop = 60.0f;
+	constexpr float MinBottom = 100.0f;
+	const float MaxTop = std::max(MinTop, Avail.y - MinBottom - SplitterH);
+	RightPanelTopHeight = std::clamp(RightPanelTopHeight, MinTop, MaxTop);
+
+	// 상단: Details placeholder
+	if (ImGui::BeginChild("##AnimSeqDetails", ImVec2(0, RightPanelTopHeight), false))
 	{
 		ImGui::TextUnformatted("Details");
 		ImGui::Separator();
@@ -864,4 +878,122 @@ void FAnimSequenceEditorTab::RenderRightPanel()
 		ImGui::TextDisabled("(Asset details / Preview Settings — TODO)");
 	}
 	ImGui::EndChild();
+
+	// 가변 splitter (Details ↔ Asset Browser)
+	ImGui::InvisibleButton("##RPSplitter", ImVec2(-1.0f, SplitterH));
+	if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+	{
+		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+	}
+	if (ImGui::IsItemActive())
+	{
+		RightPanelTopHeight += ImGui::GetIO().MouseDelta.y;
+	}
+	{
+		const ImVec2 SpMin = ImGui::GetItemRectMin();
+		const ImVec2 SpMax = ImGui::GetItemRectMax();
+		const ImU32 SpColor = ImGui::IsItemActive() ? IM_COL32(100, 150, 200, 255)
+		                                            : (ImGui::IsItemHovered() ? IM_COL32(110, 110, 115, 255)
+		                                                                       : IM_COL32(60, 60, 65, 255));
+		ImGui::GetWindowDrawList()->AddRectFilled(SpMin, SpMax, SpColor);
+	}
+
+	// 하단: Asset Browser
+	if (ImGui::BeginChild("##AnimSeqAssetBrowser", ImVec2(0, 0), true))
+	{
+		ImGui::TextUnformatted("Asset Browser");
+		ImGui::Separator();
+		RenderAssetBrowser();
+	}
+	ImGui::EndChild();
+}
+
+void FAnimSequenceEditorTab::RenderAssetBrowser()
+{
+	const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
+	if (!MeshAsset)
+	{
+		ImGui::TextDisabled("No mesh");
+		return;
+	}
+	const TArray<FString>& Paths = MeshAsset->AnimationSequenceAssetPaths;
+	if (Paths.empty())
+	{
+		ImGui::TextDisabled("No anim sequences for this mesh");
+		return;
+	}
+
+	// Filter input
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputTextWithHint("##AssetBrowserFilter", "Search Assets",
+		AssetBrowserFilterBuf, sizeof(AssetBrowserFilterBuf));
+
+	// Filter 소문자 사본 (case-insensitive 비교용)
+	auto ToLower = [](FString S) -> FString
+	{
+		for (auto& C : S) C = static_cast<char>(std::tolower(static_cast<unsigned char>(C)));
+		return S;
+	};
+	const FString FilterLower = ToLower(AssetBrowserFilterBuf);
+	const FString& CurrentPath = GetSourcePath();
+
+	if (ImGui::BeginTable("##AssetBrowserTable", 2,
+		ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
+	{
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupScrollFreeze(0, 1);
+		ImGui::TableHeadersRow();
+
+		for (int32 i = 0; i < static_cast<int32>(Paths.size()); ++i)
+		{
+			const FString& Path = Paths[i];
+
+			// Name: 실제 anim sequence의 이름을 resolve해서 가져옴
+			//       (없으면 path의 stem으로 fallback)
+			FString Name;
+			if (UObject* AssetObj = FMeshManager::ResolveFbxSceneAssetReference(Path))
+			{
+				if (UAnimSequence* Seq = Cast<UAnimSequence>(AssetObj))
+				{
+					const FAnimationClip& Clip = Seq->GetAnimationClip();
+					Name = Clip.Name.empty() ? Seq->GetFName().ToString() : Clip.Name;
+				}
+			}
+			if (Name.empty()) Name = ExtractFileName(Path);
+			else              Name = ExtractFileName(Name); // "Skeleton|Skeleton|X.anm" → "X.anm"
+
+			if (!FilterLower.empty())
+			{
+				const FString NameLower = ToLower(Name);
+				if (NameLower.find(FilterLower) == FString::npos) continue;
+			}
+
+			// Path 표시: "Asset/..."부터 시작 + "#Anim_..." suffix 제거
+			FString DisplayPath = Path;
+			const size_t AssetPos = DisplayPath.find("Asset");
+			if (AssetPos != FString::npos) DisplayPath = DisplayPath.substr(AssetPos);
+			const size_t HashPos = DisplayPath.find('#');
+			if (HashPos != FString::npos) DisplayPath = DisplayPath.substr(0, HashPos);
+
+			const bool bSelected = (Path == CurrentPath);
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::PushID(i);
+			if (ImGui::Selectable(Name.c_str(), bSelected,
+				ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick))
+			{
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				{
+					OpenAnimSequenceAsset(Path);
+				}
+			}
+			ImGui::PopID();
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::TextDisabled("%s", DisplayPath.c_str());
+		}
+		ImGui::EndTable();
+	}
 }

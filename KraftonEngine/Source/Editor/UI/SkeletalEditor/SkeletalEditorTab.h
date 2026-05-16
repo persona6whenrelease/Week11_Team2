@@ -56,6 +56,8 @@ protected:
 
 	// 파일 경로에서 확장자/디렉터리 제외한 stem 추출 (탭 라벨 표시에 공통 사용).
 	static FString ExtractFileStem(const FString& Path);
+	// 디렉터리(/, \, |)만 제거. 확장자(.anm 등)는 유지.
+	static FString ExtractFileName(const FString& Path);
 
 	FSkeletalEditorPreviewScene PreviewScene;
 	UEditorEngine* EditorEngine = nullptr;
