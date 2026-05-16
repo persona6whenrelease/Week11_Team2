@@ -1,6 +1,7 @@
 #include "Asset/Animation/Core/Skeleton.h"
 
 #include "Core/Log.h"
+#include "Object/ObjectFactory.h"
 
 IMPLEMENT_CLASS(USkeleton, UObject)
 
