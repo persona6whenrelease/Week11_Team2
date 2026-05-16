@@ -1,10 +1,8 @@
 /**
- * 메시 로딩의 진입점을 구현한다.
+ * 상위 메시 매니저의 경로 판별, 스캔, 로드 위임 로직을 구현한다.
  *
- * OBJ 원본, FBX 씬 참조, FBX에서 분리된 StaticMesh/SkeletalMesh 참조를 호출부가 직접 구분하지
- * 않아도 되도록 경로 규칙을 판별하고 알맞은 하위 매니저로 위임한다. 또한 FBX 씬 캐시 파일의
- * 저장 위치를 프로젝트 기준 경로로 정규화하여 원본 파일 경로와 캐시 바이너리 경로 사이의
- * 변환 규칙을 한 곳에 모은다.
+ * OBJ는 ObjManager가 담당하고 FBX는 FFBXManager가 담당한다. 이 파일은 두 시스템의 캐시 디렉터리를
+ * 준비하고, Asset/Source와 Asset/Content를 함께 스캔해 에디터에서 보여줄 메시 목록을 구성한다.
  */
 
 #include "Asset/Import/MeshManager.h"
@@ -26,7 +24,7 @@ namespace
             bCreated = true;
         }
     }
-} // namespace
+} 
 
 bool FMeshManager::IsFbxStaticMeshReference(const FString &PathFileName)
 {

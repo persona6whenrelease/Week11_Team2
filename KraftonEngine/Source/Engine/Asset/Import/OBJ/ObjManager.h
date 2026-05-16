@@ -1,9 +1,8 @@
 /**
- * OBJ 기반 StaticMesh 로딩과 캐시 관리를 담당하는 매니저를 선언한다.
+ * OBJ 원본과 바이너리 캐시를 관리하는 매니저를 선언한다.
  *
- * 이 클래스는 텍스트 OBJ 파일을 직접 로드하는 경로와 이미 만들어진 바이너리 캐시를 사용하는 경로를
- * 모두 제공한다. 외부에서는 원본 경로만 넘기면 되고, 내부에서는 캐시 파일명 생성, StaticMesh 객체
- * 생성, GPU 리소스 해제, 에셋 목록 갱신을 일관된 규칙으로 처리한다.
+ * 원본 OBJ를 매번 텍스트 파싱하지 않기 위해 .bin 캐시를 만들고, StaticMesh UObject 생성과 GPU 리소스
+ * 초기화까지 이어지는 로드 경로를 제공한다. 에디터의 메시 목록 스캔도 이 매니저가 담당한다.
  */
 
 #pragma once
@@ -21,10 +20,7 @@ struct FImportOptions;
 class UStaticMesh;
 
 /**
- * OBJ 기반 StaticMesh 로딩과 캐시 생성을 관리한다.
- *
- * 텍스트 OBJ를 직접 파싱하는 비용을 줄이기 위해 바이너리 캐시 경로를 만들고, 필요할 때만 원본을
- * 다시 읽는다. 또한 에디터가 보여줄 원본/에셋 목록과 모든 OBJ 메시의 GPU 리소스 해제를 관리한다.
+ * OBJ 원본 파일과 바이너리 캐시, UStaticMesh 생성 과정을 관리한다.
  */
 class FObjManager
 {
@@ -38,11 +34,20 @@ class FObjManager
     static UStaticMesh *LoadObjStaticMesh(const std::string &PathFileName, ID3D11Device *InDevice);
     static UStaticMesh *LoadObjStaticMesh(const FString        &PathFileName,
                                           const FImportOptions &Options, ID3D11Device *InDevice);
+    /**
+     * 저장된 메시 에셋과 원본 메시 파일을 스캔해 목록을 갱신한다.
+     */
     static void         ScanMeshAssets();
     static const TArray<FMeshAssetListItem> &GetAvailableMeshFiles();
+    /**
+     * 프로젝트 원본 폴더에서 OBJ 파일을 찾아 에디터 목록용 항목으로 수집한다.
+     */
     static void                              ScanObjSourceFiles();
     static const TArray<FMeshAssetListItem> &GetAvailableObjFiles();
 
+    /**
+     * 캐시에 남아 있는 모든 텍스처의 GPU 리소스를 해제한다.
+     */
     static void ReleaseAllGPU();
 
   private:

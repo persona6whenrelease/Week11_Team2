@@ -1,4 +1,12 @@
-﻿#pragma once
+/**
+ * 텍스처 파일을 D3D11 ShaderResourceView로 로드해 보관하는 UObject를 선언한다.
+ *
+ * UTexture2D는 원본 이미지 경로와 GPU SRV를 함께 관리하고, 같은 경로를 여러 번 로드하지 않도록 정적 캐시를
+ * 사용한다. 머티리얼은 이 객체를 통해 텍스처 리소스를 공유하며, 종료 시에는 캐시된 GPU 리소스를 명시적으로
+ * 해제한다.
+ */
+
+#pragma once
 
 #include "Object/Object.h"
 #include "Core/CoreTypes.h"
@@ -9,8 +17,9 @@
 struct ID3D11Device;
 struct ID3D11ShaderResourceView;
 
-// UTexture2D — 텍스처 에셋 (SRV를 소유하는 UObject)
-// 같은 경로의 텍스처는 캐시를 통해 하나의 UTexture2D를 공유합니다.
+/**
+ * 이미지 파일을 D3D11 SRV로 로드하고 경로 기반 캐시로 공유하는 텍스처 에셋 타입이다.
+ */
 class UTexture2D : public UObject
 {
 public:
@@ -19,11 +28,20 @@ public:
 	UTexture2D() = default;
 	~UTexture2D() override;
 
-	// 경로로 텍스처를 로드 (캐시 히트 시 기존 객체 반환)
+	
+	/**
+	 * 경로 기반 캐시를 확인한 뒤 필요하면 이미지 파일을 GPU 텍스처로 로드한다.
+	 */
 	static UTexture2D* LoadFromFile(const FString& FilePath, ID3D11Device* Device);
+	/**
+	 * 이미 로드된 텍스처가 캐시에 있는지 조회한다.
+	 */
 	static UTexture2D* LoadFromCached(const FString& FilePath);
 
-	// 캐시된 모든 텍스처의 GPU 리소스 해제 (Shutdown 시 Device 해제 전 호출)
+	
+	/**
+	 * 캐시에 남아 있는 모든 텍스처의 GPU 리소스를 해제한다.
+	 */
 	static void ReleaseAllGPU();
 
 	ID3D11ShaderResourceView* GetSRV() const { return SRV; }
@@ -33,6 +51,9 @@ public:
 	bool IsLoaded() const { return SRV != nullptr; }
 
 private:
+	/**
+	 * 패키지 경로를 실제 파일 경로로 해석하고 WIC 로더로 SRV를 생성한다.
+	 */
 	bool LoadInternal(const FString& FilePath, ID3D11Device* Device);
 
 	FString SourceFilePath;
@@ -41,6 +62,6 @@ private:
 	uint32 Height = 0;
 	uint64 TrackedTextureMemory = 0;
 
-	// path → UTexture2D* 캐시 (소유권은 UObjectManager)
+	
 	static std::map<FString, UTexture2D*> TextureCache;
 };

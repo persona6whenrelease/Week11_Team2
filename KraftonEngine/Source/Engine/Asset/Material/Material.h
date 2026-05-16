@@ -1,4 +1,12 @@
-﻿#pragma once
+/**
+ * 엔진 머티리얼 템플릿, 파라미터, 상수 버퍼, 인스턴스 객체를 선언한다.
+ *
+ * 머티리얼은 셰이더, 렌더 상태, 스칼라/벡터/행렬/텍스처 파라미터를 하나로 묶어 메시 섹션 렌더링에
+ * 필요한 상태를 제공한다. JSON으로 저장된 머티리얼 파일은 MaterialManager를 거쳐 UMaterial 인스턴스로
+ * 복원된다.
+ */
+
+#pragma once
 
 #include "Object/ObjectFactory.h"
 #include "Math/Vector.h"
@@ -14,27 +22,29 @@ class UTexture2D;
 class FArchive;
 class FShader;
 
-// 파라미터 이름 → 상수 버퍼 내 위치 매핑
+/**
+ * 머티리얼 파라미터 하나의 이름, 타입, 기본값, 바인딩 위치를 설명한다.
+ */
 struct FMaterialParameterInfo
 {
-	FString BufferName;  // ConstantBuffers 이름 "PerMaterial""PerFrame"
-	uint32 SlotIndex;    // ConstantBuffers 슬롯 인덱스 
+	FString BufferName;  
+	uint32 SlotIndex;    
 
-	uint32 Offset;      // 버퍼 내 바이트 오프셋
-	uint32 Size;        // 바이트 크기
+	uint32 Offset;      
+	uint32 Size;        
 
-	uint32 BufferSize;   //이 변수가 속한 상수 버퍼의 전체 크기 (16의 배수)
+	uint32 BufferSize;   
 };
 
-
-//셰이더 + 레이아웃 (불변, 공유)
-//Template은 셰이더 파일이 있으면 언제든 재생성 가능
+/**
+ * 머티리얼 인스턴스들이 공유하는 셰이더와 렌더 상태, 파라미터 레이아웃을 저장한다.
+ */
 class FMaterialTemplate
 {
 private:
-	uint32 MaterialTemplateID; // 고유 ID
-	FShader* Shader; // 어떤 셰이더를 사용하는지
-	TMap<FString, FMaterialParameterInfo*> ParameterLayout; // 리플렉션 결과 : 쉐이더 constant buffer 레이아웃 정보
+	uint32 MaterialTemplateID; 
+	FShader* Shader; 
+	TMap<FString, FMaterialParameterInfo*> ParameterLayout; 
 
 public:
 	const TMap<FString, FMaterialParameterInfo*>& GetParameterInfo() const { return ParameterLayout; }
@@ -44,14 +54,15 @@ public:
 	bool GetParameterInfo(const FString& Name, FMaterialParameterInfo& OutInfo) const;
 };
 
-
-// 실제 데이터가 올라가는 버퍼
+/**
+ * 머티리얼 파라미터를 GPU 상수 버퍼로 업로드하기 위한 래퍼이다.
+ */
 struct FMaterialConstantBuffer
 {
-	uint8* CPUData;   // CPU 메모리의 실제 값
+	uint8* CPUData;   
 	FConstantBuffer GPUBuffer;
 	uint32 Size = 0;
-	UINT SlotIndex = 0;	//cbuffer 바인딩 슬롯 (b0, b1 등)
+	UINT SlotIndex = 0;	
 	bool bDirty = false;
 
 	FMaterialConstantBuffer() = default;
@@ -68,30 +79,33 @@ struct FMaterialConstantBuffer
 	FConstantBuffer* GetConstantBuffer() { return &GPUBuffer; }
 };
 
-//파라미터 값 + 텍스처 (런타임 데이터)
-//JSON으로 직렬화되는 데이터
+/**
+ * 렌더링에 사용할 머티리얼 인스턴스이다.
+ *
+ * 템플릿이 제공하는 셰이더/렌더 상태에 개별 파라미터와 텍스처 값을 더해 메시 섹션 단위로 바인딩된다.
+ */
 class UMaterial : public UObject
 {
 private:
-	FString PathFileName;// 어떤 Material인지 판별하는 고유 이름
-	uint32 MaterialInstanceID; // 고유 ID
-	FMaterialTemplate* Template; // 공유
+	FString PathFileName;
+	uint32 MaterialInstanceID; 
+	FMaterialTemplate* Template; 
 
-	// 렌더링 상태 정보 (인스턴스별)
+	
 	ERenderPass RenderPass = ERenderPass::Opaque;
 	EBlendState BlendState = EBlendState::Opaque;
 	EDepthStencilState DepthStencilState = EDepthStencilState::Default;
 	ERasterizerState RasterizerState = ERasterizerState::SolidBackCull;
 
-	TMap<FString, std::unique_ptr<FMaterialConstantBuffer>> ConstantBufferMap; // 인스턴스 고유
-	TMap<FString, UTexture2D*> TextureParameters;  //텍스처는 슬롯 이름으로 관리
+	TMap<FString, std::unique_ptr<FMaterialConstantBuffer>> ConstantBufferMap; 
+	TMap<FString, UTexture2D*> TextureParameters;  
 
-	FShader* TransientShader = nullptr; // CreateTransient에서 직접 지정된 셰이더 (Template 없는 경우)
+	FShader* TransientShader = nullptr; 
 
-	// Per-shader CB 오버라이드 — transient Material에서 프록시가 관리하는 외부 CB
+	
 	FConstantBufferBinding PerShaderOverride;
 
-	// SRV 캐시 — SetTextureParameter 시 갱신, BuildCommandForProxy에서 map lookup 회피
+	
 	ID3D11ShaderResourceView* CachedSRVs[(int)EMaterialTextureSlot::Max] = {};
 
 	bool SetParameter(const FString& Name, const void* Data, uint32 Size);
@@ -133,7 +147,7 @@ public:
 	EDepthStencilState GetDepthStencilState() const { return DepthStencilState; }
 	ERasterizerState GetRasterizerState() const { return RasterizerState; }
 
-	// Per-shader CB 오버라이드 — transient Material에서 Gizmo/SubUV/Decal 등이 사용
+	
 	template<typename T>
 	T& BindPerShaderCB(FConstantBuffer* Buffer, uint32 Slot)
 	{
@@ -150,11 +164,14 @@ public:
 
 	const FString& GetAssetPathFileName() const { return PathFileName; }
 	void SetAssetPathFileName(const FString& InPath) { PathFileName = InPath; }
-	void Serialize(FArchive& Ar);//>>>>>Manager가 위임
+	/**
+	 * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+	 */
+	void Serialize(FArchive& Ar);
 
 	FConstantBuffer* GetGPUBufferBySlot(uint32 InSlot) const
 	{
-		// Per-shader override (transient Material의 외부 CB)
+		
 		if (PerShaderOverride.Buffer && PerShaderOverride.Slot == InSlot)
 			return PerShaderOverride.Buffer;
 
@@ -166,7 +183,7 @@ public:
 		return nullptr;
 	}
 
-	// dirty CB를 GPU에 업로드 — BuildCommandForProxy 전에 호출
+	
 	void FlushDirtyBuffers(ID3D11Device* Device, ID3D11DeviceContext* Ctx)
 	{
 		for (auto& Pair : ConstantBufferMap)
@@ -174,7 +191,7 @@ public:
 			if (Pair.second->bDirty)
 				Pair.second->Upload(Ctx);
 		}
-		// Per-shader override CB (Gizmo/SubUV/Decal 등)
+		
 		if (PerShaderOverride.Buffer)
 		{
 			if (!PerShaderOverride.Buffer->GetBuffer())
@@ -183,17 +200,17 @@ public:
 		}
 	}
 
-	// 캐시된 SRV 배열 직접 접근 (map lookup 회피)
+	
 	const ID3D11ShaderResourceView* const* GetCachedSRVs() const { return CachedSRVs; }
 
-	// SRV 캐시 재구축 — Material 생성/텍스처 로드 후 호출
+	
 	void RebuildCachedSRVs();
 
-	// CachedSRV 슬롯 직접 설정 — UTexture2D 없이 raw SRV를 바인딩할 때 사용
+	
 	void SetCachedSRV(EMaterialTextureSlot Slot, ID3D11ShaderResourceView* SRV) { CachedSRVs[(int)Slot] = SRV; }
 
-	// Template/CB 없는 경량 머티리얼 생성 — SRV만 래핑할 때 사용
-	// InShader를 지정하면 GetShader()가 해당 셰이더를 반환 (DrawCommandBuilder per-section 셰이더 지원)
+	
+	
 	static UMaterial* CreateTransient(ERenderPass InPass, EBlendState InBlend,
 		EDepthStencilState InDepth = EDepthStencilState::Default,
 		ERasterizerState InRaster = ERasterizerState::SolidBackCull,

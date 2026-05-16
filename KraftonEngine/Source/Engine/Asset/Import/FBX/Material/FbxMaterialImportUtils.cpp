@@ -1,9 +1,9 @@
 /**
- * FBX 머티리얼과 텍스처 참조를 엔진 머티리얼 에셋으로 변환하는 보조 로직을 구현한다.
+ * FBX 머티리얼 정보를 .mat 파일과 메시 머티리얼 슬롯으로 변환한다.
  *
- * FBX 내부의 절대 경로, 상대 경로, 파일명만 남은 텍스처 참조를 프로젝트 Asset 경로 기준으로
- * 복구하고, 변환된 Texture/Material uasset 경로가 머티리얼 슬롯에 저장되도록 정리한다. 메시
- * 임포트와 렌더링 프리뷰가 같은 텍스처 에셋을 바라보게 만드는 접착 코드이다.
+ * 임포트된 diffuse/specular/normal 텍스처 참조와 기본 색상 값을 엔진 머티리얼 JSON 구조에 맞춰 저장한다.
+ * 슬롯 이름은 파일명으로 사용할 수 있도록 정리하고, 메시 섹션이 같은 이름으로 머티리얼을 찾을 수 있게
+ * 동일한 정규화 규칙을 적용한다.
  */
 
 #include "Asset/Import/FBX/Material/FbxMaterialImportUtils.h"
@@ -39,6 +39,9 @@ namespace
         return Result.empty() ? "None" : Result;
     }
 
+    /**
+     * 이미 수집된 메타 데이터에서 조건에 맞는 항목을 찾아 반환한다.
+     */
     int32 FindMaterialInfoBySlotName(const FFbxImportMeta &ImportMeta, const FString &SlotName)
     {
         auto It = ImportMeta.MaterialNameToMaterialId.find(
@@ -46,6 +49,9 @@ namespace
         return It != ImportMeta.MaterialNameToMaterialId.end() ? It->second : -1;
     }
 
+    /**
+     * 외부 포맷 또는 중간 데이터를 엔진 내부 표현으로 변환한다.
+     */
     FString ConvertFbxMaterialInfoToMat(FFbxMaterialInfo &MaterialInfo)
     {
         const FString SlotName =
@@ -125,10 +131,13 @@ namespace
 
         return MatPath;
     }
-} // namespace
+} 
 
 namespace FbxMaterialImportUtils
 {
+    /**
+     * FBX 머티리얼 이름을 파일명과 슬롯 비교에 안전한 형태로 정규화한다.
+     */
     FString NormalizeMaterialSlotName(const FString &SlotName)
     {
         return SlotName.empty() ? "None" : SlotName;
@@ -235,4 +244,4 @@ namespace FbxMaterialImportUtils
                    FallbackMaterial ? FallbackMaterial->GetAssetPathFileName().c_str() : "<null>");
         }
     }
-} // namespace FbxMaterialImportUtils
+} 

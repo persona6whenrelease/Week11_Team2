@@ -1,9 +1,8 @@
 /**
- * FBX 씬 안의 애니메이션 스택과 커브를 엔진의 AnimationClip 데이터로 변환한다.
+ * FBX 애니메이션 데이터를 프레임 샘플 기반 클립으로 변환한다.
  *
- * FBX의 시간 단위, 노드별 TRS 커브, 본 계층 메타 정보를 함께 해석하여 각 본 트랙에 샘플을 채운다.
- * 임포트 결과는 스켈레탈 메시 에셋에 포함될 수 있는 순수 애니메이션 데이터이며, 런타임 포즈 계산은
- * 이 단계에서 정규화된 시간과 transform 샘플을 기준으로 동작한다.
+ * FBX animation stack과 layer를 기준으로 본의 로컬 변환을 일정 프레임 간격으로 평가한다. 결과는
+ * 스켈레톤별 FAnimationClip 배열로 저장되어 AnimSequence 에셋 생성에 사용된다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxAnimationParser.h"
@@ -23,13 +22,15 @@ namespace
     {
         return Index >= 0 && static_cast<size_t>(Index) < Items.size();
     }
-} // namespace
+} 
 
 void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
                                                   const FFbxSkeletonMeta &SkeletonMeta,
-                                                  FSkeletalMesh &OutMesh, float SampleRate) const
+                                                  const TArray<FBoneInfo>& SkeletonBones,
+                                                  TArray<FAnimationClip>& OutAnimationClips,
+                                                  float SampleRate) const
 {
-    OutMesh.AnimationClips.clear();
+    OutAnimationClips.clear();
 
     if (!Scene || !SkeletonMeta.bValid || SkeletonMeta.BoneIds.empty())
     {
@@ -135,8 +136,8 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
 
             for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
             {
-                const int32 ParentIndex = (BoneIndex < static_cast<int32>(OutMesh.Bones.size()))
-                                              ? OutMesh.Bones[BoneIndex].ParentIndex
+                const int32 ParentIndex = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
+                                              ? SkeletonBones[BoneIndex].ParentIndex
                                               : -1;
 
                 FMatrix LocalMatrix;
@@ -158,6 +159,6 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene       *Scene,
                SkeletonMeta.SkeletonId, Clip.Name.c_str(), Clip.Duration, Clip.FrameCount,
                BoneCount);
 
-        OutMesh.AnimationClips.push_back(std::move(Clip));
+        OutAnimationClips.push_back(std::move(Clip));
     }
 }

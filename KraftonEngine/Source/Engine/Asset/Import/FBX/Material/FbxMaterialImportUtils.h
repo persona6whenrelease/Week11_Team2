@@ -1,9 +1,8 @@
 /**
- * FBX 머티리얼 임포트 보조 함수들을 선언한다.
+ * FBX 머티리얼 정보를 엔진 머티리얼 슬롯과 파일로 변환하는 유틸리티를 선언한다.
  *
- * 원본 FBX 머티리얼의 이름, 색상, 텍스처 파일 경로를 엔진의 Material/Texture 에셋 규칙에 맞게
- * 변환하는 기능을 제공한다. 메시 파서는 지오메트리 생성에 집중하고, 머티리얼 경로 복구와 uasset
- * 생성 정책은 이 유틸리티 계층으로 분리된다.
+ * FBX 파서가 수집한 머티리얼 이름, 색상, 텍스처 경로는 곧바로 렌더러가 사용할 수 있는 형태가 아니다.
+ * 이 유틸리티는 슬롯 이름을 정규화하고, StaticMesh/SkeletalMesh가 참조할 FStaticMaterial 배열을 만든다.
  */
 
 #pragma once
@@ -16,9 +15,12 @@
 
 namespace FbxMaterialImportUtils
 {
+    /**
+     * FBX 머티리얼 이름을 파일명과 슬롯 비교에 안전한 형태로 정규화한다.
+     */
     FString NormalizeMaterialSlotName(const FString &SlotName);
     void    BuildStaticMaterials(FFbxImportMeta &ImportMeta, const FStaticMesh &Mesh,
                                  TArray<FMeshMaterial> &OutMaterials);
     void    BuildSkeletalMaterials(FFbxImportMeta &ImportMeta, const FSkeletalMesh &Mesh,
                                    TArray<FMeshMaterial> &OutMaterials);
-} // namespace FbxMaterialImportUtils
+} 

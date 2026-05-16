@@ -1,9 +1,8 @@
 /**
- * FBX mesh node에서 스켈레탈 메시 조립용 부분 메시를 파싱한다.
+ * FBX 스킨 가중치와 rigid attachment를 스켈레탈 메시 파트로 변환한다.
  *
- * skin cluster의 control point weight를 엔진 정점의 최대 4개 bone influence로 정규화하고, 스킨이
- * 없는 rigid mesh는 특정 본에 붙은 파트로 변환한다. 이 결과는 아직 최종 FSkeletalMesh가 아니라,
- * 스켈레톤 단위 병합을 기다리는 중간 파트 데이터이다.
+ * cluster에서 본별 control point 가중치를 수집하고, 상위 4개 영향으로 정규화해 FSkeletalVertex에 저장한다.
+ * 스킨이 없는 rigid mesh도 가장 가까운 본에 100% 가중치를 부여해 같은 스켈레탈 메시 조립 경로에 태운다.
  */
 
 #include "Asset/Import/FBX/Parser/FbxSkeletalMeshPartParser.h"
@@ -18,6 +17,9 @@
 
 namespace
 {
+    /**
+     * control point에 누적된 임시 본 가중치 정보를 정렬/정규화하기 위한 구조이다.
+     */
     struct FTempInfluence
     {
         uint32 BoneIndex = 0;
@@ -29,6 +31,9 @@ namespace
         return Index >= 0 && static_cast<size_t>(Index) < Items.size();
     }
 
+    /**
+     * 이미 수집된 메타 데이터에서 조건에 맞는 항목을 찾아 반환한다.
+     */
     int32 FindSkeletonBoneIndex(const FFbxSkeletonMeta &SkeletonMeta, int32 BoneId)
     {
         auto BoneIndexIt = SkeletonMeta.BoneIdToSkeletonBoneIndex.find(BoneId);
@@ -196,7 +201,7 @@ namespace
 
         return MeshLocalToAttachedBone * AttachedBone.BindGlobalMatrix;
     }
-} // namespace
+} 
 
 bool FFbxSkeletalMeshPartParser::Parse(TArray<FFbxSkinnedMeshPart> &OutSkinnedMeshParts) const
 {

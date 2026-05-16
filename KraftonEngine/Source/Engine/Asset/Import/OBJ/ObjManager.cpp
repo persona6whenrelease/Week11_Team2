@@ -1,9 +1,8 @@
 /**
- * OBJ 원본 파일과 StaticMesh 바이너리 캐시 사이의 로드 흐름을 구현한다.
+ * OBJ 메시의 캐시 생성, 캐시 로드, 리소스 초기화를 구현한다.
  *
- * 원본 OBJ를 매번 파싱하지 않도록 프로젝트 내부의 캐시 경로를 계산하고, 필요한 경우 파싱 결과를
- * 바이너리로 저장한 뒤 UStaticMesh 생성까지 연결한다. Content Browser에 표시할 OBJ 원본 목록과
- * 생성된 메시 에셋 목록을 스캔하는 책임도 함께 가진다.
+ * 원본 OBJ/MTL을 FObjImporter로 변환한 뒤 바이너리 파일로 저장하고, 다음 로드에서는 캐시를 우선 사용한다.
+ * 캐시가 없거나 오래된 경우 다시 임포트하며, 최종적으로 UStaticMesh에 데이터를 연결하고 GPU 버퍼를 만든다.
  */
 
 #include "Asset/Import/OBJ/ObjManager.h"
@@ -201,6 +200,9 @@ UStaticMesh *FObjManager::LoadObjStaticMesh(const FString &PathFileName, ID3D11D
     if (!bNeedRebuild)
     {
 
+        /**
+         * 원본 포맷에서 필요한 속성 값을 읽어 엔진 타입으로 변환한다.
+         */
         FWindowsBinReader Reader(BinPath);
         if (Reader.IsValid())
         {
