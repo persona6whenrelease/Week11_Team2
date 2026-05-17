@@ -503,6 +503,14 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ImportedSkeletalMeshElement::Ge
 	return Result;
 }
 
+void ImportedAnimSequenceElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
+{
+	if (Context.EditorEngine)
+	{
+		Context.EditorEngine->OpenAnimSequenceAsset(FPaths::ToUtf8(ContentItem.Path.wstring()));
+	}
+}
+
 void FBXElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
 {
 	if (!Context.EditorEngine)
@@ -611,6 +619,31 @@ void FBXElement::Import(ContentBrowserContext& Context)
 	for (const FString& MaterialPath : MaterialPaths)
 	{
 		AddMaterialElement(MaterialPath, InternalElements);
+	}
+
+	const TArray<UAnimSequence*>& AnimSequences = SceneAsset->GetAnimSequences();
+	for (int32 SequenceIndex = 0; SequenceIndex < static_cast<int32>(AnimSequences.size()); ++SequenceIndex)
+	{
+		UAnimSequence* Sequence = AnimSequences[SequenceIndex];
+		if (!Sequence)
+		{
+			continue;
+		}
+
+		FString SequenceName = Sequence->GetSequenceName();
+		if (SequenceName.empty())
+		{
+			SequenceName = "AnimSequence_" + std::to_string(SequenceIndex);
+		}
+
+		FContentItem ImportedItem;
+		ImportedItem.Path = FPaths::ToWide(FbxPath + "#Anim_" + std::to_string(SequenceIndex) + "_" + SequenceName);
+		ImportedItem.Name = FPaths::ToWide(SequenceName);
+		ImportedItem.bIsDirectory = false;
+
+		std::shared_ptr<ContentBrowserElement> Element = std::make_shared<ImportedAnimSequenceElement>();
+		Element->SetContent(std::move(ImportedItem));
+		InternalElements.push_back(std::move(Element));
 	}
 
 	//bExpanded = !InternalElements.empty();

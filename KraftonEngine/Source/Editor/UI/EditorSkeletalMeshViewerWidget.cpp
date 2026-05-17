@@ -1,5 +1,6 @@
 #include "Editor/UI/EditorSkeletalMeshViewerWidget.h"
 
+#include "Editor/UI/SkeletalEditor/AnimSequenceEditorTab.h"
 #include "Editor/Settings/EditorSettings.h"
 #include "Asset/Import/MeshManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
@@ -277,6 +278,37 @@ FString GetViewerAnimSequenceLabel(const UAnimSequence* Sequence, int32 Sequence
 	return SequenceName.empty()
 		? "AnimSequence " + std::to_string(SequenceIndex)
 		: SequenceName;
+}
+
+FString MakeViewerAnimSequencePath(const FString& FbxPath, int32 SequenceIndex, const UAnimSequence* Sequence)
+{
+	FString Name = GetViewerAnimSequenceLabel(Sequence, SequenceIndex);
+	for (char& Ch : Name)
+	{
+		if (Ch == '/' || Ch == '\\' || Ch == ':' || Ch == '*' || Ch == '?' || Ch == '"' || Ch == '<' || Ch == '>' || Ch == '|')
+		{
+			Ch = '_';
+		}
+	}
+	return FbxPath + "#Anim_" + std::to_string(SequenceIndex) + "_" + Name;
+}
+
+int32 FindViewerAnimSequenceIndex(UFBXSceneAsset* SceneAsset, const UAnimSequence* Sequence)
+{
+	if (!SceneAsset || !Sequence)
+	{
+		return -1;
+	}
+
+	const TArray<UAnimSequence*>& Sequences = SceneAsset->GetAnimSequences();
+	for (int32 Index = 0; Index < static_cast<int32>(Sequences.size()); ++Index)
+	{
+		if (Sequences[Index] == Sequence)
+		{
+			return Index;
+		}
+	}
+	return -1;
 }
 
 void DrawViewerMeshStatsOverlay(const FSkeletalMesh* MeshAsset, const ImVec2& ViewportMin)
@@ -631,7 +663,149 @@ void RenderBoneTreeNode(const TArray<FBoneInfo>& Bones, int32 BoneIndex, int32& 
 
 FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
 {
+	AnimSequenceTabs.clear();
 	ReleasePreviewScene();
+}
+
+FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::FindAnimSequenceTabBySource(const FString& Path) const
+{
+	for (const auto& Tab : AnimSequenceTabs)
+	{
+		if (Tab && Tab->GetSourcePath() == Path)
+		{
+			return Tab.get();
+		}
+	}
+	return nullptr;
+}
+
+FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::GetActiveAnimSequenceTab() const
+{
+	if (ActiveAnimSequenceTabIndex < 0 || ActiveAnimSequenceTabIndex >= static_cast<int32>(AnimSequenceTabs.size()))
+	{
+		return nullptr;
+	}
+	return AnimSequenceTabs[ActiveAnimSequenceTabIndex].get();
+}
+
+void FEditorSkeletalMeshViewerWidget::RequestCloseAnimSequenceTab(int32 Index)
+{
+	if (Index < 0 || Index >= static_cast<int32>(AnimSequenceTabs.size()))
+	{
+		return;
+	}
+
+	AnimSequenceTabs.erase(AnimSequenceTabs.begin() + Index);
+	if (AnimSequenceTabs.empty())
+	{
+		ActiveAnimSequenceTabIndex = -1;
+		bAnimSequenceViewerOpen = false;
+	}
+	else if (ActiveAnimSequenceTabIndex >= static_cast<int32>(AnimSequenceTabs.size()))
+	{
+		ActiveAnimSequenceTabIndex = static_cast<int32>(AnimSequenceTabs.size()) - 1;
+	}
+}
+
+bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& AssetPath)
+{
+	if (FSkeletalEditorTab* Existing = FindAnimSequenceTabBySource(AssetPath))
+	{
+		RequestedFocusAnimSequenceTabId = Existing->GetTabId();
+		for (int32 Index = 0; Index < static_cast<int32>(AnimSequenceTabs.size()); ++Index)
+		{
+			if (AnimSequenceTabs[Index].get() == Existing)
+			{
+				ActiveAnimSequenceTabIndex = Index;
+				break;
+			}
+		}
+		bAnimSequenceViewerOpen = true;
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextAnimSequenceTabId++);
+	FAnimSequenceEditorTab* RawTab = NewTab.get();
+	NewTab->SetOnSwitchToSkeletalMesh(
+		[this, RawTab]()
+		{
+			const FString& FbxPath = RawTab->GetFbxPath();
+			if (!FbxPath.empty())
+			{
+				OpenFbxAsset(FbxPath);
+			}
+		});
+	NewTab->SetOnSwitchToAnimSequence(nullptr);
+
+	if (!NewTab->OpenAnimSequenceAsset(AssetPath))
+	{
+		return false;
+	}
+
+	RequestedFocusAnimSequenceTabId = NewTab->GetTabId();
+	AnimSequenceTabs.emplace_back(std::move(NewTab));
+	ActiveAnimSequenceTabIndex = static_cast<int32>(AnimSequenceTabs.size()) - 1;
+	bAnimSequenceViewerOpen = true;
+	return true;
+}
+
+bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence)
+{
+	if (!PreviewMesh || !Sequence)
+	{
+		return false;
+	}
+
+	if (FSkeletalEditorTab* Existing = FindAnimSequenceTabBySource(AssetPath))
+	{
+		RequestedFocusAnimSequenceTabId = Existing->GetTabId();
+		for (int32 Index = 0; Index < static_cast<int32>(AnimSequenceTabs.size()); ++Index)
+		{
+			if (AnimSequenceTabs[Index].get() == Existing)
+			{
+				ActiveAnimSequenceTabIndex = Index;
+				break;
+			}
+		}
+		bAnimSequenceViewerOpen = true;
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextAnimSequenceTabId++);
+	FAnimSequenceEditorTab* RawTab = NewTab.get();
+	NewTab->SetOnSwitchToSkeletalMesh(
+		[this, RawTab]()
+		{
+			const FString& FbxPath = RawTab->GetFbxPath();
+			if (!FbxPath.empty())
+			{
+				OpenFbxAsset(FbxPath);
+			}
+		});
+	NewTab->SetOnSwitchToAnimSequence(nullptr);
+
+	if (!NewTab->OpenAnimSequenceAsset(AssetPath, PreviewMesh, Sequence))
+	{
+		return false;
+	}
+
+	RequestedFocusAnimSequenceTabId = NewTab->GetTabId();
+	AnimSequenceTabs.emplace_back(std::move(NewTab));
+	ActiveAnimSequenceTabIndex = static_cast<int32>(AnimSequenceTabs.size()) - 1;
+	bAnimSequenceViewerOpen = true;
+	return true;
+}
+
+bool FEditorSkeletalMeshViewerWidget::WantsKeyboardCapture() const
+{
+	const FSkeletalEditorTab* ActiveAnimTab = GetActiveAnimSequenceTab();
+	return bPreviewViewportWantsKeyboardCapture || (bAnimSequenceViewerOpen && ActiveAnimTab && ActiveAnimTab->WantsKeyboardCapture());
+}
+
+bool FEditorSkeletalMeshViewerWidget::WantsMouseCapture() const
+{
+	const FSkeletalEditorTab* ActiveAnimTab = GetActiveAnimSequenceTab();
+	return bPreviewViewportWantsMouseCapture || (bAnimSequenceViewerOpen && ActiveAnimTab && ActiveAnimTab->WantsMouseCapture());
 }
 
 void FEditorSkeletalMeshViewerWidget::EnsurePreviewScene()
@@ -758,6 +932,14 @@ void FEditorSkeletalMeshViewerWidget::TickPreviewScene(float DeltaTime)
 
 void FEditorSkeletalMeshViewerWidget::UpdateInput(float DeltaTime)
 {
+	if (bAnimSequenceViewerOpen)
+	{
+		if (FSkeletalEditorTab* ActiveAnimTab = GetActiveAnimSequenceTab())
+		{
+			ActiveAnimTab->UpdateInput(DeltaTime);
+		}
+	}
+
 	if (!bHasPreviewViewportRect || !PreviewViewportClient)
 	{
 		bPreviewViewportWantsMouseCapture = false;
@@ -836,6 +1018,7 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 		bPreviewViewportWantsMouseCapture = false;
 		bPreviewViewportWantsKeyboardCapture = false;
 		ImGui::End();
+		RenderAnimSequenceViewer(DeltaTime);
 		return;
 	}
 
@@ -876,6 +1059,7 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 	}
 
 	ImGui::End();
+	RenderAnimSequenceViewer(DeltaTime);
 }
 
 void FEditorSkeletalMeshViewerWidget::RenderResourcePanel()
@@ -1085,6 +1269,93 @@ void FEditorSkeletalMeshViewerWidget::RenderViewportPanel(float DeltaTime)
 	}
 
 	ImGui::EndChild();
+}
+
+void FEditorSkeletalMeshViewerWidget::RenderAnimSequenceViewer(float DeltaTime)
+{
+	if (!bAnimSequenceViewerOpen)
+	{
+		return;
+	}
+
+	ImGuiWindowClass ViewerWindowClass;
+	ViewerWindowClass.ParentViewportId = 0;
+	ViewerWindowClass.ViewportFlagsOverrideClear = ImGuiViewportFlags_NoTaskBarIcon;
+	ImGui::SetNextWindowClass(&ViewerWindowClass);
+	ImGui::SetNextWindowSize(ImVec2(1100.0f, 700.0f), ImGuiCond_FirstUseEver);
+	if (!ImGui::Begin("Anim Sequence Viewer", &bAnimSequenceViewerOpen, ImGuiWindowFlags_MenuBar))
+	{
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::BeginMenu("Asset"))
+		{
+			if (ImGui::MenuItem("Close Current Tab", nullptr, false, ActiveAnimSequenceTabIndex >= 0))
+			{
+				RequestCloseAnimSequenceTab(ActiveAnimSequenceTabIndex);
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+
+	if (AnimSequenceTabs.empty())
+	{
+		ImGui::TextDisabled("No AnimSequence opened.");
+		ImGui::End();
+		return;
+	}
+
+	int32 TabIndexToClose = -1;
+	const int32 FocusToApplyThisFrame = RequestedFocusAnimSequenceTabId;
+
+	if (ImGui::BeginTabBar("##AnimSequenceViewerTabBar", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll))
+	{
+		for (int32 Index = 0; Index < static_cast<int32>(AnimSequenceTabs.size()); ++Index)
+		{
+			FSkeletalEditorTab* Tab = AnimSequenceTabs[Index].get();
+			if (!Tab)
+			{
+				continue;
+			}
+
+			ImGuiTabItemFlags TabFlags = ImGuiTabItemFlags_None;
+			if (FocusToApplyThisFrame >= 0 && FocusToApplyThisFrame == Tab->GetTabId())
+			{
+				TabFlags |= ImGuiTabItemFlags_SetSelected;
+			}
+
+			bool bTabOpen = true;
+			const FString Label = Tab->GetTabLabel();
+			if (ImGui::BeginTabItem(Label.c_str(), &bTabOpen, TabFlags))
+			{
+				ActiveAnimSequenceTabIndex = Index;
+				Tab->RenderTabContent(DeltaTime);
+				ImGui::EndTabItem();
+			}
+
+			if (!bTabOpen)
+			{
+				TabIndexToClose = Index;
+			}
+		}
+		ImGui::EndTabBar();
+	}
+
+	if (RequestedFocusAnimSequenceTabId == FocusToApplyThisFrame)
+	{
+		RequestedFocusAnimSequenceTabId = -1;
+	}
+
+	if (TabIndexToClose >= 0)
+	{
+		RequestCloseAnimSequenceTab(TabIndexToClose);
+	}
+
+	ImGui::End();
 }
 
 void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
@@ -1305,6 +1576,16 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	{
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 		PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, 0.0f);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Open Viewer"))
+	{
+		const int32 SceneAnimIndex = FindViewerAnimSequenceIndex(CurrentSceneAsset, CurrentSequence);
+		if (SceneAnimIndex >= 0)
+		{
+			const FString AnimSequencePath = MakeViewerAnimSequencePath(CurrentFbxPath, SceneAnimIndex, CurrentSequence);
+			OpenAnimSequenceAsset(AnimSequencePath, SelectedMesh, CurrentSequence);
+		}
 	}
 
 	const float PlayLength = CurrentSequence ? CurrentSequence->GetPlayLength() : 0.0f;

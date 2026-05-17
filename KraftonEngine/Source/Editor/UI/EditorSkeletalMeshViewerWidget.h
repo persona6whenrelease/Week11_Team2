@@ -1,9 +1,12 @@
 #pragma once
 
 #include "Editor/UI/EditorWidget.h"
+#include "Editor/UI/SkeletalEditor/AnimSequenceEditorTab.h"
 #include "GameFramework/World.h"
 #include "ImGui/imgui.h"
 #include "Render/Types/ViewTypes.h"
+
+#include <memory>
 
 class UFBXSceneAsset;
 class UAnimSequence;
@@ -21,8 +24,10 @@ public:
 	void UpdateInput(float DeltaTime);
 	void Render(float DeltaTime) override;
 	bool OpenFbxAsset(const FString& FbxPath);
-	bool WantsMouseCapture() const { return bPreviewViewportWantsMouseCapture; }
-	bool WantsKeyboardCapture() const { return bPreviewViewportWantsKeyboardCapture; }
+	bool OpenAnimSequenceAsset(const FString& AssetPath);
+	bool OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence);
+	bool WantsMouseCapture() const;
+	bool WantsKeyboardCapture() const;
 
 private:
 	void EnsurePreviewScene();
@@ -35,11 +40,15 @@ private:
 	void RenderBonePanel();
 	void RenderAnimationPlaybackPanel();
 	void RenderTransformPanel();
+	void RenderAnimSequenceViewer(float DeltaTime);
 
 	void RenderViewerViewportToolbar();
 	void DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId);
 
 	USkeletalMesh* GetSelectedSkeletalMesh() const;
+	FSkeletalEditorTab* FindAnimSequenceTabBySource(const FString& Path) const;
+	FSkeletalEditorTab* GetActiveAnimSequenceTab() const;
+	void RequestCloseAnimSequenceTab(int32 Index);
 
 	void UpdateBoneDebugLines();
 
@@ -66,4 +75,10 @@ private:
 	bool bPreviewViewportWantsMouseCapture = false;
 	bool bPreviewViewportWantsKeyboardCapture = false;
 	bool bDrawBoneDebugLines = true;
+
+	TArray<std::unique_ptr<FAnimSequenceEditorTab>> AnimSequenceTabs;
+	int32 ActiveAnimSequenceTabIndex = -1;
+	int32 NextAnimSequenceTabId = 1;
+	int32 RequestedFocusAnimSequenceTabId = -1;
+	bool bAnimSequenceViewerOpen = false;
 };

@@ -78,6 +78,24 @@ namespace
 		return FbxPath + "#Anim_" + std::to_string(SequenceIndex) + "_" + Name;
 	}
 
+	int32 FindAnimSequenceIndex(UFBXSceneAsset* SceneAsset, UAnimSequence* Sequence)
+	{
+		if (!SceneAsset || !Sequence)
+		{
+			return -1;
+		}
+
+		const TArray<UAnimSequence*>& Sequences = SceneAsset->GetAnimSequences();
+		for (int32 Index = 0; Index < static_cast<int32>(Sequences.size()); ++Index)
+		{
+			if (Sequences[Index] == Sequence)
+			{
+				return Index;
+			}
+		}
+		return -1;
+	}
+
 	UAnimSequence* FindAnimSequenceForMeshClip(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh, int32 ClipIndex, const FString& FbxPath, FString* OutPath)
 	{
 		if (!SceneAsset || !PreviewMesh || ClipIndex < 0)
@@ -94,7 +112,8 @@ namespace
 		UAnimSequence* Sequence = AnimSequences[ClipIndex];
 		if (OutPath)
 		{
-			*OutPath = MakeAnimSequencePath(FbxPath, ClipIndex, Sequence);
+			const int32 SceneAnimIndex = FindAnimSequenceIndex(SceneAsset, Sequence);
+			*OutPath = MakeAnimSequencePath(FbxPath, SceneAnimIndex >= 0 ? SceneAnimIndex : ClipIndex, Sequence);
 		}
 		return Sequence;
 	}
