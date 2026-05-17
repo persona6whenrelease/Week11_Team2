@@ -118,17 +118,40 @@ FAnimSequenceEditorTab::FAnimSequenceEditorTab(UEditorEngine* InEditorEngine, in
 
 bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 {
-	// UAnimSequence asset 진입점 — 아직 stub
-    UAnimSequence* ResolvedSequence = FMeshManager::ResolveAnimSequenceReference(AssetPath);
+	// UAnimSequence asset 진입점 — ContentBrowser/Asset Browser의 anm 더블클릭이 여기로 들어온다.
+	UAnimSequence* ResolvedSequence = FMeshManager::ResolveAnimSequenceReference(AssetPath);
 	if (!ResolvedSequence)
 	{
 		return false;
 	}
 
+	// PreviewMesh 결정 — 다음 순서로 시도한다.
+	//   1) Sequence의 outer로 잡힌 UFBXSceneAsset이 있으면 그 안에서 SkeletonAssetPath 매칭 mesh
+	//   2) (1)이 실패하면 AssetPath의 "Foo.fbx#Anim_3"에서 fbx 경로를 추출해 SceneAsset을 직접 로드 후 매칭
+	//   3) (2)에서 매칭도 실패하면 그 SceneAsset의 첫 SkeletalMesh를 fallback으로 사용
+	// — outer가 nullptr이거나 매칭 mesh가 없어 탭이 아예 안 열리는 회귀를 막기 위함.
 	USkeletalMesh* ResolvedPreviewMesh = nullptr;
 	if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
 	{
 		ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, ResolvedSequence);
+	}
+
+	if (!ResolvedPreviewMesh)
+	{
+		// "Foo.fbx#Anim_3" → "Foo.fbx" 로 fbx 경로 추출.
+		const size_t HashPos = AssetPath.find('#');
+		if (HashPos != FString::npos)
+		{
+			const FString FbxPath = AssetPath.substr(0, HashPos);
+			if (UFBXSceneAsset* FallbackScene = FMeshManager::LoadFbxScene(FbxPath))
+			{
+				ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(FallbackScene, ResolvedSequence);
+				if (!ResolvedPreviewMesh && !FallbackScene->GetSkeletalMeshes().empty())
+				{
+					ResolvedPreviewMesh = FallbackScene->GetSkeletalMeshes()[0];
+				}
+			}
+		}
 	}
 
 	return OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence);
@@ -146,11 +169,26 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 	SetSourcePath(AssetPath);
 	DataSource = std::make_unique<FUAnimSequenceDataSource>(InSequence);
 
-	PreviewScene.SetPreviewMesh(InPreviewMesh);
+	// PreviewScene 준비. 같은 탭에서 Asset Browser로 시퀀스만 교체하는 경우
+	// mesh는 동일할 가능성이 높으므로 SetPreviewMesh를 통째로 다시 부르지 않는다.
+	// (SetPreviewMesh -> SetSkeletalMesh -> ResetBonePoseToBindPose 가 호출되면
+	//  본 포즈가 통째로 bind pose로 리셋되어 애니메이션이 사라지듯 깜빡인다.)
+	PreviewScene.Ensure();
+	if (PreviewScene.PreviewMeshComponent &&
+		PreviewScene.PreviewMeshComponent->GetSkeletalMesh() != InPreviewMesh)
+	{
+		PreviewScene.SetPreviewMesh(InPreviewMesh);
+	}
 
 	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
 	{
-		Comp->SetAnimation(InSequence);
+		// 시퀀스가 실제로 바뀐 경우에만 SetAnimation을 호출. SetAnimation은 내부적으로
+		// ResetTime + RebuildTrackToBoneIndex를 동반하므로 같은 시퀀스에 매번 호출하면
+		// 시간이 0으로 리셋되어 재생이 끊긴다.
+		if (Comp->GetAnimation() != InSequence)
+		{
+			Comp->SetAnimation(InSequence);
+		}
 		Comp->SetBakedAnimTime(0.0f);
 		Comp->SetBakedAnimPlaybackSpeed(1.0f);
 		Comp->SetBakedAnimPaused(true);
