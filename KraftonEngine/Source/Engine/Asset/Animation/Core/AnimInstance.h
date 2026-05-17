@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 애니메이션 인스턴스 기반 클래스. 한 프레임 평가의 진입점과 시간 상태를 보유한다.
  *
  * 시퀀스 선택/조합 같은 구체 정책은 파생(UAnimSingleNodeInstance 등)이 정한다. FK와 스키닝은
@@ -98,7 +98,7 @@ class UAnimInstance : public UObject
     TArray<FName>               TriggeredNotifiesThisFrame;
 
     float CurrentTime   = 0.0f;
-    float PreviousTime  = 0.0f;
+    float PreviousTime  = 0.0f; // 구간 사이 event 처리할 때 필요.
     float PlaybackSpeed = 1.0f;
     bool  bLooping      = true;
     bool  bPaused       = true;

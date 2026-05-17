@@ -1,4 +1,4 @@
-#include "Component/SkeletalMeshComponent.h"
+﻿#include "Component/SkeletalMeshComponent.h"
 
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
@@ -32,6 +32,8 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
     }
 }
 
+//Todo Graph 확장시 singlenode인지 아닌지 점검하는 logic 필요.
+// Enum VS AnimationInstance가 자신을 소유한 skeletalmeshcomponent를 알고 instance가 skeletalmeshcomponent의 함수를 호출할지말지. 
 void USkeletalMeshComponent::PlayAnimation(UAnimationAsset *NewAnimToPlay, bool bLooping)
 {
     AnimToPlay = NewAnimToPlay;
@@ -43,10 +45,7 @@ void USkeletalMeshComponent::PlayAnimation(UAnimationAsset *NewAnimToPlay, bool 
         AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
     }
 
-    if (auto *Single = Cast<UAnimSingleNodeInstance>(AnimInstance))
-    {
-        Single->SetAnimation(Cast<UAnimSequence>(NewAnimToPlay));
-    }
+	SetAnimation(AnimToPlay);
 
     AnimInstance->SetLooping(bLooping);
     AnimInstance->ResetTime();
