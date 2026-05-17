@@ -304,6 +304,7 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 			if (ImGui::Selectable(SequenceName, bSelected))
 			{
 				PreviewMeshComponent->SetAnimation(Sequence);
+				PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 				PreviewMeshComponent->SetBakedAnimClipIndex(i);
 				PreviewMeshComponent->SetBakedAnimTime(0.0f);
 			}
@@ -331,11 +332,13 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
 	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
 	{
+		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
 	{
+		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 	}
 
@@ -345,6 +348,7 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 		if (Time < 0.0f) Time += Clip->Duration;
 		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip->Duration, "%.3f"))
 		{
+			PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 			PreviewMeshComponent->SetBakedAnimTime(Time);
 		}
 	}

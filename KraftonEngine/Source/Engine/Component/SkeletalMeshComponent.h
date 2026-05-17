@@ -15,6 +15,8 @@ public:
 	void SetAnimation(UAnimSequence* NewAnimToPlay);
 	UAnimSequence* GetAnimation() const { return AnimToPlay; }
 	bool EvaluateAnimationPose(const FAnimationClip& Clip, float TimeSeconds);
+	void SetBakedAnimationEvaluationEnabled(bool bEnabled);
+	bool IsBakedAnimationEvaluationEnabled() const { return bBakedAnimationEvaluationEnabled; }
 
 	float GetBakedAnimTime() const { return BakedAnimTime; }
 	void SetBakedAnimTime(float InTime) { BakedAnimTime = InTime; }
@@ -30,6 +32,7 @@ public:
 
 protected:
 	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction) override;
+	void OnManualBonePoseEdited() override;
 	void ApplyDebugRandomBoneAnimation(float DeltaTime);
 	bool ApplyBakedAnimation(float DeltaTime);
 
@@ -37,6 +40,7 @@ protected:
 	float BakedAnimTime = 0.0f;
 	int32 BakedAnimClipIndex = 0;
 	bool bBakedAnimPaused = false;
+	bool bBakedAnimationEvaluationEnabled = true;
 	float BakedAnimPlaybackSpeed = 1.0f;
 	bool bBakedAnimLooping = true;
 	UAnimSequence* AnimToPlay = nullptr;

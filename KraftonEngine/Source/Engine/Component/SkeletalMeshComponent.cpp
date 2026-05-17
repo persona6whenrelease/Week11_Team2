@@ -31,11 +31,27 @@ void USkeletalMeshComponent::SetAnimation(UAnimSequence* NewAnimToPlay)
 {
     AnimToPlay = NewAnimToPlay;
     BakedAnimClipIndex = 0;
+    bBakedAnimationEvaluationEnabled = (AnimToPlay != nullptr);
+}
+
+void USkeletalMeshComponent::SetBakedAnimationEvaluationEnabled(bool bEnabled)
+{
+    bBakedAnimationEvaluationEnabled = bEnabled;
+}
+
+void USkeletalMeshComponent::OnManualBonePoseEdited()
+{
+    if (AnimToPlay)
+    {
+        bBakedAnimationEvaluationEnabled = false;
+        bBakedAnimPaused = true;
+    }
 }
 
 bool USkeletalMeshComponent::ApplyBakedAnimation(float DeltaTime)
 {
-    if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset() || !AnimToPlay || !AnimToPlay->IsValidSequence())
+    if (!bBakedAnimationEvaluationEnabled ||
+        !SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset() || !AnimToPlay || !AnimToPlay->IsValidSequence())
     {
         return false;
     }
