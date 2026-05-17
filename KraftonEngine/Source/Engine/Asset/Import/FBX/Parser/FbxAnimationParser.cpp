@@ -99,29 +99,19 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
         {
             BoneNodes[SkeletonBoneIndex] = ImportMeta.Bones[BoneId].Node;
         }
+
+        if (!BoneNodes[SkeletonBoneIndex])
+        {
+            UE_LOG("[FBXImporter] Missing bone node. SkeletonBoneIndex=%d BoneId=%d",
+                   SkeletonBoneIndex,
+                   BoneId);
+        }
     }
 
-    const int32 TotalSrcObjectCount = Scene->GetSrcObjectCount();
-    for (int32 ObjIndex = 0; ObjIndex < TotalSrcObjectCount; ++ObjIndex)
+    const int32 AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
+    for (int32 StackIndex = 0; StackIndex < AnimStackCount; ++StackIndex)
     {
-        FbxObject* Obj = Scene->GetSrcObject(ObjIndex);
-        if (!Obj)
-        {
-            continue;
-        }
-
-        const char* ClassName = Obj->GetClassId().GetName();
-        if (!ClassName)
-        {
-            continue;
-        }
-
-        if (std::strcmp(ClassName, "AnimStack") != 0 && std::strcmp(ClassName, "FbxAnimStack") != 0)
-        {
-            continue;
-        }
-
-        FbxAnimStack* AnimStack = static_cast<FbxAnimStack*>(Obj);
+        FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(StackIndex);
         if (!AnimStack)
         {
             continue;
