@@ -41,11 +41,13 @@ private:
 	void RenderAnimationPlaybackPanel();
 	void RenderTransformPanel();
 	void RenderAnimSequenceViewer(float DeltaTime);
+	void RenderModeSwitchBar();
 
 	void RenderViewerViewportToolbar();
 	void DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId);
 
 	USkeletalMesh* GetSelectedSkeletalMesh() const;
+	bool OpenSelectedAnimSequenceViewer();
 	FSkeletalEditorTab* FindAnimSequenceTabBySource(const FString& Path) const;
 	FSkeletalEditorTab* GetActiveAnimSequenceTab() const;
 	void RequestCloseAnimSequenceTab(int32 Index);

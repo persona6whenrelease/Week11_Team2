@@ -238,7 +238,14 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 		Comp->SetBakedAnimTime(0.0f);
 		Comp->SetBakedAnimPlaybackSpeed(1.0f);
 		Comp->SetBakedAnimPaused(true);
+		Comp->EvaluateAnimationPose(InSequence, 0.0f);
 		BakedClipIndex = 0;
+	}
+
+	if (PreviewScene.PreviewViewportClient)
+	{
+		FSkeletalMesh* MeshAsset = InPreviewMesh ? InPreviewMesh->GetSkeletalMeshAsset() : nullptr;
+		PreviewScene.PreviewViewportClient->FrameMesh(MeshAsset);
 	}
 
 	CurrentTime = 0.0f;
@@ -302,6 +309,10 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 	}
 	Comp->SetBakedAnimPaused(true);
 	Comp->SetBakedAnimTime(CurrentTime);
+	if (AnimSequence)
+	{
+		Comp->EvaluateAnimationPose(AnimSequence, CurrentTime);
+	}
 }
 
 // =================================================================

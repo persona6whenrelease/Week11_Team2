@@ -156,6 +156,93 @@ enum class EViewerToolbarIcon : int32
 	Count
 };
 
+enum class EViewerModeBarIcon : int32
+{
+	SkeletalMesh = 0,
+	AnimSequence,
+	Count
+};
+
+const wchar_t* GetViewerModeBarIconFileName(EViewerModeBarIcon Icon)
+{
+	switch (Icon)
+	{
+	case EViewerModeBarIcon::SkeletalMesh: return L"SkeletalMesh.png";
+	case EViewerModeBarIcon::AnimSequence: return L"SyncMarker.png";
+	default: return L"";
+	}
+}
+
+ID3D11ShaderResourceView** GetViewerModeBarIconTable()
+{
+	static ID3D11ShaderResourceView* Icons[static_cast<int32>(EViewerModeBarIcon::Count)] = {};
+	return Icons;
+}
+
+bool bViewerModeBarIconsLoaded = false;
+
+void EnsureViewerModeBarIconsLoaded()
+{
+	if (bViewerModeBarIconsLoaded || !GEngine)
+	{
+		return;
+	}
+
+	ID3D11Device* Device = GEngine->GetRenderer().GetFD3DDevice().GetDevice();
+	if (!Device)
+	{
+		return;
+	}
+
+	ID3D11ShaderResourceView** Icons = GetViewerModeBarIconTable();
+	const std::wstring IconDir = FPaths::Combine(FPaths::RootDir(), L"Asset/Editor/UEIcons/");
+	for (int32 Index = 0; Index < static_cast<int32>(EViewerModeBarIcon::Count); ++Index)
+	{
+		const std::wstring FilePath = IconDir + GetViewerModeBarIconFileName(static_cast<EViewerModeBarIcon>(Index));
+		DirectX::CreateWICTextureFromFile(Device, FilePath.c_str(), nullptr, &Icons[Index]);
+	}
+
+	bViewerModeBarIconsLoaded = true;
+}
+
+bool DrawViewerModeBarButton(const char* Id, EViewerModeBarIcon Icon, bool bActive, bool bEnabled, const char* FallbackLabel)
+{
+	constexpr float IconSize = 22.0f;
+	ID3D11ShaderResourceView* SRV = GetViewerModeBarIconTable()[static_cast<int32>(Icon)];
+
+	if (!bEnabled)
+	{
+		ImGui::BeginDisabled();
+	}
+	if (bActive)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.45f, 0.85f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.28f, 0.55f, 0.95f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.38f, 0.78f, 1.0f));
+	}
+
+	bool bClicked = false;
+	if (SRV)
+	{
+		bClicked = ImGui::ImageButton(Id, reinterpret_cast<ImTextureID>(SRV), ImVec2(IconSize, IconSize));
+	}
+	else
+	{
+		bClicked = ImGui::Button(FallbackLabel);
+	}
+
+	if (bActive)
+	{
+		ImGui::PopStyleColor(3);
+	}
+	if (!bEnabled)
+	{
+		ImGui::EndDisabled();
+	}
+
+	return bClicked && bEnabled;
+}
+
 const wchar_t* GetViewerToolbarIconFileName(EViewerToolbarIcon Icon)
 {
 	switch (Icon)
@@ -808,6 +895,33 @@ bool FEditorSkeletalMeshViewerWidget::WantsMouseCapture() const
 	return bPreviewViewportWantsMouseCapture || (bAnimSequenceViewerOpen && ActiveAnimTab && ActiveAnimTab->WantsMouseCapture());
 }
 
+bool FEditorSkeletalMeshViewerWidget::OpenSelectedAnimSequenceViewer()
+{
+	USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
+	if (!CurrentSceneAsset || !SelectedMesh)
+	{
+		return false;
+	}
+
+	TArray<UAnimSequence*> Sequences;
+	GetViewerAnimSequencesForMesh(CurrentSceneAsset, SelectedMesh, Sequences);
+	if (Sequences.empty())
+	{
+		return false;
+	}
+
+	SelectedAnimSequenceIndex = std::clamp(SelectedAnimSequenceIndex, 0, static_cast<int32>(Sequences.size()) - 1);
+	UAnimSequence* CurrentSequence = Sequences[SelectedAnimSequenceIndex];
+	const int32 SceneAnimIndex = FindViewerAnimSequenceIndex(CurrentSceneAsset, CurrentSequence);
+	if (!CurrentSequence || SceneAnimIndex < 0)
+	{
+		return false;
+	}
+
+	const FString AnimSequencePath = MakeViewerAnimSequencePath(CurrentFbxPath, SceneAnimIndex, CurrentSequence);
+	return OpenAnimSequenceAsset(AnimSequencePath, SelectedMesh, CurrentSequence);
+}
+
 void FEditorSkeletalMeshViewerWidget::EnsurePreviewScene()
 {
 	if (PreviewWorld)
@@ -1033,6 +1147,8 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 		ImGui::EndMenuBar();
 	}
 
+	RenderModeSwitchBar();
+
 	if (ImGui::BeginTable(
 		"##SkeletalMeshViewerLayout",
 		3,
@@ -1060,6 +1176,47 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 
 	ImGui::End();
 	RenderAnimSequenceViewer(DeltaTime);
+}
+
+void FEditorSkeletalMeshViewerWidget::RenderModeSwitchBar()
+{
+	EnsureViewerModeBarIconsLoaded();
+
+	constexpr float ButtonSize = 22.0f;
+	constexpr float ButtonSpacing = 4.0f;
+	const float FramePadX = ImGui::GetStyle().FramePadding.x * 2.0f;
+	const float TotalWidth = (ButtonSize + FramePadX) * 2.0f + ButtonSpacing;
+
+	const float Avail = ImGui::GetContentRegionAvail().x;
+	if (Avail > TotalWidth)
+	{
+		ImGui::Dummy(ImVec2(Avail - TotalWidth, 0.0f));
+		ImGui::SameLine(0.0f, 0.0f);
+	}
+
+	USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
+	TArray<UAnimSequence*> Sequences;
+	GetViewerAnimSequencesForMesh(CurrentSceneAsset, SelectedMesh, Sequences);
+	const bool bCanOpenAnim = SelectedMesh && !Sequences.empty();
+
+	if (DrawViewerModeBarButton("##SkeletalViewerModeMesh", EViewerModeBarIcon::SkeletalMesh, true, false, "Mesh"))
+	{
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("SkeletalMesh Viewer");
+	}
+
+	ImGui::SameLine(0.0f, ButtonSpacing);
+
+	if (DrawViewerModeBarButton("##SkeletalViewerModeAnim", EViewerModeBarIcon::AnimSequence, false, bCanOpenAnim, "Anim"))
+	{
+		OpenSelectedAnimSequenceViewer();
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Open AnimSequence Viewer for the current sequence");
+	}
 }
 
 void FEditorSkeletalMeshViewerWidget::RenderResourcePanel()
@@ -1576,16 +1733,6 @@ void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 	{
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 		PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, 0.0f);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Open Viewer"))
-	{
-		const int32 SceneAnimIndex = FindViewerAnimSequenceIndex(CurrentSceneAsset, CurrentSequence);
-		if (SceneAnimIndex >= 0)
-		{
-			const FString AnimSequencePath = MakeViewerAnimSequencePath(CurrentFbxPath, SceneAnimIndex, CurrentSequence);
-			OpenAnimSequenceAsset(AnimSequencePath, SelectedMesh, CurrentSequence);
-		}
 	}
 
 	const float PlayLength = CurrentSequence ? CurrentSequence->GetPlayLength() : 0.0f;
