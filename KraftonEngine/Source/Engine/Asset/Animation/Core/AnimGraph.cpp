@@ -53,7 +53,7 @@ void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray
         return;
     }
 
-    const int32 NumKeys = Model->GetNumberOfKeys();
+    const int32 NumKeys = Model->GetNumberOfFrames();
     const float FPS     = Model->GetFrameRate().AsDecimal();
     if (NumKeys <= 0 || FPS <= 0.0f)
     {

@@ -57,7 +57,11 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
     void SetBakedAnimTime(float InTime)
     {
         BakedAnimTime = InTime;
-        if (AnimInstance) AnimInstance->SetEvaluationTime(InTime);
+    	if (AnimInstance)
+    	{
+    		AnimInstance->SetEvaluationTime(InTime);
+    		RefreshAnimationPose();
+    	}
     }
 
     bool IsBakedAnimPaused() const
@@ -79,6 +83,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
         BakedAnimPlaybackSpeed = InSpeed;
         if (AnimInstance) AnimInstance->SetPlaybackSpeed(InSpeed);
     }
+	void RefreshAnimationPose();
 
   protected:
     void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction &ThisTickFunction) override;

@@ -102,9 +102,7 @@ bool FFbxSkeletalMeshAssembler::BuildSkeletalMeshFromParts(
 
     OutMesh.Bones.resize(SkeletonMeta.BoneIds.size());
     TArray<FMatrix> BoneBindInSkeletonSpace;
-    TArray<FMatrix> BoneModelInSkeletonSpace;
     BoneBindInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
-    BoneModelInSkeletonSpace.resize(SkeletonMeta.BoneIds.size(), FMatrix::Identity);
 
     const FMatrix InvSkeletonRootBindGlobal = FMatrix::Identity;
 
@@ -151,8 +149,6 @@ bool FFbxSkeletalMeshAssembler::BuildSkeletalMeshFromParts(
 
         BoneBindInSkeletonSpace[SkeletonBoneIndex] =
             BoneMeta.BindGlobalMatrix * InvSkeletonRootBindGlobal;
-        BoneModelInSkeletonSpace[SkeletonBoneIndex] =
-            BoneMeta.ModelGlobalMatrix * InvSkeletonRootBindGlobal;
         BoneInfo.InverseBindPose = BoneBindInSkeletonSpace[SkeletonBoneIndex].GetInverse();
     }
 
@@ -160,12 +156,13 @@ bool FFbxSkeletalMeshAssembler::BuildSkeletalMeshFromParts(
          ++SkeletonBoneIndex)
     {
         FBoneInfo     &BoneInfo = OutMesh.Bones[SkeletonBoneIndex];
-        const FMatrix &BoneGlobalInSkeletonSpace = BoneModelInSkeletonSpace[SkeletonBoneIndex];
+        // 기본 포즈는 skin inverse bind와 같은 기준이어야 정점이 시작부터 어긋나지 않는다.
+        const FMatrix &BoneGlobalInSkeletonSpace = BoneBindInSkeletonSpace[SkeletonBoneIndex];
 
         if (BoneInfo.ParentIndex >= 0)
         {
             BoneInfo.LocalBindPose = BoneGlobalInSkeletonSpace *
-                                     BoneModelInSkeletonSpace[BoneInfo.ParentIndex].GetInverse();
+                                     BoneBindInSkeletonSpace[BoneInfo.ParentIndex].GetInverse();
         }
         else
         {

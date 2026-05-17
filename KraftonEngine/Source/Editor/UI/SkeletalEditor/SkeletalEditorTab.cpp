@@ -559,11 +559,23 @@ void FSkeletalEditorTab::RenderViewportPanel(float DeltaTime)
 	// 에디터 메인 뷰포트에서 액터를 선택하는 등 외부 동작 후 preview의 SceneProxy가
 	// 누락되는 케이스 방어 — 컴포넌트 상태가 어긋났으면 매 프레임 자가 복구한다.
 	// 사용자의 카메라 조작을 보존하기 위해 복구 경로에서는 FrameMesh를 건너뛴다.
-	if (PreviewMeshComponent &&
-		(PreviewMeshComponent->GetSkeletalMesh() != SelectedMesh ||
-			PreviewMeshComponent->GetSceneProxy() == nullptr))
+	//
+	// 같은 메시인데 SceneProxy만 누락된 경우와 메시 자체가 바뀐 경우를 분리해서 처리한다.
+	// 같은 메시에서 SetPreviewMesh를 다시 호출하면 USkinnedMeshComponent::SetSkeletalMesh -> ResetBonePoseToBindPose가 호출되어
+	// 애니메이션 평가 중인 본 포즈가 매 프레임 bind pose로 리셋되어 버림.
+	const bool bMeshChanged =
+		PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh() != SelectedMesh;
+	const bool bProxyMissing =
+		PreviewMeshComponent && PreviewMeshComponent->GetSceneProxy() == nullptr;
+
+	if (bMeshChanged)
 	{
-		PreviewScene.SetPreviewMesh(SelectedMesh, /*bResetCamera=*/false);
+		PreviewScene.SetPreviewMesh(SelectedMesh, false);
+	}
+	else if (bProxyMissing)
+	{
+		// 메시는 그대로이고 렌더링 리소스만 사라진 경우 — SceneProxy만 다시 만든다.
+		PreviewMeshComponent->MarkRenderStateDirty();
 	}
 
 	if (PreviewViewport && PreviewViewportClient && EditorEngine)
@@ -870,8 +882,15 @@ void FSkeletalEditorTab::UpdateBoneDebugLines()
 	{
 		return;
 	}
-	
+
 	const auto& BoneMatrices = PreviewMeshComponent->GetMeshSpaceBoneMatrices();
+	// MeshSpace 본 행렬 캐시가 아직 채워지지 않은 시점(첫 SetSkeletalMesh 직후 등)에는
+	// BoneMatrices[i] 접근이 즉시 크래시한다. 비어 있으면 다음 프레임을 기다린다.
+	if (BoneMatrices.size() < Bones.size())
+	{
+		return;
+	}
+
 	const int32 CurrentSelectedBoneIndex = PreviewViewportClient
 		? PreviewViewportClient->GetBoneSelectionManager().GetPrimarySelectedBone()
 		: -1;

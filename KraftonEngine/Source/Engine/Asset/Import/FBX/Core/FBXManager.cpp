@@ -615,8 +615,16 @@ UAnimSequence *FFBXManager::ResolveAnimSequenceReference(const FString &PathFile
         return nullptr;
     }
 
-    const FString TargetSkeletonAssetPath =
-        SourcePath + "#SkeletonAsset_" + std::to_string(SourceSkeletonId);
+    USkeletalMesh *TargetMesh = SceneAsset->FindSkeletalMeshBySourceSkeletonId(SourceSkeletonId);
+    const FSkeletalMesh *TargetMeshAsset = TargetMesh ? TargetMesh->GetSkeletalMeshAsset() : nullptr;
+    if (!TargetMeshAsset)
+    {
+        UE_LOG("[FBXManager] Skeletal mesh for anim reference not found. Ref=%s SkeletonId=%d",
+               PathFileName.c_str(), SourceSkeletonId);
+        return nullptr;
+    }
+
+    const FString &TargetSkeletonAssetPath = TargetMeshAsset->SkeletonAssetPath;
 
     int32 MatchIndex = 0;
     for (UAnimSequence *Sequence : SceneAsset->GetAnimSequences())
@@ -634,8 +642,8 @@ UAnimSequence *FFBXManager::ResolveAnimSequenceReference(const FString &PathFile
         ++MatchIndex;
     }
 
-    UE_LOG("[FBXManager] Anim sequence reference not found in FBX scene. Ref=%s",
-           PathFileName.c_str());
+    UE_LOG("[FBXManager] Anim sequence reference not found in FBX scene. Ref=%s SkeletonPath=%s AnimIndex=%d",
+           PathFileName.c_str(), TargetSkeletonAssetPath.c_str(), AnimIndex);
     return nullptr;
 }
 

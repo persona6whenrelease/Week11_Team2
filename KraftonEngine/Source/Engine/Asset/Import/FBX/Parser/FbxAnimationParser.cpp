@@ -170,13 +170,14 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
         for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
         {
             const int32 BoneId = SkeletonMeta.BoneIds[BoneIndex];
-            if (IsValidIndex(SkeletonBones, BoneId))
-            {
-                Tracks[BoneIndex].Name = FName(SkeletonBones[BoneId].Name.c_str());
-            }
-            else if (IsValidIndex(SkeletonBones, BoneIndex))
+
+            if (IsValidIndex(SkeletonBones, BoneIndex))
             {
                 Tracks[BoneIndex].Name = FName(SkeletonBones[BoneIndex].Name.c_str());
+            }
+            else if (IsValidIndex(ImportMeta.Bones, BoneId))
+            {
+                Tracks[BoneIndex].Name = FName(ImportMeta.Bones[BoneId].Name.c_str());
             }
             else
             {

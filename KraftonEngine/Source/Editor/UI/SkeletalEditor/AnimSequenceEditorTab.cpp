@@ -212,7 +212,7 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 {
 	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
 	if (!Comp || !DataSource) return;
-	if (AnimSequence)
+	if (AnimSequence && Comp->GetAnimation() != AnimSequence)
 	{
 		Comp->SetAnimation(AnimSequence);
 	}
