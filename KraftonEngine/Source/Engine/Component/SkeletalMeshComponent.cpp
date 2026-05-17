@@ -1,7 +1,9 @@
-﻿#include "Component/SkeletalMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/Skeleton.h"
+
+#include <cmath>
 
 #include <cmath>
 

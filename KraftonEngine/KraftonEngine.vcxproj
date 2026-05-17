@@ -349,6 +349,12 @@
     <ClCompile Include="Source\Editor\UI\EditorWidget.cpp" />
     <ClCompile Include="Source\Editor\UI\ImGuiSetting.cpp" />
     <ClCompile Include="Source\Editor\UI\NotificationToast.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.cpp" />
     <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp" />
     <ClCompile Include="Source\Editor\Viewport\FLevelViewportLayout.cpp" />
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp" />
@@ -627,6 +633,12 @@
     <ClInclude Include="Source\Editor\UI\EditorWidget.h" />
     <ClInclude Include="Source\Editor\UI\ImGuiSetting.h" />
     <ClInclude Include="Source\Editor\UI\NotificationToast.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.h" />
     <ClInclude Include="Source\Editor\Viewport\EditorViewportClient.h" />
     <ClInclude Include="Source\Editor\Viewport\FLevelViewportLayout.h" />
     <ClInclude Include="Source\Editor\Viewport\LevelEditorViewportClient.h" />

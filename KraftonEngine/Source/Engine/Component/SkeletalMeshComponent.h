@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Component/SkinnedMeshComponent.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 
 class UAnimationAsset;
 class UAnimSequence;

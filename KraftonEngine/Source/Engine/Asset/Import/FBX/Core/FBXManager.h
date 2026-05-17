@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FBX 원본 파일과 캐시된 씬 에셋을 관리하는 매니저를 선언한다.
  *
  * FFBXManager는 Asset/Source의 FBX를 스캔하고, 필요한 경우 임포트를 수행해 UFBXSceneAsset 캐시를
@@ -13,6 +13,7 @@
 
 class USkeletalMesh;
 class UStaticMesh;
+class UAnimSequence;
 class UFBXSceneAsset;
 class UObject;
 
@@ -34,7 +35,7 @@ class FFBXManager
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     static UStaticMesh    *ResolveStaticMeshReference(const FString &PathFileName);
     static USkeletalMesh  *ResolveSkeletalMeshReference(const FString &PathFileName);
-    
+    static UAnimSequence  *ResolveAnimSequenceReference(const FString &PathFileName);
 
     static UObject       *ResolveFbxSceneAssetReference(const FString &PathFileName);
     static UStaticMesh   *LoadStaticMeshFromFbxSceneReference(const FString &PathFileName);
