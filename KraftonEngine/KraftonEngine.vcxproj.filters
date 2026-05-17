@@ -545,7 +545,16 @@
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraph.cpp">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimInstance.cpp">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.cpp">
       <Filter>Source\Engine\Asset\Animation\Core</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Asset\Animation\Core\Skeleton.cpp">
@@ -1376,7 +1385,16 @@
     <ClInclude Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimInstance.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h">
+      <Filter>Source\Engine\Asset\Animation\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.h">
       <Filter>Source\Engine\Asset\Animation\Core</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimationTypes.h">

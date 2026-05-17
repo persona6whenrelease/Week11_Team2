@@ -1,11 +1,13 @@
-#pragma once
+﻿#pragma once
 
 #include "Component/SkinnedMeshComponent.h"
 
 class UAnimationAsset;
 class UAnimSequence;
 class USkeleton;
+class UAnimInstance;
 
+// Todo Graph 포함한, 개별 instance에 대한 처리... 매번 enum type을 추가해야하나 의문
 enum class EAnimationMode
 {
     AnimationSingleNode
@@ -17,7 +19,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
     DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
 
     USkeletalMeshComponent() = default;
-    ~USkeletalMeshComponent() override = default;
+    ~USkeletalMeshComponent() override;
 
     /**
      * 단일 애니메이션 에셋을 재생 (AnimationSingleNode만 상정)
@@ -86,4 +88,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 
     EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
     UAnimationAsset *AnimToPlay = nullptr;
+
+    // 파트 2: 시간 누적과 그래프 평가는 AnimInstance에 위임한다. 컴포넌트가 라이프사이클 소유.
+    UAnimInstance *AnimInstance = nullptr;
 };

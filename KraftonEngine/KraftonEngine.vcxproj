@@ -345,7 +345,10 @@
     <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp" />
     <ClCompile Include="Source\Editor\Viewport\FLevelViewportLayout.cpp" />
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraph.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimInstance.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\Skeleton.cpp" />
     <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.cpp" />
     <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.cpp" />
@@ -624,7 +627,10 @@
     <ClInclude Include="Source\Editor\Viewport\FLevelViewportLayout.h" />
     <ClInclude Include="Source\Editor\Viewport\LevelEditorViewportClient.h" />
     <ClInclude Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimationTypes.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\Skeleton.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Notify\AnimNotify.h" />
