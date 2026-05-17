@@ -1,28 +1,29 @@
 /**
  * FBX 애니메이션 데이터를 UAnimSequence 에셋으로 변환한다.
  *
- * FBX animation stack마다 하나의 UAnimSequence를 생성한다. 단, stack 내부에 여러 animation layer가
- * 있더라도 현재 importer는 0번 layer, 즉 base layer만 사용한다. FBX SDK의 EvaluateGlobalTransform()
- * 기반 평가는 stack 전체 layer가 합성될 수 있으므로 사용하지 않고, 0번 layer의 LclTranslation,
- * LclRotation, LclScaling curve만 직접 샘플링한다.
+ * FBX animation stack마다 하나의 UAnimSequence를 생성한다. 각 프레임 시간에서 FBX SDK의
+ * EvaluateLocalTransform() 결과를 샘플링하여 본별 local transform track으로 bake한다.
  *
- * 이 파일은 animation blending layer를 지원하지 않는다. 여러 layer가 존재하면 로그만 남기고 첫 번째
- * layer만 bake한다. Runtime은 이미 bake된 UAnimDataModel만 재생하므로 layer 개념을 알 필요가 없다.
+ * LclTranslation, LclRotation, LclScaling curve를 직접 조합하지 않고 SDK 평가 결과를 사용하므로
+ * RotationOrder, PreRotation, PostRotation, RotationPivot, ScalingPivot 같은 FBX node transform stack이
+ * 반영된 local matrix를 얻을 수 있다.
+ *
+ * Runtime은 이미 bake된 UAnimDataModel만 재생하므로 FBX animation layer, pivot, pre-rotation 같은
+ * FBX 전용 컨텍스트를 알 필요가 없다.
  */
 
-// TODO: 다중 레이어 합성 처리
+// TODO: 다중 레이어를 직접 제어해야 하는 경우, SDK evaluator 대신 layer별 curve 합성 경로를 별도로 구현한다.
 
 #include "Asset/Import/FBX/Parser/FbxAnimationParser.h"
 
-#include "Core/Log.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
+#include "Core/Log.h"
 #include "Object/ObjectFactory.h"
 
 #include <fbxsdk.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 
 namespace
 {
@@ -37,42 +38,27 @@ namespace
         return Curve ? Curve->Evaluate(Time) : DefaultValue;
     }
 
-    FbxVector4 SampleDouble3PropertyFromLayer(FbxPropertyT<FbxDouble3>& Property,
-                                              FbxAnimLayer* Layer,
-                                              FbxTime Time)
+    void SampleEvaluatedLocalTransform(FbxNode* Node,
+                                       FbxTime Time,
+                                       FVector& OutTranslation,
+                                       FQuat& OutRotation,
+                                       FVector& OutScale)
     {
-        const FbxDouble3 DefaultValue = Property.Get();
-
-        FbxAnimCurve* CurveX = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_X);
-        FbxAnimCurve* CurveY = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Y);
-        FbxAnimCurve* CurveZ = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Z);
-
-        return FbxVector4(
-            SampleCurveOrDefault(CurveX, Time, DefaultValue[0]),
-            SampleCurveOrDefault(CurveY, Time, DefaultValue[1]),
-            SampleCurveOrDefault(CurveZ, Time, DefaultValue[2]),
-            0.0);
-    }
-
-    FbxAMatrix SampleLocalMatrixFromBaseLayer(FbxNode* Node, FbxAnimLayer* BaseLayer, FbxTime Time)
-    {
-        FbxAMatrix LocalMatrix;
-        LocalMatrix.SetIdentity();
-
-        if (!Node || !BaseLayer)
+        if (!Node)
         {
-            return LocalMatrix;
+            OutTranslation = FVector(0.0f, 0.0f, 0.0f);
+            OutRotation = FQuat::Identity;
+            OutScale = FVector(1.0f, 1.0f, 1.0f);
+            return;
         }
 
-        const FbxVector4 Translation = SampleDouble3PropertyFromLayer(Node->LclTranslation, BaseLayer, Time);
-        const FbxVector4 Rotation = SampleDouble3PropertyFromLayer(Node->LclRotation, BaseLayer, Time);
-        const FbxVector4 Scaling = SampleDouble3PropertyFromLayer(Node->LclScaling, BaseLayer, Time);
+        // EvaluateLocalTransform(): 현재 animation stack 기준의 local matrix를 평가
+        const FbxAMatrix LocalMatrix = Node->EvaluateLocalTransform(Time);
 
-        LocalMatrix.SetT(Translation);
-        LocalMatrix.SetR(Rotation);
-        LocalMatrix.SetS(Scaling);
-
-        return LocalMatrix;
+        OutTranslation = FBXUtil::ConvertFbxVector(LocalMatrix.GetT());
+        // RotationOrder, PreRotation, PostRotation, Pivot 설정도 반영
+        OutRotation = FBXUtil::ConvertFbxMatrix(LocalMatrix).ToQuat().GetNormalized();
+        OutScale = FBXUtil::ConvertFbxVector(LocalMatrix.GetS());
     }
 }
 
@@ -105,46 +91,35 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
         {
             BoneNodes[SkeletonBoneIndex] = ImportMeta.Bones[BoneId].Node;
         }
+
+        if (!BoneNodes[SkeletonBoneIndex])
+        {
+            UE_LOG("[FBXImporter] Missing bone node. SkeletonBoneIndex=%d BoneId=%d",
+                   SkeletonBoneIndex,
+                   BoneId);
+        }
     }
 
-    const int32 TotalSrcObjectCount = Scene->GetSrcObjectCount();
-    for (int32 ObjIndex = 0; ObjIndex < TotalSrcObjectCount; ++ObjIndex)
+    const int32 AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
+    for (int32 StackIndex = 0; StackIndex < AnimStackCount; ++StackIndex)
     {
-        FbxObject* Obj = Scene->GetSrcObject(ObjIndex);
-        if (!Obj)
-        {
-            continue;
-        }
-
-        const char* ClassName = Obj->GetClassId().GetName();
-        if (!ClassName)
-        {
-            continue;
-        }
-
-        if (std::strcmp(ClassName, "AnimStack") != 0 && std::strcmp(ClassName, "FbxAnimStack") != 0)
-        {
-            continue;
-        }
-
-        FbxAnimStack* AnimStack = static_cast<FbxAnimStack*>(Obj);
+        FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(StackIndex);
         if (!AnimStack)
         {
             continue;
         }
 
-        FbxAnimLayer* BaseLayer = AnimStack->GetMember<FbxAnimLayer>(0);
-        if (!BaseLayer)
+        const int32 LayerCount = AnimStack->GetMemberCount<FbxAnimLayer>();
+        if (LayerCount <= 0)
         {
             UE_LOG("[FBXImporter] Skip animation stack. Stack=%s Reason=NoAnimLayer",
                    AnimStack->GetName() ? AnimStack->GetName() : "Unnamed");
             continue;
         }
 
-        const int32 LayerCount = AnimStack->GetMemberCount<FbxAnimLayer>();
         if (LayerCount > 1)
         {
-            UE_LOG("[FBXImporter] Animation stack has %d layers. Only first layer will be imported. Stack=%s",
+            UE_LOG("[FBXImporter] Animation stack has %d layers. SDK evaluated result will be baked. Stack=%s",
                    LayerCount,
                    AnimStack->GetName() ? AnimStack->GetName() : "Unnamed");
         }
@@ -191,20 +166,29 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
 
         TArray<FBoneAnimationTrack> Tracks;
         Tracks.resize(BoneCount);
+        // 본마다 저장 공간을 준비한다. Track 이름은 BoneNodes와 같은 SkeletonMeta.BoneIds 기준으로 맞춘다.
         for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
         {
-            Tracks[BoneIndex].Name = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
-                                         ? FName(SkeletonBones[BoneIndex].Name.c_str())
-                                         : FName();
-            Tracks[BoneIndex].InternalTrack.LocalMatrixKeys.resize(FrameCount, FMatrix::Identity);
+            const int32 BoneId = SkeletonMeta.BoneIds[BoneIndex];
+            if (IsValidIndex(SkeletonBones, BoneId))
+            {
+                Tracks[BoneIndex].Name = FName(SkeletonBones[BoneId].Name.c_str());
+            }
+            else if (IsValidIndex(SkeletonBones, BoneIndex))
+            {
+                Tracks[BoneIndex].Name = FName(SkeletonBones[BoneIndex].Name.c_str());
+            }
+            else
+            {
+                Tracks[BoneIndex].Name = FName();
+            }
+
+            Tracks[BoneIndex].InternalTrack.PosKeys.resize(FrameCount, FVector(0.0f, 0.0f, 0.0f));
+            Tracks[BoneIndex].InternalTrack.RotKeys.resize(FrameCount, FQuat::Identity);
+            Tracks[BoneIndex].InternalTrack.ScaleKeys.resize(FrameCount, FVector(1.0f, 1.0f, 1.0f));
         }
 
-        TArray<FMatrix> LocalMatrices;
-        LocalMatrices.resize(BoneCount, FMatrix::Identity);
-
-        TArray<FMatrix> GlobalMatrices;
-        GlobalMatrices.resize(BoneCount, FMatrix::Identity);
-
+        // 각 프레임 시간마다 SDK가 평가한 local transform을 bake한다.
         for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
         {
             const double FrameAlpha = (FrameCount > 1)
@@ -220,37 +204,24 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                 FbxNode* Node = BoneNodes[BoneIndex];
                 if (!Node)
                 {
-                    LocalMatrices[BoneIndex] = FMatrix::Identity;
-                    GlobalMatrices[BoneIndex] = FMatrix::Identity;
                     continue;
                 }
 
-                LocalMatrices[BoneIndex] =
-                    FBXUtil::ConvertFbxMatrix(SampleLocalMatrixFromBaseLayer(Node, BaseLayer, SampleTime));
+                FVector Translation;
+                FQuat Rotation;
+                FVector Scale;
+                SampleEvaluatedLocalTransform(Node, SampleTime, Translation, Rotation, Scale);
 
-                const int32 ParentIndex = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
-                                              ? SkeletonBones[BoneIndex].ParentIndex
-                                              : -1;
-
-                if (ParentIndex >= 0 && ParentIndex < BoneCount)
-                {
-                    // 기존 importer의 local 계산식이 Local = Global * ParentGlobal^-1 이므로,
-                    // 같은 행렬 규약을 유지하기 위해 Global = Local * ParentGlobal 로 누적한다.
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex] * GlobalMatrices[ParentIndex];
-                }
-                else
-                {
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex];
-                }
-
-                Tracks[BoneIndex].InternalTrack.LocalMatrixKeys[FrameIndex] = LocalMatrices[BoneIndex];
+                Tracks[BoneIndex].InternalTrack.PosKeys[FrameIndex] = Translation;
+                Tracks[BoneIndex].InternalTrack.RotKeys[FrameIndex] = Rotation;
+                Tracks[BoneIndex].InternalTrack.ScaleKeys[FrameIndex] = Scale;
             }
         }
 
         DataModel->SetBoneAnimationTracks(std::move(Tracks));
 
         UE_LOG("[FBXImporter] Baked animation sequence. Skeleton=%d Name=%s Duration=%.3fs Frames=%d "
-               "Bones=%d Layer=0/%d",
+               "Bones=%d Layers=%d",
                SkeletonMeta.SkeletonId,
                SequenceName.c_str(),
                static_cast<float>(DurationSeconds),
@@ -259,5 +230,42 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                LayerCount);
 
         OutAnimSequences.push_back(Sequence);
+    }
+}
+
+
+// legacy: FbxAnimCurve에서 직접 샘플링하는 코드
+namespace
+{
+    FbxVector4 SampleDouble3PropertyFromLayer(FbxPropertyT<FbxDouble3>& Property,
+                                              FbxAnimLayer* Layer,
+                                              FbxTime Time)
+    {
+        const FbxDouble3 DefaultValue = Property.Get();
+
+        FbxAnimCurve* CurveX = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_X);
+        FbxAnimCurve* CurveY = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Y);
+        FbxAnimCurve* CurveZ = Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Z);
+
+        return FbxVector4(
+            SampleCurveOrDefault(CurveX, Time, DefaultValue[0]),
+            SampleCurveOrDefault(CurveY, Time, DefaultValue[1]),
+            SampleCurveOrDefault(CurveZ, Time, DefaultValue[2]),
+            0.0);
+    }
+
+    FQuat SampleLocalRotationQuatFromLayer(FbxNode* Node, FbxAnimLayer* Layer, FbxTime Time)
+    {
+        FbxAMatrix RotationMatrix;
+        RotationMatrix.SetIdentity();
+
+        if (!Node || !Layer)
+        {
+            return FQuat::Identity;
+        }
+
+        const FbxVector4 RotationEuler = SampleDouble3PropertyFromLayer(Node->LclRotation, Layer, Time);
+        RotationMatrix.SetR(RotationEuler);
+        return FBXUtil::ConvertFbxMatrix(RotationMatrix).ToQuat().GetNormalized();
     }
 }

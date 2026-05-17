@@ -1,9 +1,9 @@
 /**
  * 애니메이션 에셋과 스켈레톤이 공유하는 직렬화 데이터 구조를 정의한다.
  *
- * 이 파일은 UObject 에셋이 직접 저장하는 순수 데이터 타입만 가진다. FBX에서 읽은 본 계층과
- * 애니메이션 키 데이터는 USkeleton, UAnimDataModel, UAnimSequence가 소유하며, 메시 에셋에는
- * 애니메이션 클립을 직접 넣지 않는다.
+ * 파일과 UObject 에셋을 직접 저장하기 위한 최소 데이터만 포함한다. FBX에서 읽은 본 계층과
+ * 애니메이션 샘플 데이터는 USkeleton, UAnimDataModel, UAnimSequence가 소유하고, 메시 에셋은
+ * 애니메이션 클립을 직접 알지 않는다.
  */
 
 #pragma once
@@ -38,7 +38,7 @@ struct FFrameRate
 };
 
 /**
- * 스켈레톤을 구성하는 단일 본의 이름, 부모 관계, 바인드 포즈 정보를 저장한다.
+ * 스켈레톤을 구성하는 단일 본의 이름, 부모 관계, 바인드 포즈 정보를 보관한다.
  */
 struct FBoneInfo
 {
@@ -58,30 +58,25 @@ struct FBoneInfo
 };
 
 /**
- * 위치, 회전, 스케일 키를 분리해 보관하는 원시 애니메이션 트랙이다.
- *
- * 현재 FBX 임포터는 안정적인 포즈 복원을 위해 LocalMatrixKeys도 함께 기록한다. 이후 TRS 분해 기반
- * 샘플링으로 넘어가면 PosKeys/RotKeys/ScaleKeys만 사용하도록 줄일 수 있다.
+ * 위치, 회전, 스케일을 분리해 보관하는 원시 애니메이션 트랙이다.
  */
 struct FRawAnimSequenceTrack
 {
     TArray<FVector> PosKeys;
     TArray<FQuat>   RotKeys;
     TArray<FVector> ScaleKeys;
-    TArray<FMatrix> LocalMatrixKeys;
 
     friend FArchive &operator<<(FArchive &Ar, FRawAnimSequenceTrack &Track)
     {
         Ar << Track.PosKeys;
         Ar << Track.RotKeys;
         Ar << Track.ScaleKeys;
-        Ar << Track.LocalMatrixKeys;
         return Ar;
     }
 };
 
 /**
- * 본 이름과 원시 트랙을 연결해 이름 기반 애니메이션 데이터를 표현한다.
+ * 본 이름과 원시 트랙을 연결하는 이름 기반 애니메이션 데이터 표현이다.
  */
 struct FBoneAnimationTrack
 {
@@ -97,8 +92,8 @@ struct FBoneAnimationTrack
 };
 
 /**
- * 애니메이션 커브 데이터(이름 있는 float 커브 값)를 위한 자리
- * 
+ * 애니메이션 커브 데이터 이름과 값이 들어갈 자리를 위한 구조체
+ *
  * TODO: 추후 확장 구현
  */
 struct FAnimationCurveData
