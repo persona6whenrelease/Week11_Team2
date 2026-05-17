@@ -1,6 +1,7 @@
 ﻿#include "Editor/UI/EditorConsoleWidget.h"
 #include "Editor/EditorEngine.h"
 #include "Editor/Subsystem/OverlayStatSystem.h"
+#include "Engine/Platform/CrashDump.h"
 #include "Object/Object.h"
 #include "Render/Types/ShadowSettings.h"
 #include "Render/Types/LightFrustumUtils.h"
@@ -236,6 +237,8 @@ void FEditorConsoleWidget::RegisterDiagnosticsCommands()
 		"Diagnostics", "stat shadow", "Shows the shadow overlay stat.");
 	RegisterCommand("stat none", [this](const TArray<FString>& Args) { HandleStatNone(Args); },
 		"Diagnostics", "stat none", "Hides all overlay stats.");
+	RegisterCommand("causecrash", [this](const TArray<FString>& Args) { HandleCauseCrash(Args); },
+		"Diagnostics", "causecrash", "Triggers a non-continuable exception for crash dump testing.");
 }
 
 void FEditorConsoleWidget::RegisterRenderCommands()
@@ -827,6 +830,13 @@ void FEditorConsoleWidget::HandleStatNone(const TArray<FString>& Args)
 	}
 	EditorEngine->GetOverlayStatSystem().HideAll();
 	AddLog("Overlay stat disabled: all\n");
+}
+
+void FEditorConsoleWidget::HandleCauseCrash(const TArray<FString>& Args)
+{
+	(void)Args;
+	AddLog("[WARN] Triggering intentional crash via RaiseException().\n");
+	CauseIntentionalCrash();
 }
 
 void FEditorConsoleWidget::HandleCSMResolution(const TArray<FString>& Args)

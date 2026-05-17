@@ -90,7 +90,7 @@ class UAnimSequence : public UAnimSequenceBase
   public:
     DECLARE_CLASS(UAnimSequence, UAnimSequenceBase)
 
-    static constexpr uint32 AssetVersion = 2;
+    static constexpr uint32 AssetVersion = 3u;
 
     void Serialize(FArchive &Ar);
 
