@@ -16,7 +16,6 @@
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
-#include "Serialization/ArchiveMath.h"
 
 enum class EFBXLightType
 {
@@ -65,7 +64,7 @@ struct FFBXSceneComponentDesc
         Ar << Desc.SourceSkeletonId;
         Ar << Desc.StaticMeshAssetIndex;
         Ar << Desc.SkeletalMeshAssetIndex;
-        Ar << Desc.RelativeTransform;
+        Ar.Serialize(&Desc.RelativeTransform, sizeof(FMatrix));
         return Ar;
     }
 };
@@ -78,16 +77,16 @@ struct FFBXAsset
     FString                        PathFileName;
     TArray<FStaticMesh>            StaticMeshes;
     TArray<FSkeletalMesh>          SkeletalMeshes;
-    TArray<FSkeleton>               Skeletons;
-    TArray<TArray<UAnimSequence *>> AnimSequences;
-    TArray<TArray<FMeshMaterial>>   StaticMeshMaterials;
-    TArray<TArray<FMeshMaterial>>   SkeletalMeshMaterials;
-    TArray<FMeshMaterial>           SkeletalMaterials;
-    TArray<FFBXSceneComponentDesc>  SceneComponents;
-    TMap<int32, int32>              MeshIdToStaticMeshAssetIndex;
-    TMap<int32, int32>              SkeletonIdToSkeletalMeshAssetIndex;
-    TArray<FLightAsset>             LightAssets;
-    TArray<FCameraAsset>            CameraAssets;
+    TArray<TArray<FBoneInfo>>       Skeletons;
+    TArray<TArray<FAnimationClip>>  AnimSequences;
+    TArray<TArray<FMeshMaterial>>  StaticMeshMaterials;
+    TArray<TArray<FMeshMaterial>>  SkeletalMeshMaterials;
+    TArray<FMeshMaterial>          SkeletalMaterials;
+    TArray<FFBXSceneComponentDesc> SceneComponents;
+    TMap<int32, int32>             MeshIdToStaticMeshAssetIndex;
+    TMap<int32, int32>             SkeletonIdToSkeletalMeshAssetIndex;
+    TArray<FLightAsset>            LightAssets;
+    TArray<FCameraAsset>           CameraAssets;
 };
 
 /**

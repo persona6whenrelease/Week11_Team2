@@ -74,12 +74,6 @@ namespace
         }
 
         const std::filesystem::path DiskPath(MatDiskPath);
-        if (std::filesystem::exists(DiskPath))
-        {
-            UE_LOG("[FBXImporter] Auto material exists; skip overwrite. Path=%s", MatPath.c_str());
-            return MatPath;
-        }
-
         std::filesystem::create_directories(DiskPath.parent_path());
 
         json::JSON JsonData;

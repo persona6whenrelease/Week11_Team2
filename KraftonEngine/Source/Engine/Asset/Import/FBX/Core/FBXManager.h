@@ -13,6 +13,7 @@
 
 class USkeletalMesh;
 class UStaticMesh;
+class UAnimSequence;
 class UFBXSceneAsset;
 class UObject;
 
@@ -34,6 +35,7 @@ class FFBXManager
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     static UStaticMesh    *ResolveStaticMeshReference(const FString &PathFileName);
     static USkeletalMesh  *ResolveSkeletalMeshReference(const FString &PathFileName);
+    static UAnimSequence  *ResolveAnimSequenceReference(const FString &PathFileName);
     
 
     static UObject       *ResolveFbxSceneAssetReference(const FString &PathFileName);

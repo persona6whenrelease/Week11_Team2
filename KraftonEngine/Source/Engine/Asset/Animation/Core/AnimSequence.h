@@ -1,9 +1,9 @@
 /**
- * 애니메이션 시퀀스 계층과 데이터 모델을 선언한다.
+ * 애니메이션 시퀀스 에셋 객체를 선언한다.
  *
- * 기존 legacy clip 단일 구조를 제거하고 Unreal 방식에 가까운 UAnimDataModel, UAnimSequenceBase,
- * UAnimSequence 계층으로 분리한다. 실제 키 데이터는 UAnimDataModel이 소유하고, UAnimSequence는
- * 스켈레톤 참조와 Notify를 포함한 재생 가능한 애니메이션 에셋 역할을 한다.
+ * UAnimSequence는 스켈레톤 참조 경로와 실제 애니메이션 클립 데이터를 함께 보관한다. FBX에서 추출한
+ * 키프레임 샘플은 FAnimationClip으로 들어오고, 런타임에서는 AnimInstance가 이 객체를 읽어 현재 포즈를
+ * 샘플링한다. Notify 목록도 같은 에셋에 포함되어 특정 재생 시간에 이벤트를 발생시키는 기준이 된다.
  */
 
 #pragma once
@@ -14,103 +14,39 @@
 #include "Object/Object.h"
 
 /**
- * 애니메이션 에셋 계층의 공통 기반 클래스이다.
+ * 스켈레톤 참조와 애니메이션 클립, Notify를 함께 저장하는 애니메이션 에셋이다.
+ *
+ * 임포터가 만든 FAnimationClip은 이 객체를 통해 .uasset으로 저장된다. 런타임에서는 AnimInstance가
+ * 시퀀스를 참조해 현재 시간의 로컬 본 포즈를 계산한다.
  */
-class UAnimationAsset : public UObject
+class UAnimSequence : public UObject
 {
-  public:
-    DECLARE_CLASS(UAnimationAsset, UObject)
-    virtual float GetPlayLength() const { return 0.0f; }
-};
+public:
+    DECLARE_CLASS(UAnimSequence, UObject)
 
-/**
- * 애니메이션 키, 프레임 정보, 커브 데이터를 소유하는 데이터 모델이다.
- */
-class UAnimDataModel : public UObject
-{
-  public:
-    DECLARE_CLASS(UAnimDataModel, UObject)
+    static constexpr uint32 AssetVersion = 1;
 
-    void Serialize(FArchive &Ar);
+    /**
+     * 에셋 헤더 검증과 본문 데이터 저장/로드를 함께 처리한다.
+     */
+    void Serialize(FArchive& Ar);
 
-    void SetBoneAnimationTracks(TArray<FBoneAnimationTrack> &&InTracks) { BoneAnimationTracks = std::move(InTracks); }
-    const TArray<FBoneAnimationTrack> &GetBoneAnimationTracks() const { return BoneAnimationTracks; }
-    TArray<FBoneAnimationTrack>       &GetMutableBoneAnimationTracks() { return BoneAnimationTracks; }
+    void SetAnimationClip(FAnimationClip&& InClip) { AnimationClip = std::move(InClip); }
+    const FAnimationClip& GetAnimationClip() const { return AnimationClip; }
+    FAnimationClip& GetMutableAnimationClip() { return AnimationClip; }
 
-    void SetPlayLength(float InPlayLength) { PlayLength = InPlayLength; }
-    float GetPlayLength() const { return PlayLength; }
+    void SetSkeletonAssetPath(const FString& InPath) { SkeletonAssetPath = InPath; }
+    const FString& GetSkeletonAssetPath() const { return SkeletonAssetPath; }
 
-    void SetFrameRate(const FFrameRate &InFrameRate) { FrameRate = InFrameRate; }
-    const FFrameRate &GetFrameRate() const { return FrameRate; }
+    void AddNotify(const FAnimNotifyEvent& Notify) { Notifies.push_back(Notify); }
+    const TArray<FAnimNotifyEvent>& GetNotifies() const { return Notifies; }
+    TArray<FAnimNotifyEvent>& GetMutableNotifies() { return Notifies; }
 
-    void SetNumberOfFrames(int32 InNumberOfFrames) { NumberOfFrames = InNumberOfFrames; }
-    int32 GetNumberOfFrames() const { return NumberOfFrames; }
+    float GetPlayLength() const { return AnimationClip.Duration; }
+    bool IsValidSequence() const { return AnimationClip.Duration > 0.0f && !AnimationClip.Tracks.empty(); }
 
-    void SetNumberOfKeys(int32 InNumberOfKeys) { NumberOfKeys = InNumberOfKeys; }
-    int32 GetNumberOfKeys() const { return NumberOfKeys; }
-
-    FAnimationCurveData       &GetMutableCurveData() { return CurveData; }
-    const FAnimationCurveData &GetCurveData() const { return CurveData; }
-
-  private:
-    TArray<FBoneAnimationTrack> BoneAnimationTracks;
-    float                      PlayLength = 0.0f;
-    FFrameRate                 FrameRate;
-    int32                      NumberOfFrames = 0;
-    int32                      NumberOfKeys = 0;
-    FAnimationCurveData        CurveData; // 시간에 따라 변하는 부가 float 값들
-};
-
-/**
- * 데이터 모델을 참조하는 재생 가능 애니메이션 에셋 기반 클래스이다.
- */
-class UAnimSequenceBase : public UAnimationAsset
-{
-  public:
-    DECLARE_CLASS(UAnimSequenceBase, UAnimationAsset)
-
-    UAnimDataModel *GetDataModel() const { return DataModel; }
-    UAnimDataModel *GetDataMode() const { return DataModel; }
-    void SetDataModel(UAnimDataModel *InDataModel) { DataModel = InDataModel; }
-
-    float GetPlayLength() const override
-    {
-        return DataModel ? DataModel->GetPlayLength() : 0.0f;
-    }
-
-  protected:
-    UAnimDataModel *DataModel = nullptr;
-};
-
-/**
- * 스켈레톤 참조, 데이터 모델, Notify를 함께 저장하는 애니메이션 시퀀스 에셋이다.
- */
-class UAnimSequence : public UAnimSequenceBase
-{
-  public:
-    DECLARE_CLASS(UAnimSequence, UAnimSequenceBase)
-
-    static constexpr uint32 AssetVersion = 2;
-
-    void Serialize(FArchive &Ar);
-
-    void           SetSequenceName(const FString &InName) { SequenceName = InName; }
-    const FString &GetSequenceName() const { return SequenceName; }
-
-    void           SetSkeletonAssetPath(const FString &InPath) { SkeletonAssetPath = InPath; }
-    const FString &GetSkeletonAssetPath() const { return SkeletonAssetPath; }
-
-    void AddNotify(const FAnimNotifyEvent &Notify) { Notifies.push_back(Notify); }
-    const TArray<FAnimNotifyEvent> &GetNotifies() const { return Notifies; }
-
-    bool IsValidSequence() const
-    {
-        return DataModel && DataModel->GetPlayLength() > 0.0f &&
-               !DataModel->GetBoneAnimationTracks().empty();
-    }
-
-  private:
-    FString                  SequenceName;
-    FString                  SkeletonAssetPath;
+private:
+    FString SkeletonAssetPath;
+    FAnimationClip AnimationClip;
     TArray<FAnimNotifyEvent> Notifies;
 };

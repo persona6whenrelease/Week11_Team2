@@ -1,3 +1,10 @@
+/**
+ * 스켈레톤 에셋의 저장/로드와 본 검색 로직을 구현한다.
+ *
+ * 공통 에셋 헤더를 통해 Skeleton 파일인지 검증한 뒤 본 배열을 직렬화한다. 본 이름 검색은 FBX 임포트,
+ * 에디터 선택, 애니메이션 트랙 연결처럼 이름 기반으로 본 인덱스를 찾아야 하는 지점에서 사용된다.
+ */
+
 #include "Asset/Animation/Core/Skeleton.h"
 
 #include "Core/Log.h"
@@ -5,39 +12,7 @@
 
 IMPLEMENT_CLASS(USkeleton, UObject)
 
-namespace
-{
-    const FString           EmptySkeletonPath;
-    const TArray<FBoneInfo> EmptyBones;
-}
-
-void FSkeleton::Serialize(FArchive &Ar)
-{
-    Ar << PathFileName;
-    Ar << Bones;
-
-    if (Ar.IsLoading())
-    {
-        RebuildBoneNameToIndex();
-    }
-}
-
-void FSkeleton::RebuildBoneNameToIndex()
-{
-    BoneNameToIndex.clear();
-    for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones.size()); ++BoneIndex)
-    {
-        BoneNameToIndex[Bones[BoneIndex].Name] = BoneIndex;
-    }
-}
-
-USkeleton::~USkeleton()
-{
-    delete SkeletonAsset;
-    SkeletonAsset = nullptr;
-}
-
-void USkeleton::Serialize(FArchive &Ar)
+void USkeleton::Serialize(FArchive& Ar)
 {
     FAssetFileHeader Header;
     if (Ar.IsSaving())
@@ -49,88 +24,21 @@ void USkeleton::Serialize(FArchive &Ar)
     Ar << Header;
     if (!Header.IsValid(EAssetType::Skeleton, AssetVersion))
     {
-        UE_LOG("[USkeleton] Invalid asset header. Type=%s Version=%u",
-               LexToString(Header.AssetType), Header.Version);
+        UE_LOG("[USkeleton] Invalid asset header. Type=%s Version=%u", LexToString(Header.AssetType), Header.Version);
         return;
     }
 
-    if (Ar.IsLoading() && !SkeletonAsset)
-    {
-        SkeletonAsset = new FSkeleton();
-    }
-
-    if (SkeletonAsset)
-    {
-        SkeletonAsset->Serialize(Ar);
-    }
+    Ar << Bones;
 }
 
-const FString &USkeleton::GetAssetPathFileName() const
+int32 USkeleton::FindBoneIndexByName(const FString& BoneName) const
 {
-    return SkeletonAsset ? SkeletonAsset->PathFileName : EmptySkeletonPath;
-}
-
-void USkeleton::SetSkeletonAsset(FSkeleton *InSkeleton)
-{
-    if (SkeletonAsset != InSkeleton)
+    for (int32 Index = 0; Index < static_cast<int32>(Bones.size()); ++Index)
     {
-        delete SkeletonAsset;
-        SkeletonAsset = InSkeleton;
-    }
-
-    if (SkeletonAsset)
-    {
-        SkeletonAsset->RebuildBoneNameToIndex();
-    }
-}
-
-void USkeleton::SetBones(TArray<FBoneInfo> &&InBones)
-{
-    if (!SkeletonAsset)
-    {
-        SkeletonAsset = new FSkeleton();
-    }
-
-    SkeletonAsset->Bones = std::move(InBones);
-    SkeletonAsset->RebuildBoneNameToIndex();
-}
-
-const TArray<FBoneInfo> &USkeleton::GetBones() const
-{
-    return SkeletonAsset ? SkeletonAsset->Bones : EmptyBones;
-}
-
-TArray<FBoneInfo> &USkeleton::GetMutableBones()
-{
-    if (!SkeletonAsset)
-    {
-        SkeletonAsset = new FSkeleton();
-    }
-
-    return SkeletonAsset->Bones;
-}
-
-int32 USkeleton::FindBoneIndexByName(const FString &BoneName) const
-{
-    if (!SkeletonAsset)
-    {
-        return -1;
-    }
-
-    const auto BoneIt = SkeletonAsset->BoneNameToIndex.find(BoneName);
-    if (BoneIt != SkeletonAsset->BoneNameToIndex.end())
-    {
-        return BoneIt->second;
-    }
-
-    for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(SkeletonAsset->Bones.size());
-         ++BoneIndex)
-    {
-        if (SkeletonAsset->Bones[BoneIndex].Name == BoneName)
+        if (Bones[Index].Name == BoneName)
         {
-            return BoneIndex;
+            return Index;
         }
     }
-
     return -1;
 }

@@ -193,20 +193,14 @@ namespace {
 			return -1;
 		}
 
-		const USkeleton* SkeletonAsset = SkelMeshComp->GetSkeletalMesh()->GetSkeleton();
-		if (!SkeletonAsset)
-		{
-			return -1;
-		}
-
-		const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
-		if (Bones.empty())
+		const FSkeletalMesh* Asset = SkelMeshComp->GetSkeletalMesh()->GetSkeletalMeshAsset();
+		if (!Asset || Asset->Bones.empty())
 		{
 			return -1;
 		}
 
 		const TArray<FMatrix>& MeshSpaceBones = SkelMeshComp->GetMeshSpaceBoneMatrices();
-		if (MeshSpaceBones.size() < Bones.size())
+		if (MeshSpaceBones.size() < Asset->Bones.size())
 		{
 			return -1;
 		}
@@ -220,7 +214,7 @@ namespace {
 		float BestDistancePixels = FLT_MAX;
 		float BestDepth = -FLT_MAX;
 
-		for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones.size()); ++BoneIndex)
+		for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Asset->Bones.size()); ++BoneIndex)
 		{
 			const FMatrix BoneWorldMatrix = MeshSpaceBones[BoneIndex] * ComponentWorld;
 			const FVector BoneWorldPosition = BoneWorldMatrix.GetLocation();
@@ -822,14 +816,8 @@ void FSkeletalMeshViewerViewportClient::FocusBone(USkinnedMeshComponent* SkelMes
 		return;
 	}
 
-	const USkeleton* SkeletonAsset = SkelMeshComp->GetSkeletalMesh()->GetSkeleton();
-	if (!SkeletonAsset)
-	{
-		return;
-	}
-
-	const TArray<FBoneInfo>& Bones = SkeletonAsset->GetBones();
-	if (BoneIndex < 0 || BoneIndex >= static_cast<int32>(Bones.size()))
+	const FSkeletalMesh* Asset = SkelMeshComp->GetSkeletalMesh()->GetSkeletalMeshAsset();
+	if (!Asset || BoneIndex < 0 || BoneIndex >= Asset->Bones.size())
 	{
 		return;
 	}
@@ -844,7 +832,7 @@ void FSkeletalMeshViewerViewportClient::FocusBone(USkinnedMeshComponent* SkelMes
 	// 2. 카메라 포커스 거리(Zoom) 동적 계산
 	// 기본값 2.0f 대신 부모 뼈와의 거리를 측정해 뼈 크기에 맞게 줌인/줌아웃 되도록 합니다.
 	float FocusDistance = 2.0f;
-	int32 ParentIndex = Bones[BoneIndex].ParentIndex;
+	int32 ParentIndex = Asset->Bones[BoneIndex].ParentIndex;
 
 	if (ParentIndex >= 0 && ParentIndex < MeshSpaceBones.size())
 	{

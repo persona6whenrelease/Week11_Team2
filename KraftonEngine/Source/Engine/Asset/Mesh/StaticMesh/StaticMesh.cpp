@@ -31,18 +31,6 @@ UStaticMesh::~UStaticMesh()
 
 void UStaticMesh::Serialize(FArchive &Ar)
 {
-    FAssetFileHeader Header;
-    if (Ar.IsSaving())
-    {
-        Header.AssetType = EAssetType::StaticMesh;
-        Header.Version = AssetVersion;
-    }
-
-    Ar << Header;
-    if (!Header.IsValid(EAssetType::StaticMesh, AssetVersion))
-    {
-        return;
-    }
 
     if (Ar.IsLoading() && !StaticMeshAsset)
     {

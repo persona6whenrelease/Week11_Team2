@@ -25,12 +25,16 @@
 #include <cstring>
 #include <cwctype>
 #include <filesystem>
+#include <iterator>
+#include <unordered_map>
 
 TMap<FString, UFBXSceneAsset *> FFBXManager::FbxSceneCache;
 TArray<FMeshAssetListItem>      FFBXManager::AvailableFbxFiles;
 
 namespace
 {
+    void AttachSiblingAnimationFbxFiles(UFBXSceneAsset *TargetSceneAsset);
+
     /**
      * FBX 씬 캐시가 어떤 원본 파일과 버전을 기준으로 만들어졌는지 기록하는 헤더이다.
      */
@@ -151,6 +155,48 @@ namespace
         }
 
         OutSourceId = static_cast<int32>(ParsedId);
+        return true;
+    }
+
+    bool ParseFbxSceneAnimSequenceReference(const FString &Path, FString &OutSourcePath,
+                                            int32 &OutSkeletonId, int32 &OutAnimIndex)
+    {
+        const char *Marker = "#Anim_";
+        const size_t MarkerPos = Path.find(Marker);
+        if (MarkerPos == FString::npos)
+        {
+            return false;
+        }
+
+        OutSourcePath = Path.substr(0, MarkerPos);
+        const FString IdText = Path.substr(MarkerPos + std::strlen(Marker));
+        const size_t SeparatorPos = IdText.find('_');
+        if (OutSourcePath.empty() || SeparatorPos == FString::npos)
+        {
+            return false;
+        }
+
+        const FString SkeletonText = IdText.substr(0, SeparatorPos);
+        const FString AnimText = IdText.substr(SeparatorPos + 1);
+        if (SkeletonText.empty() || AnimText.empty())
+        {
+            return false;
+        }
+
+        char *SkeletonEnd = nullptr;
+        char *AnimEnd = nullptr;
+        const long ParsedSkeletonId = std::strtol(SkeletonText.c_str(), &SkeletonEnd, 10);
+        const long ParsedAnimIndex = std::strtol(AnimText.c_str(), &AnimEnd, 10);
+        if (!SkeletonEnd || *SkeletonEnd != '\0' ||
+            !AnimEnd || *AnimEnd != '\0' ||
+            ParsedSkeletonId < 0 || ParsedSkeletonId > INT32_MAX ||
+            ParsedAnimIndex < 0 || ParsedAnimIndex > INT32_MAX)
+        {
+            return false;
+        }
+
+        OutSkeletonId = static_cast<int32>(ParsedSkeletonId);
+        OutAnimIndex = static_cast<int32>(ParsedAnimIndex);
         return true;
     }
 
@@ -324,20 +370,17 @@ namespace
 
             if (SkeletalMeshIndex < static_cast<int32>(Scene.Skeletons.size()))
             {
-                USkeleton *Skeleton = UObjectManager::Get().CreateObject<USkeleton>(SceneAsset);
-                Skeleton->SetSkeletonAsset(new FSkeleton(std::move(Scene.Skeletons[SkeletalMeshIndex])));
-                SkeletalMesh->SetSkeleton(Skeleton);
+                USkeleton* Skeleton = UObjectManager::Get().CreateObject<USkeleton>(SceneAsset);
+                Skeleton->SetBones(std::move(Scene.Skeletons[SkeletalMeshIndex]));
                 SceneAsset->AddSkeleton(Skeleton);
             }
             if (SkeletalMeshIndex < static_cast<int32>(Scene.AnimSequences.size()))
             {
-                for (UAnimSequence* AnimSequence : Scene.AnimSequences[SkeletalMeshIndex])
+                for (FAnimationClip& Clip : Scene.AnimSequences[SkeletalMeshIndex])
                 {
-                    if (!AnimSequence)
-                    {
-                        continue;
-                    }
+                    UAnimSequence* AnimSequence = UObjectManager::Get().CreateObject<UAnimSequence>(SceneAsset);
                     AnimSequence->SetSkeletonAssetPath(MeshAsset->SkeletonAssetPath);
+                    AnimSequence->SetAnimationClip(std::move(Clip));
                     SceneAsset->AddAnimSequence(AnimSequence);
                 }
             }
@@ -350,20 +393,13 @@ namespace
                    SkeletalMeshIndex, BC.X, BC.Y, BC.Z, BE.X, BE.Y, BE.Z, BE.Z * 2.0f, BE.X * 2.0f,
                    BE.Length());
 
-            const USkeleton *SkeletonAsset = SkeletalMesh->GetSkeleton();
-            const TArray<FBoneInfo> *SkeletonBones =
-                SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
-
             UE_LOG("[FBXManager] SkeletalMesh[%d] BoneCount=%u", SkeletalMeshIndex,
-                   SkeletonBones ? static_cast<uint32>(SkeletonBones->size()) : 0u);
-            if (SkeletonBones && !SkeletonBones->empty())
+                   static_cast<uint32>(MeshAsset->Bones.size()));
+            for (size_t BoneIdx = 0; BoneIdx < MeshAsset->Bones.size(); ++BoneIdx)
             {
-                for (size_t BoneIdx = 0; BoneIdx < SkeletonBones->size(); ++BoneIdx)
-                {
-                    const FBoneInfo &B = (*SkeletonBones)[BoneIdx];
-                    UE_LOG("[FBXManager]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
-                           B.Name.c_str());
-                }
+                const FBoneInfo &B = MeshAsset->Bones[BoneIdx];
+                UE_LOG("[FBXManager]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
+                       B.Name.c_str());
             }
         }
 
@@ -371,6 +407,7 @@ namespace
         SceneAsset->SetSkeletonIdToSkeletalMeshAssetIndex(
             std::move(Scene.SkeletonIdToSkeletalMeshAssetIndex));
         SceneAsset->SetSceneComponents(std::move(Scene.SceneComponents));
+        AttachSiblingAnimationFbxFiles(SceneAsset);
         return SceneAsset;
     }
 
@@ -413,6 +450,246 @@ namespace
             Item.DisplayName = FPaths::ToUtf8(Path.filename().wstring());
             Item.FullPath = FPaths::ToUtf8(Path.lexically_relative(ProjectRoot).generic_wstring());
             OutFiles.push_back(std::move(Item));
+        }
+    }
+
+    bool IsInAnimationFolder(const FString &SourcePath)
+    {
+        std::filesystem::path Path(FPaths::ToWide(SourcePath));
+        const FString ParentName = FPaths::ToUtf8(Path.parent_path().filename().wstring());
+        return ToLower(FPaths::ToWide(ParentName)) == L"anims" ||
+               ToLower(FPaths::ToWide(ParentName)) == L"animations";
+    }
+
+    bool HasRenderableSkeletalMesh(const UFBXSceneAsset *SceneAsset)
+    {
+        if (!SceneAsset)
+        {
+            return false;
+        }
+
+        for (USkeletalMesh *Mesh : SceneAsset->GetSkeletalMeshes())
+        {
+            const FSkeletalMesh *MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
+            if (MeshAsset && !MeshAsset->Vertices.empty() && !MeshAsset->Indices.empty() &&
+                !MeshAsset->Bones.empty())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    TArray<std::filesystem::path> FindSiblingAnimationFbxFiles(const FString &SourcePath)
+    {
+        TArray<std::filesystem::path> Files;
+        const std::filesystem::path SourceDiskPath(ResolveDiskPath(SourcePath));
+        const std::filesystem::path AnimDir = SourceDiskPath.parent_path() / L"Anims";
+        if (!std::filesystem::exists(AnimDir))
+        {
+            return Files;
+        }
+
+        for (const auto &Entry : std::filesystem::directory_iterator(AnimDir))
+        {
+            if (!Entry.is_regular_file())
+            {
+                continue;
+            }
+
+            if (ToLower(Entry.path().extension().wstring()) == L".fbx")
+            {
+                Files.push_back(Entry.path());
+            }
+        }
+
+        std::sort(Files.begin(), Files.end());
+        return Files;
+    }
+
+    bool TryMakeProjectPath(const std::filesystem::path &DiskPath, FString &OutPath)
+    {
+        const std::filesystem::path Root = std::filesystem::path(FPaths::RootDir()).lexically_normal();
+        std::filesystem::path RelativePath = DiskPath.lexically_normal().lexically_relative(Root);
+        if (RelativePath.empty() || RelativePath.native().rfind(L"..", 0) == 0)
+        {
+            RelativePath = std::filesystem::relative(DiskPath.lexically_normal(), Root);
+        }
+
+        OutPath = FPaths::ToUtf8(RelativePath.generic_wstring());
+        return !OutPath.empty();
+    }
+
+    bool AreSkeletonsNameCompatible(const TArray<FBoneInfo> &TargetBones,
+                                    const TArray<FBoneInfo> &SourceBones)
+    {
+        if (TargetBones.empty() || SourceBones.empty())
+        {
+            return false;
+        }
+
+        TSet<FString> SourceNames;
+        for (const FBoneInfo &Bone : SourceBones)
+        {
+            SourceNames.insert(Bone.Name);
+        }
+
+        int32 MatchedCount = 0;
+        for (const FBoneInfo &Bone : TargetBones)
+        {
+            if (SourceNames.find(Bone.Name) != SourceNames.end())
+            {
+                ++MatchedCount;
+            }
+        }
+
+        return MatchedCount == static_cast<int32>(TargetBones.size());
+    }
+
+    FAnimationClip RemapClipToTargetSkeleton(const FAnimationClip &SourceClip,
+                                             const TArray<FBoneInfo> &SourceBones,
+                                             const TArray<FBoneInfo> &TargetBones)
+    {
+        std::unordered_map<FString, int32> SourceBoneNameToIndex;
+        for (int32 SourceBoneIndex = 0; SourceBoneIndex < static_cast<int32>(SourceBones.size());
+             ++SourceBoneIndex)
+        {
+            SourceBoneNameToIndex[SourceBones[SourceBoneIndex].Name] = SourceBoneIndex;
+        }
+
+        FAnimationClip RemappedClip;
+        RemappedClip.Name = SourceClip.Name;
+        RemappedClip.Duration = SourceClip.Duration;
+        RemappedClip.FrameRate = SourceClip.FrameRate;
+        RemappedClip.FrameCount = SourceClip.FrameCount;
+        RemappedClip.Tracks.resize(TargetBones.size());
+
+        for (int32 TargetBoneIndex = 0; TargetBoneIndex < static_cast<int32>(TargetBones.size());
+             ++TargetBoneIndex)
+        {
+            FBoneAnimTrack &TargetTrack = RemappedClip.Tracks[TargetBoneIndex];
+            TargetTrack.BoneIndex = TargetBoneIndex;
+
+            auto SourceIt = SourceBoneNameToIndex.find(TargetBones[TargetBoneIndex].Name);
+            if (SourceIt == SourceBoneNameToIndex.end())
+            {
+                TargetTrack.Samples.resize(SourceClip.FrameCount);
+                for (FBoneAnimSample &Sample : TargetTrack.Samples)
+                {
+                    Sample.LocalMatrix = TargetBones[TargetBoneIndex].LocalBindPose;
+                }
+                continue;
+            }
+
+            const int32 SourceBoneIndex = SourceIt->second;
+            if (SourceBoneIndex >= 0 &&
+                SourceBoneIndex < static_cast<int32>(SourceClip.Tracks.size()))
+            {
+                TargetTrack.Samples = SourceClip.Tracks[SourceBoneIndex].Samples;
+            }
+        }
+
+        return RemappedClip;
+    }
+
+    void AttachSiblingAnimationFbxFiles(UFBXSceneAsset *TargetSceneAsset)
+    {
+        if (!TargetSceneAsset || IsInAnimationFolder(TargetSceneAsset->GetSourcePath()) ||
+            !HasRenderableSkeletalMesh(TargetSceneAsset))
+        {
+            return;
+        }
+
+        const TArray<std::filesystem::path> AnimFiles =
+            FindSiblingAnimationFbxFiles(TargetSceneAsset->GetSourcePath());
+        if (AnimFiles.empty())
+        {
+            return;
+        }
+
+        TArray<USkeletalMesh *> TargetMeshes = TargetSceneAsset->GetSkeletalMeshes();
+        for (const std::filesystem::path &AnimDiskPath : AnimFiles)
+        {
+            FString AnimPath;
+            if (!TryMakeProjectPath(AnimDiskPath, AnimPath))
+            {
+                continue;
+            }
+
+            UFBXSceneAsset *AnimSceneAsset = FFBXManager::LoadFbxScene(AnimPath);
+            if (!AnimSceneAsset)
+            {
+                continue;
+            }
+
+            const TArray<USkeletalMesh *> &SourceMeshes = AnimSceneAsset->GetSkeletalMeshes();
+            const TArray<UAnimSequence *> &SourceSequences = AnimSceneAsset->GetAnimSequences();
+
+            int32 SourceSequenceOffset = 0;
+            for (USkeletalMesh *SourceMesh : SourceMeshes)
+            {
+                const FSkeletalMesh *SourceMeshAsset =
+                    SourceMesh ? SourceMesh->GetSkeletalMeshAsset() : nullptr;
+                if (!SourceMeshAsset)
+                {
+                    continue;
+                }
+
+                const int32 SourceSequenceCount =
+                    static_cast<int32>(SourceMeshAsset->AnimationSequenceAssetPaths.size());
+                if (SourceSequenceCount <= 0)
+                {
+                    continue;
+                }
+
+                for (USkeletalMesh *TargetMesh : TargetMeshes)
+                {
+                    FSkeletalMesh *TargetMeshAsset =
+                        TargetMesh ? TargetMesh->GetSkeletalMeshAsset() : nullptr;
+                    if (!TargetMeshAsset ||
+                        !AreSkeletonsNameCompatible(TargetMeshAsset->Bones, SourceMeshAsset->Bones))
+                    {
+                        continue;
+                    }
+
+                    for (int32 LocalAnimIndex = 0; LocalAnimIndex < SourceSequenceCount;
+                         ++LocalAnimIndex)
+                    {
+                        const int32 FlatAnimIndex = SourceSequenceOffset + LocalAnimIndex;
+                        if (FlatAnimIndex < 0 ||
+                            FlatAnimIndex >= static_cast<int32>(SourceSequences.size()) ||
+                            !SourceSequences[FlatAnimIndex])
+                        {
+                            continue;
+                        }
+
+                        const FString LinkedPath =
+                            AnimPath + "#AnimLinked_" + std::to_string(LocalAnimIndex);
+                        if (std::find(TargetMeshAsset->AnimationSequenceAssetPaths.begin(),
+                                      TargetMeshAsset->AnimationSequenceAssetPaths.end(),
+                                      LinkedPath) != TargetMeshAsset->AnimationSequenceAssetPaths.end())
+                        {
+                            continue;
+                        }
+
+                        UAnimSequence *LinkedSequence =
+                            UObjectManager::Get().CreateObject<UAnimSequence>(TargetSceneAsset);
+                        LinkedSequence->SetSkeletonAssetPath(TargetMeshAsset->SkeletonAssetPath);
+                        LinkedSequence->SetAnimationClip(RemapClipToTargetSkeleton(
+                            SourceSequences[FlatAnimIndex]->GetAnimationClip(),
+                            SourceMeshAsset->Bones, TargetMeshAsset->Bones));
+
+                        TargetSceneAsset->AddAnimSequence(LinkedSequence);
+                        TargetMeshAsset->AnimationSequenceAssetPaths.push_back(LinkedPath);
+
+                        UE_LOG("[FBXManager] Linked sibling animation. Mesh=%s Anim=%s Clip=%s",
+                               TargetMeshAsset->PathFileName.c_str(), AnimPath.c_str(),
+                               LinkedSequence->GetAnimationClip().Name.c_str());
+                    }
+                }
+
+                SourceSequenceOffset += SourceSequenceCount;
+            }
         }
     }
 }
@@ -540,6 +817,87 @@ USkeletalMesh *FFBXManager::ResolveSkeletalMeshReference(const FString &PathFile
     return SkeletalMesh;
 }
 
+UAnimSequence *FFBXManager::ResolveAnimSequenceReference(const FString &PathFileName)
+{
+    FString SourcePath;
+    int32   SourceSkeletonId = -1;
+    int32   AnimIndex = -1;
+    if (!ParseFbxSceneAnimSequenceReference(PathFileName, SourcePath, SourceSkeletonId, AnimIndex))
+    {
+        return nullptr;
+    }
+
+    UFBXSceneAsset *SceneAsset = LoadFbxScene(SourcePath);
+    if (!SceneAsset)
+    {
+        UE_LOG("[FBXManager] Failed to load FBX scene for anim sequence reference: %s",
+               PathFileName.c_str());
+        return nullptr;
+    }
+
+    const TArray<USkeletalMesh *> &SkeletalMeshes = SceneAsset->GetSkeletalMeshes();
+    const TArray<UAnimSequence *> &AnimSequences = SceneAsset->GetAnimSequences();
+
+    int32 SequenceOffset = 0;
+    for (USkeletalMesh *SkeletalMesh : SkeletalMeshes)
+    {
+        const FSkeletalMesh *MeshAsset = SkeletalMesh ? SkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+        if (!MeshAsset)
+        {
+            continue;
+        }
+
+        const int32 SequenceCount = static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
+        const FString SkeletonRef = SourcePath + "#Skeleton_" + std::to_string(SourceSkeletonId);
+        const bool bMatchesSkeleton =
+            MeshAsset->SkeletonAssetPath == SourcePath + "#SkeletonAsset_" + std::to_string(SourceSkeletonId) ||
+            PathFileName.find(SkeletonRef) != FString::npos;
+
+        if (bMatchesSkeleton)
+        {
+            const int32 FlatIndex = SequenceOffset + AnimIndex;
+            if (AnimIndex >= 0 && AnimIndex < SequenceCount &&
+                FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
+            {
+                return AnimSequences[FlatIndex];
+            }
+            break;
+        }
+
+        SequenceOffset += SequenceCount;
+    }
+
+    int32 FallbackOffset = 0;
+    for (USkeletalMesh *SkeletalMesh : SkeletalMeshes)
+    {
+        const FSkeletalMesh *MeshAsset = SkeletalMesh ? SkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+        if (!MeshAsset)
+        {
+            continue;
+        }
+
+        const auto It = std::find(MeshAsset->AnimationSequenceAssetPaths.begin(),
+                                  MeshAsset->AnimationSequenceAssetPaths.end(),
+                                  PathFileName);
+        if (It != MeshAsset->AnimationSequenceAssetPaths.end())
+        {
+            const int32 LocalIndex = static_cast<int32>(std::distance(
+                MeshAsset->AnimationSequenceAssetPaths.begin(), It));
+            const int32 FlatIndex = FallbackOffset + LocalIndex;
+            if (FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
+            {
+                return AnimSequences[FlatIndex];
+            }
+        }
+
+        FallbackOffset += static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
+    }
+
+    UE_LOG("[FBXManager] Anim sequence reference not found in FBX scene. Ref=%s",
+           PathFileName.c_str());
+    return nullptr;
+}
+
 UObject *FFBXManager::ResolveFbxSceneAssetReference(const FString &PathFileName)
 {
     if (IsFbxPath(PathFileName))
@@ -553,6 +911,10 @@ UObject *FFBXManager::ResolveFbxSceneAssetReference(const FString &PathFileName)
     if (PathFileName.find("#Skeleton_") != FString::npos)
     {
         return ResolveSkeletalMeshReference(PathFileName);
+    }
+    if (PathFileName.find("#Anim_") != FString::npos)
+    {
+        return ResolveAnimSequenceReference(PathFileName);
     }
     return nullptr;
 }

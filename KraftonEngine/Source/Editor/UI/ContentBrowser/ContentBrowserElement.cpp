@@ -3,15 +3,19 @@
 #include "Component/StaticMeshComponent.h"
 #include "Editor/EditorEngine.h"
 #include "GameFramework/AActor.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Material/MaterialManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Import/MeshManager.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "Object/Object.h"
 #include "Platform/Paths.h"
 #include "Render/Device/D3DDevice.h"
 #include "Render/Snapshot/SnapShotRenderer.h"
 #include "Resource/ResourceManager.h"
 #include "Runtime/Engine.h"
+
+#include <algorithm>
 
 namespace
 {
@@ -156,6 +160,74 @@ namespace
 		return BuildSkeletalMeshSnapshot(Context, SkeletalMesh);
 	}
 
+	FString GetFbxSourcePathFromSubAssetPath(const FString& AssetPath)
+	{
+		const size_t MarkerPos = AssetPath.find('#');
+		return MarkerPos == FString::npos ? AssetPath : AssetPath.substr(0, MarkerPos);
+	}
+
+	USkeletalMesh* FindSkeletalMeshForAnimSequencePath(UFBXSceneAsset* SceneAsset, const FString& AnimSequencePath)
+	{
+		if (!SceneAsset)
+		{
+			return nullptr;
+		}
+
+		for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+		{
+			const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
+			if (!MeshAsset)
+			{
+				continue;
+			}
+
+			const auto It = std::find(
+				MeshAsset->AnimationSequenceAssetPaths.begin(),
+				MeshAsset->AnimationSequenceAssetPaths.end(),
+				AnimSequencePath);
+			if (It != MeshAsset->AnimationSequenceAssetPaths.end())
+			{
+				return Mesh;
+			}
+		}
+
+		return nullptr;
+	}
+
+	ID3D11ShaderResourceView* BuildAnimSequenceSnapshot(ContentBrowserContext& Context, const FString& AnimSequencePath)
+	{
+		UAnimSequence* Sequence = FMeshManager::ResolveAnimSequenceReference(AnimSequencePath);
+		if (!Sequence || !Sequence->IsValidSequence())
+		{
+			return nullptr;
+		}
+
+		UFBXSceneAsset* SceneAsset = FMeshManager::LoadFbxScene(GetFbxSourcePathFromSubAssetPath(AnimSequencePath));
+		USkeletalMesh* SkeletalMesh = FindSkeletalMeshForAnimSequencePath(SceneAsset, AnimSequencePath);
+		if (!SkeletalMesh)
+		{
+			return nullptr;
+		}
+
+		AActor* Actor = UObjectManager::Get().CreateObject<AActor>();
+		if (!Actor)
+		{
+			return nullptr;
+		}
+
+		USkeletalMeshComponent* MeshComponent = Actor->AddComponent<USkeletalMeshComponent>();
+		MeshComponent->SetSkeletalMesh(SkeletalMesh);
+		MeshComponent->SetAnimation(Sequence);
+		const float SampleTime = Sequence->GetPlayLength() * 0.25f;
+		MeshComponent->SetBakedAnimPaused(true);
+		MeshComponent->SetBakedAnimTime(SampleTime);
+		MeshComponent->EvaluateAnimationPose(Sequence->GetAnimationClip(), SampleTime);
+
+		ID3D11ShaderResourceView* Snapshot = SnapshotActor(Context, Actor);
+		UObjectManager::Get().DestroyObject(Actor);
+		return Snapshot;
+	}
+
 	ID3D11ShaderResourceView* BuildMaterialSnapshot(ContentBrowserContext& Context, const FString& MaterialPath)
 	{
 		FD3DDevice* Device = GetContentBrowserD3DDevice(Context);
@@ -264,6 +336,22 @@ namespace
 		std::shared_ptr<ContentBrowserElement> Element =
 			std::static_pointer_cast<ContentBrowserElement>(std::make_shared<MaterialElement>());
 		Element->SetContent(std::move(MaterialItem));
+		OutElements.push_back(std::move(Element));
+	}
+
+	void AddAnimSequenceElement(
+		const FString& AnimSequencePath,
+		const FString& DisplayName,
+		TArray<std::shared_ptr<ContentBrowserElement>>& OutElements)
+	{
+		FContentItem AnimItem;
+		AnimItem.Path = FPaths::ToWide(AnimSequencePath);
+		AnimItem.Name = FPaths::ToWide(DisplayName);
+		AnimItem.bIsDirectory = false;
+
+		std::shared_ptr<ContentBrowserElement> Element =
+			std::static_pointer_cast<ContentBrowserElement>(std::make_shared<ImportedAnimSequenceElement>());
+		Element->SetContent(std::move(AnimItem));
 		OutElements.push_back(std::move(Element));
 	}
 }
@@ -503,6 +591,23 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ImportedSkeletalMeshElement::Ge
 	return Result;
 }
 
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ImportedAnimSequenceElement::GetElementIcon(ContentBrowserContext& Context)
+{
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Result;
+	Result.Attach(BuildAnimSequenceSnapshot(Context, FPaths::ToUtf8(ContentItem.Path.wstring())));
+	return Result;
+}
+
+void ImportedAnimSequenceElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
+{
+	if (!Context.EditorEngine)
+	{
+		return;
+	}
+
+	Context.EditorEngine->OpenAnimSequenceAsset(FPaths::ToUtf8(ContentItem.Path.wstring()));
+}
+
 void FBXElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
 {
 	if (!Context.EditorEngine)
@@ -547,6 +652,7 @@ void FBXElement::Import(ContentBrowserContext& Context)
 
 	TSet<FString> AddedMaterialPaths;
 	TArray<FString> MaterialPaths;
+	TSet<FString> AddedAnimSequencePaths;
 
 	for (const FFBXSceneComponentDesc& Desc : SceneAsset->GetSceneComponents())
 	{
@@ -611,6 +717,43 @@ void FBXElement::Import(ContentBrowserContext& Context)
 	for (const FString& MaterialPath : MaterialPaths)
 	{
 		AddMaterialElement(MaterialPath, InternalElements);
+	}
+
+	const TArray<USkeletalMesh*>& SkeletalMeshes = SceneAsset->GetSkeletalMeshes();
+	const TArray<UAnimSequence*>& AnimSequences = SceneAsset->GetAnimSequences();
+	int32 AnimSequenceOffset = 0;
+	for (USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+	{
+		const FSkeletalMesh* MeshAsset = SkeletalMesh ? SkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+		if (!MeshAsset)
+		{
+			continue;
+		}
+
+		for (int32 AnimIndex = 0; AnimIndex < static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size()); ++AnimIndex)
+		{
+			const FString& AnimSequencePath = MeshAsset->AnimationSequenceAssetPaths[AnimIndex];
+			if (AnimSequencePath.empty() || AddedAnimSequencePaths.find(AnimSequencePath) != AddedAnimSequencePaths.end())
+			{
+				continue;
+			}
+
+			const int32 FlatAnimIndex = AnimSequenceOffset + AnimIndex;
+			const UAnimSequence* Sequence =
+				(FlatAnimIndex >= 0 && FlatAnimIndex < static_cast<int32>(AnimSequences.size()))
+					? AnimSequences[FlatAnimIndex]
+					: nullptr;
+			const FAnimationClip* Clip = Sequence ? &Sequence->GetAnimationClip() : nullptr;
+
+			FString DisplayName = Clip && !Clip->Name.empty()
+				? Clip->Name
+				: FString("AnimSequence_") + std::to_string(AnimIndex);
+
+			AddAnimSequenceElement(AnimSequencePath, DisplayName, InternalElements);
+			AddedAnimSequencePaths.insert(AnimSequencePath);
+		}
+
+		AnimSequenceOffset += static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
 	}
 
 	//bExpanded = !InternalElements.empty();
