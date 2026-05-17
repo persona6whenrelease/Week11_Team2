@@ -175,12 +175,23 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
 
         TArray<FBoneAnimationTrack> Tracks;
         Tracks.resize(BoneCount);
-        // 본마다 저장 공간을 준비하는 코드
+        // 본마다 저장 공간을 준비한다. Track 이름은 BoneNodes와 같은 SkeletonMeta.BoneIds 기준으로 맞춘다.
         for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
         {
-            Tracks[BoneIndex].Name = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
-                                         ? FName(SkeletonBones[BoneIndex].Name.c_str())
-                                         : FName();
+            const int32 BoneId = SkeletonMeta.BoneIds[BoneIndex];
+            if (IsValidIndex(SkeletonBones, BoneId))
+            {
+                Tracks[BoneIndex].Name = FName(SkeletonBones[BoneId].Name.c_str());
+            }
+            else if (IsValidIndex(SkeletonBones, BoneIndex))
+            {
+                Tracks[BoneIndex].Name = FName(SkeletonBones[BoneIndex].Name.c_str());
+            }
+            else
+            {
+                Tracks[BoneIndex].Name = FName();
+            }
+
             Tracks[BoneIndex].InternalTrack.PosKeys.resize(FrameCount, FVector(0.0f, 0.0f, 0.0f));
             Tracks[BoneIndex].InternalTrack.RotKeys.resize(FrameCount, FQuat::Identity);
             Tracks[BoneIndex].InternalTrack.ScaleKeys.resize(FrameCount, FVector(1.0f, 1.0f, 1.0f));
