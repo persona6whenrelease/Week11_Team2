@@ -136,7 +136,12 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
     // AnimInstance가 산출한 로컬 포즈를 부모 버퍼로 복사 — RebuildMeshSpaceBoneMatrices가 이 버퍼를 읽는다.
     LocalBonePoseMatrices = AnimInstance->GetOutputLocalPose();
+
+    // SetBoneLocalPose / ResetBonePoseToBindPose와 동일한 순서로 CPU 스킨 → GPU VB 업로드 → 바운드 dirty 처리.
     RebuildMeshSpaceBoneMatrices();
+    SkinVerticesToReferencePose();
+    EnsureRuntimeResources();
+    MarkWorldBoundsDirty();
 
     // 외부 호환 mirror.
     BakedAnimTime = AnimInstance->GetCurrentTime();
