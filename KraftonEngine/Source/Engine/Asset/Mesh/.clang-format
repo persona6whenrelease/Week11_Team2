@@ -1,0 +1,8 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+NamespaceIndentation: All
+ColumnLimit: 100
+BreakBeforeBraces: Allman # 제어문도 break 하고싶다면 Allman으로 변경
+AlignConsecutiveDeclarations: true
+
+SortIncludes: false

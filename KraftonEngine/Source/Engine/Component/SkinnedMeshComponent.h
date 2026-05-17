@@ -41,7 +41,6 @@ protected:
 	void BuildBindPoseRenderVertices();
 	void UploadSkinnedVertices();
 	void RebuildMeshSpaceBoneMatrices();
-	virtual void OnManualBonePoseEdited() {}
 	virtual void SkinVerticesToReferencePose();
 
 	USkeletalMesh* SkeletalMesh = nullptr;

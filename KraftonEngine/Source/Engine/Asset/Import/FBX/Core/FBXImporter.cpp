@@ -192,18 +192,22 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
                 OutFBXAsset.AnimSequences.resize(SkeletalMeshIndex + 1);
             }
 
-            OutFBXAsset.Skeletons[SkeletalMeshIndex] = SkeletalMesh.Bones;
             SkeletalMesh.SkeletonAssetPath = InFilePath + "#SkeletonAsset_" + std::to_string(SkeletonMeta.SkeletonId);
+            FSkeleton &SkeletonAsset = OutFBXAsset.Skeletons[SkeletalMeshIndex];
+            SkeletonAsset.PathFileName = SkeletalMesh.SkeletonAssetPath;
+            SkeletonAsset.Bones = std::move(SkeletalMesh.Bones);
+            SkeletonAsset.RebuildBoneNameToIndex();
 
             AnimationParser.ParseSkeletonAnimations(Scene, SkeletonMeta,
-                                                    SkeletalMesh.Bones,
+                                                    SkeletonAsset.Bones,
                                                     OutFBXAsset.AnimSequences[SkeletalMeshIndex]);
 
-            SkeletalMesh.AnimationSequenceAssetPaths.clear();
-            for (int32 AnimIndex = 0; AnimIndex < static_cast<int32>(OutFBXAsset.AnimSequences[SkeletalMeshIndex].size()); ++AnimIndex)
+            for (UAnimSequence* AnimSequence : OutFBXAsset.AnimSequences[SkeletalMeshIndex])
             {
-                SkeletalMesh.AnimationSequenceAssetPaths.push_back(
-                    InFilePath + "#Anim_" + std::to_string(SkeletonMeta.SkeletonId) + "_" + std::to_string(AnimIndex));
+                if (AnimSequence)
+                {
+                    AnimSequence->SetSkeletonAssetPath(SkeletalMesh.SkeletonAssetPath);
+                }
             }
         }
     }

@@ -1,9 +1,9 @@
 /**
  * 애니메이션 재생 중 특정 시간에 발생하는 Notify 이벤트를 정의한다.
  *
- * Notify는 단순히 이름과 트리거 시간만 저장하는 것이 아니라, 루프 재생 중 시간이 시퀀스 끝에서 처음으로
- * 감기는 상황까지 고려해 이벤트 발생 여부를 판정한다. 런타임 로직이나 에디터 타임라인은 이 구조를 통해
- * 시퀀스 데이터와 게임 이벤트를 느슨하게 연결한다.
+ * Notify는 단순히 이름과 트리거 시간만 저장하는 것이 아니라, 루프 재생 중 시간이 시퀀스 끝에서
+ * 처음으로 감기는 상황까지 고려해 이벤트 발생 여부를 판정한다. 런타임 로직이나 에디터 타임라인은 이
+ * 구조를 통해 시퀀스 데이터와 게임 이벤트를 느슨하게 연결한다.
  */
 
 #pragma once
@@ -21,7 +21,7 @@ struct FAnimNotifyEvent
     float Duration = 0.0f;
     FName NotifyName;
 
-    friend FArchive& operator<<(FArchive& Ar, FAnimNotifyEvent& Notify)
+    friend FArchive &operator<<(FArchive &Ar, FAnimNotifyEvent &Notify)
     {
         Ar << Notify.TriggerTime;
         Ar << Notify.Duration;

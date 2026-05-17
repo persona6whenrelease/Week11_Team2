@@ -122,12 +122,6 @@ bool FEditorMainPanel::OpenSkeletalMeshViewerAsset(const FString& FbxPath)
 	return SkeletalMeshViewerWidget.OpenFbxAsset(FbxPath);
 }
 
-bool FEditorMainPanel::OpenAnimSequenceAsset(const FString& AssetPath)
-{
-	FEditorSettings::Get().UI.bSkeletalMeshViewer = true;
-	return SkeletalMeshViewerWidget.OpenAnimSequenceAsset(AssetPath);
-}
-
 void FEditorMainPanel::Render(float DeltaTime)
 {
 	ImGui_ImplDX11_NewFrame();

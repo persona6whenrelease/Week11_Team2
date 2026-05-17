@@ -12,6 +12,10 @@
 #include "Engine/Math/Matrix.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
 
+// ====================================================
+// Per-Object Metadata
+// ====================================================
+
 /**
  * FBX 노드의 계층, 타입, 연결 정보를 저장하는 메타 데이터이다.
  */
@@ -164,9 +168,16 @@ struct FFbxMaterialInfo
 /**
  * FBX 씬 분석 결과 전체를 담는 공유 메타 데이터 컨테이너이다.
  */
+// ====================================================
+// Import Metadata Container
+// ====================================================
+
 struct FFbxImportMeta
 {
+    // Source file
     FString                           SourceFilePath;
+
+    // Collected metadata tables
     TArray<FFbxNodeMeta>              Nodes;
     TArray<FFbxMeshMeta>              Meshes;
     TArray<FFbxSkinMeta>              Skins;
@@ -174,12 +185,16 @@ struct FFbxImportMeta
     TArray<FFbxBoneMeta>              Bones;
     TArray<FFbxSkeletonMeta>          Skeletons;
     TArray<FFbxMaterialInfo>          Materials;
+
+    // Classified result lists
     TArray<int32>                     StaticMeshIds;
     TArray<int32>                     SkeletalMeshIds;
     TArray<int32>                     RigidAttachedMeshIds;
     TArray<int32>                     IndependentStaticMeshIds;
     TArray<int32>                     LightNodeIds;
     TArray<int32>                     CameraNodeIds;
+
+    // Reverse lookup maps
     TMap<FbxNode *, int32>            NodeToNodeId;
     TMap<FbxMesh *, int32>            MeshToMeshId;
     TMap<FbxMesh *, TArray<int32>>    FbxMeshToMeshIds;

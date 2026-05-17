@@ -287,7 +287,7 @@ void FEditorContentBrowserWidget::RefreshContent()
 		{
 			element = std::make_shared<CurveElement>();
 		}
-		else if (Content.Path.extension() == ".fbx" || Content.Path.extension() == ".FBX")
+		else if (Content.Path.extension() == ".fbx")
 		{
 			element = std::make_shared<FBXElement>();
 		}
