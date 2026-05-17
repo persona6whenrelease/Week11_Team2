@@ -41,8 +41,8 @@ struct FSkeletalMesh
     TArray<FMeshSection>    Sections;
     
     FString                 SkeletonAssetPath;
+    // FBX 조립 과정에서만 사용하는 임시 본 배열이다. 저장 시에는 USkeleton으로 분리된다.
     TArray<FBoneInfo>       Bones;
-    TArray<FString>         AnimationSequenceAssetPaths;
 
     FVector BoundsCenter = FVector(0, 0, 0);
     FVector BoundsExtent = FVector(0, 0, 0);
@@ -84,7 +84,5 @@ struct FSkeletalMesh
         Ar << Indices;
         Ar << Sections;
         Ar << SkeletonAssetPath;
-        Ar << Bones;
-        Ar << AnimationSequenceAssetPaths;
     }
 };

@@ -14,6 +14,7 @@
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
 #include "Object/Object.h"
+#include "Object/ObjectFactory.h"
 #include "Serialization/Archive.h"
 
 /**
@@ -25,8 +26,8 @@ struct FFBXScene
     int64                           SourceTimestamp = 0;
     TArray<FStaticMesh>             StaticMeshes;
     TArray<FSkeletalMesh>           SkeletalMeshes;
-    TArray<TArray<FBoneInfo>>       Skeletons;
-    TArray<TArray<FAnimationClip>>  AnimSequences;
+    TArray<FSkeleton>               Skeletons;
+    TArray<TArray<UAnimSequence *>> AnimSequences;
     TArray<TArray<FStaticMaterial>> StaticMeshMaterials;
     TArray<TArray<FMeshMaterial>>   SkeletalMeshMaterials;
     TArray<FFBXSceneComponentDesc>  SceneComponents;
@@ -43,7 +44,7 @@ struct FFBXScene
         SerializeMeshArray(Ar, StaticMeshes);
         SerializeMeshArray(Ar, SkeletalMeshes);
         Ar << Skeletons;
-        Ar << AnimSequences;
+        SerializeAnimSequenceArray(Ar, AnimSequences);
         Ar << StaticMeshMaterials;
         Ar << SkeletalMeshMaterials;
         Ar << SceneComponents;
@@ -64,6 +65,42 @@ struct FFBXScene
         for (MeshType &Mesh : Meshes)
         {
             Mesh.Serialize(Ar);
+        }
+    }
+
+
+
+    static void SerializeAnimSequenceArray(FArchive &Ar, TArray<TArray<UAnimSequence*>> &Sequences)
+    {
+        uint32 OuterCount = static_cast<uint32>(Sequences.size());
+        Ar << OuterCount;
+        if (Ar.IsLoading())
+        {
+            Sequences.clear();
+            Sequences.resize(OuterCount);
+        }
+
+        for (uint32 OuterIndex = 0; OuterIndex < OuterCount; ++OuterIndex)
+        {
+            uint32 InnerCount = static_cast<uint32>(Sequences[OuterIndex].size());
+            Ar << InnerCount;
+            if (Ar.IsLoading())
+            {
+                Sequences[OuterIndex].clear();
+                Sequences[OuterIndex].resize(InnerCount, nullptr);
+            }
+
+            for (uint32 InnerIndex = 0; InnerIndex < InnerCount; ++InnerIndex)
+            {
+                if (Ar.IsLoading() && !Sequences[OuterIndex][InnerIndex])
+                {
+                    Sequences[OuterIndex][InnerIndex] = UObjectManager::Get().CreateObject<UAnimSequence>();
+                }
+                if (Sequences[OuterIndex][InnerIndex])
+                {
+                    Sequences[OuterIndex][InnerIndex]->Serialize(Ar);
+                }
+            }
         }
     }
 

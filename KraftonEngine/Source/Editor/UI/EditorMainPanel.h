@@ -41,7 +41,6 @@ public:
 	float GetContentBrowserIconSize() const { return ContentBrowserWidget.GetIconSize(); }
 	bool OpenCurveAsset(const FString& CurvePath);
 	bool OpenSkeletalMeshViewerAsset(const FString& FbxPath);
-	bool OpenAnimSequenceAsset(const FString& AssetPath);
 
 private:
 	void RenderMainMenuBar();

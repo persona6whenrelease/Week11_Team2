@@ -12,6 +12,7 @@
 #include "Collision/MeshTriangleBVH.h"
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
+#include "Asset/AssetFileHeader.h"
 
 #include <memory>
 
@@ -35,6 +36,7 @@ class UStaticMesh : public UObject
     DECLARE_CLASS(UStaticMesh, UObject)
 
     static constexpr uint32 MAX_LOD_COUNT = 4;
+    static constexpr uint32 AssetVersion = 1;
 
     UStaticMesh() = default;
     ~UStaticMesh() override;

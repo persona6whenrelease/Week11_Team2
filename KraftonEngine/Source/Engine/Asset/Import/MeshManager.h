@@ -2,8 +2,8 @@
  * OBJ와 FBX를 함께 다루는 상위 메시 매니저를 선언한다.
  *
  * FMeshManager는 사용자가 요청한 경로가 OBJ인지, FBX 씬 캐시의 하위 에셋 참조인지 판단하고 적절한
- * 전용 매니저로 위임한다. 에디터 입장에서는 하나의 메시 로드 API를 사용하지만, 내부에서는 원본 포맷과
- * 캐시 방식에 따라 다른 경로를 선택한다.
+ * 전용 매니저로 위임한다. 에디터 입장에서는 하나의 메시 로드 API를 사용하지만, 내부에서는 원본
+ * 포맷과 캐시 방식에 따라 다른 경로를 선택한다.
  */
 
 #pragma once
@@ -17,7 +17,6 @@ class UFBXSceneAsset;
 class UObject;
 class USkeletalMesh;
 class UStaticMesh;
-class UAnimSequence;
 
 /**
  * OBJ와 FBX 로드 경로를 하나로 묶어 제공하는 상위 메시 매니저이다.
@@ -26,7 +25,7 @@ class FMeshManager
 {
   public:
     static constexpr uint32 FbxSceneCacheMagic = 0x4E435346u;
-    static constexpr uint32 FbxSceneCacheVersion = 5u;
+    static constexpr uint32 FbxSceneCacheVersion = 1u;
 
     static bool IsFbxStaticMeshReference(const FString &PathFileName);
     static bool IsFbxSkeletalMeshReference(const FString &PathFileName);
@@ -39,11 +38,8 @@ class FMeshManager
     static UStaticMesh   *LoadObjStaticMesh(const FString        &PathFileName,
                                             const FImportOptions &Options, ID3D11Device *InDevice);
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
-    static UAnimSequence *ResolveAnimSequenceReference(const FString &PathFileName);
-    
 
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
-    
 
     static UObject *ResolveFbxSceneAssetReference(const FString &PathFileName);
 

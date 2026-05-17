@@ -68,5 +68,6 @@ struct FMeshMaterial
     }
 };
 
+// legacy
 using FStaticMeshSection = FMeshSection;
 using FStaticMaterial = FMeshMaterial;
