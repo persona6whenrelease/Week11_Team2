@@ -4,8 +4,14 @@
 #include <DbgHelp.h>
 #include <ctime>
 #include <cstdio>
+#include <mutex>
 
 #pragma comment(lib, "DbgHelp.lib")
+
+namespace
+{
+	static std::mutex DumpMutex;
+}
 
 [[noreturn]] __declspec(noinline) void CauseIntentionalCrash()
 {
@@ -16,6 +22,8 @@
 
 LONG WINAPI WriteCrashDump(EXCEPTION_POINTERS* ExceptionInfo)
 {
+	std::lock_guard<std::mutex> Lock(DumpMutex);
+
 	FPaths::CreateDir(FPaths::DumpDir());
 
 	// 타임스탬프 기반 파일명 생성
