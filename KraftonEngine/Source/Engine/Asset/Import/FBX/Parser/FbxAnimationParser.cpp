@@ -1,21 +1,21 @@
 /**
  * FBX 애니메이션 데이터를 UAnimSequence 에셋으로 변환한다.
  *
- * FBX animation stack마다 하나의 UAnimSequence를 생성한다. 단, stack 내부에 여러 animation layer가
+ * FBX animation stack마다 하나의 UAnimSequence를 생성한다. 한 stack 내부에 여러 animation layer가
  * 있더라도 현재 importer는 0번 layer, 즉 base layer만 사용한다. FBX SDK의 EvaluateGlobalTransform()
  * 기반 평가는 stack 전체 layer가 합성될 수 있으므로 사용하지 않고, 0번 layer의 LclTranslation,
  * LclRotation, LclScaling curve만 직접 샘플링한다.
  *
- * 이 파일은 animation blending layer를 지원하지 않는다. 여러 layer가 존재하면 로그만 남기고 첫 번째
- * layer만 bake한다. Runtime은 이미 bake된 UAnimDataModel만 재생하므로 layer 개념을 알 필요가 없다.
+ * 파일 단위 animation blending layer를 지원하지 않으므로 여러 layer가 존재하면 로그만 남기고 첫 번째
+ * layer만 bake한다. Runtime은 이미 bake된 UAnimDataModel만 재생하므로 layer 컨텍스트가 필요없다.
  */
 
 // TODO: 다중 레이어 합성 처리
 
 #include "Asset/Import/FBX/Parser/FbxAnimationParser.h"
 
-#include "Core/Log.h"
 #include "Asset/Import/FBX/Core/FBXUtil.h"
+#include "Core/Log.h"
 #include "Object/ObjectFactory.h"
 
 #include <fbxsdk.h>
@@ -54,25 +54,19 @@ namespace
             0.0);
     }
 
-    FbxAMatrix SampleLocalMatrixFromBaseLayer(FbxNode* Node, FbxAnimLayer* BaseLayer, FbxTime Time)
+    FQuat SampleLocalRotationQuatFromBaseLayer(FbxNode* Node, FbxAnimLayer* BaseLayer, FbxTime Time)
     {
-        FbxAMatrix LocalMatrix;
-        LocalMatrix.SetIdentity();
+        FbxAMatrix RotationMatrix;
+        RotationMatrix.SetIdentity();
 
         if (!Node || !BaseLayer)
         {
-            return LocalMatrix;
+            return FQuat::Identity;
         }
 
-        const FbxVector4 Translation = SampleDouble3PropertyFromLayer(Node->LclTranslation, BaseLayer, Time);
-        const FbxVector4 Rotation = SampleDouble3PropertyFromLayer(Node->LclRotation, BaseLayer, Time);
-        const FbxVector4 Scaling = SampleDouble3PropertyFromLayer(Node->LclScaling, BaseLayer, Time);
-
-        LocalMatrix.SetT(Translation);
-        LocalMatrix.SetR(Rotation);
-        LocalMatrix.SetS(Scaling);
-
-        return LocalMatrix;
+        const FbxVector4 RotationEuler = SampleDouble3PropertyFromLayer(Node->LclRotation, BaseLayer, Time);
+        RotationMatrix.SetR(RotationEuler);
+        return FBXUtil::ConvertFbxMatrix(RotationMatrix).ToQuat().GetNormalized();
     }
 }
 
@@ -191,20 +185,18 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
 
         TArray<FBoneAnimationTrack> Tracks;
         Tracks.resize(BoneCount);
+        // 본마다 저장 공간을 준비하는 코드
         for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
         {
             Tracks[BoneIndex].Name = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
                                          ? FName(SkeletonBones[BoneIndex].Name.c_str())
                                          : FName();
-            Tracks[BoneIndex].InternalTrack.LocalMatrixKeys.resize(FrameCount, FMatrix::Identity);
+            Tracks[BoneIndex].InternalTrack.PosKeys.resize(FrameCount, FVector(0.0f, 0.0f, 0.0f));
+            Tracks[BoneIndex].InternalTrack.RotKeys.resize(FrameCount, FQuat::Identity);
+            Tracks[BoneIndex].InternalTrack.ScaleKeys.resize(FrameCount, FVector(1.0f, 1.0f, 1.0f));
         }
 
-        TArray<FMatrix> LocalMatrices;
-        LocalMatrices.resize(BoneCount, FMatrix::Identity);
-
-        TArray<FMatrix> GlobalMatrices;
-        GlobalMatrices.resize(BoneCount, FMatrix::Identity);
-
+        // 각 프레임 시간마다 FBX에서 실제 값을 읽어서 넣는 코드
         for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
         {
             const double FrameAlpha = (FrameCount > 1)
@@ -220,30 +212,17 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                 FbxNode* Node = BoneNodes[BoneIndex];
                 if (!Node)
                 {
-                    LocalMatrices[BoneIndex] = FMatrix::Identity;
-                    GlobalMatrices[BoneIndex] = FMatrix::Identity;
                     continue;
                 }
 
-                LocalMatrices[BoneIndex] =
-                    FBXUtil::ConvertFbxMatrix(SampleLocalMatrixFromBaseLayer(Node, BaseLayer, SampleTime));
-
-                const int32 ParentIndex = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
-                                              ? SkeletonBones[BoneIndex].ParentIndex
-                                              : -1;
-
-                if (ParentIndex >= 0 && ParentIndex < BoneCount)
-                {
-                    // 기존 importer의 local 계산식이 Local = Global * ParentGlobal^-1 이므로,
-                    // 같은 행렬 규약을 유지하기 위해 Global = Local * ParentGlobal 로 누적한다.
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex] * GlobalMatrices[ParentIndex];
-                }
-                else
-                {
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex];
-                }
-
-                Tracks[BoneIndex].InternalTrack.LocalMatrixKeys[FrameIndex] = LocalMatrices[BoneIndex];
+                Tracks[BoneIndex].InternalTrack.PosKeys[FrameIndex] =
+                    FBXUtil::ConvertFbxVector(
+                        SampleDouble3PropertyFromLayer(Node->LclTranslation, BaseLayer, SampleTime));
+                Tracks[BoneIndex].InternalTrack.RotKeys[FrameIndex] =
+                    SampleLocalRotationQuatFromBaseLayer(Node, BaseLayer, SampleTime);
+                Tracks[BoneIndex].InternalTrack.ScaleKeys[FrameIndex] =
+                    FBXUtil::ConvertFbxVector(
+                        SampleDouble3PropertyFromLayer(Node->LclScaling, BaseLayer, SampleTime));
             }
         }
 
