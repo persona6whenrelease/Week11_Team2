@@ -62,7 +62,7 @@ protected:
 	FSkeletalEditorPreviewScene PreviewScene;
 	UEditorEngine* EditorEngine = nullptr;
 
-	bool bDrawBoneDebugLines = true;
+	bool bDrawBoneDebugLines = false;
 
 	// 서브클래스가 자체 layout을 짤 때 호출. 공용 toolbar / 입력 / bone debug까지 모두 처리.
 	void RenderViewportPanel(float DeltaTime);
