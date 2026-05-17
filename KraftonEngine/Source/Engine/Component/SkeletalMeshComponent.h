@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "Component/SkinnedMeshComponent.h"
+#include "Asset/Animation/Core/AnimInstance.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 
 class UAnimationAsset;
 class UAnimSequence;
@@ -55,6 +57,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
     void SetBakedAnimTime(float InTime)
     {
         BakedAnimTime = InTime;
+        if (AnimInstance) AnimInstance->SetEvaluationTime(InTime);
     }
 
     bool IsBakedAnimPaused() const
@@ -64,6 +67,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
     void SetBakedAnimPaused(bool bInPaused)
     {
         bBakedAnimPaused = bInPaused;
+        if (AnimInstance) AnimInstance->SetPaused(bInPaused);
     }
 
     float GetBakedAnimPlaybackSpeed() const
@@ -73,12 +77,11 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
     void SetBakedAnimPlaybackSpeed(float InSpeed)
     {
         BakedAnimPlaybackSpeed = InSpeed;
+        if (AnimInstance) AnimInstance->SetPlaybackSpeed(InSpeed);
     }
 
   protected:
     void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction &ThisTickFunction) override;
-    void ApplyDebugRandomBoneAnimation(float DeltaTime);
-    bool ApplyBakedAnimation(float DeltaTime);
 
     float DebugBoneAnimTime = 0.0f;
     float BakedAnimTime = 0.0f;

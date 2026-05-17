@@ -52,13 +52,6 @@ bool FFbxSkeletalMeshAssembler::Assemble(
             RigidPartCount += Part.bRigidAttached ? 1 : 0;
         }
 
-        if (Parts.empty())
-        {
-            UE_LOG("[FBXImporter] Skeleton has no mesh parts to attach. SkeletonId=%d",
-                   SkeletonMeta.SkeletonId);
-            continue;
-        }
-
         FSkeletalMesh SkeletalMesh;
         if (!BuildSkeletalMeshFromParts(SkeletonMeta, Parts, SkeletalMesh))
         {
@@ -231,7 +224,9 @@ bool FFbxSkeletalMeshAssembler::BuildSkeletalMeshFromParts(
     }
 
     OutMesh.CacheBounds();
-    return !OutMesh.Vertices.empty() && !OutMesh.Indices.empty() && !OutMesh.Bones.empty();
+    return !OutMesh.Bones.empty() &&
+           ((OutMesh.Vertices.empty() && OutMesh.Indices.empty() && Parts.empty()) ||
+            (!OutMesh.Vertices.empty() && !OutMesh.Indices.empty()));
 }
 
 bool FFbxSkeletalMeshAssembler::ValidateSkinnedMeshPartForAttach(

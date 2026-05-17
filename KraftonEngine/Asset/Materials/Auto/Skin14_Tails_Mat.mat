@@ -12,6 +12,8 @@
   "RenderPass" : "Opaque",
   "ShaderPath" : "Shaders/Geometry/UberLit.hlsl",
   "Textures" : {
-    "DiffuseTexture" : "Asset/FBX/Ahri/Ahri.fbm/Skin14_Tail_All_Mat.png"
+    "DiffuseTexture" : "Asset/FBX/Ahri/Ahri.fbm/Skin14_Tail_All_Mat.png",
+    "EmissiveTexture" : "Asset/FBX/textures/ZAKU-E.png",
+    "NormalTexture" : "Asset/FBX/textures/Zaku-N.png"
   }
 }

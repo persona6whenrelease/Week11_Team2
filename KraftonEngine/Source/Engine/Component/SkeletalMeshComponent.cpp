@@ -1,4 +1,4 @@
-﻿#include "Component/SkeletalMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
@@ -60,6 +60,12 @@ void USkeletalMeshComponent::PlayAnimation(UAnimationAsset *NewAnimToPlay, bool 
 void USkeletalMeshComponent::SetAnimation(UAnimationAsset *NewAnimToPlay)
 {
     AnimToPlay = NewAnimToPlay;
+
+    if (!AnimInstance)
+    {
+        AnimInstance = UObjectManager::Get().CreateObject<UAnimSingleNodeInstance>(this);
+        AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
+    }
 
     if (auto *Single = Cast<UAnimSingleNodeInstance>(AnimInstance))
     {
@@ -147,13 +153,3 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType,
     BakedAnimTime = AnimInstance->GetCurrentTime();
 }
 
-void USkeletalMeshComponent::ApplyDebugRandomBoneAnimation(float /*DeltaTime*/)
-{
-    // 디버그 helper — 파트 2 본문에서는 구현하지 않는다.
-}
-
-bool USkeletalMeshComponent::ApplyBakedAnimation(float /*DeltaTime*/)
-{
-    // TickComponent가 AnimInstance 경로로 대체. 외부 호환을 위해 시그니처만 유지.
-    return false;
-}

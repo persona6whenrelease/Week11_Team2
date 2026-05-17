@@ -102,6 +102,7 @@ class UAnimSequence : public UAnimSequenceBase
 
     void AddNotify(const FAnimNotifyEvent &Notify) { Notifies.push_back(Notify); }
     const TArray<FAnimNotifyEvent> &GetNotifies() const { return Notifies; }
+    TArray<FAnimNotifyEvent>       &GetMutableNotifies() { return Notifies; }
 
     bool IsValidSequence() const
     {
