@@ -48,6 +48,7 @@ private:
 	FString StatusMessage = "Double-click an FBX asset in ContentBrowser";
 	FOpenAnimEditorCallback OpenAnimEditorCallback;
 	int32 SelectedResourceIndex = -1;
+	int32 SelectedAnimSequenceIndex = 0;
 	int32 SelectedBoneIndex = -1;
 	bool bScrollToSelectedBone = false;
 	int32 RequestSetOpenBoneIndex = -1;

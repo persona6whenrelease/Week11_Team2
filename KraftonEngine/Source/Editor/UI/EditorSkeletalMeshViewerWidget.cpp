@@ -3,6 +3,7 @@
 #include "Editor/Settings/EditorSettings.h"
 #include "Asset/Import/MeshManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
@@ -234,6 +235,48 @@ FString FormatViewerStatCount(size_t Value)
 		Text.insert(static_cast<size_t>(InsertPos), ",");
 	}
 	return Text;
+}
+
+void GetViewerAnimSequencesForMesh(UFBXSceneAsset* SceneAsset, USkeletalMesh* Mesh, TArray<UAnimSequence*>& OutSequences)
+{
+	OutSequences.clear();
+	if (!SceneAsset || !Mesh)
+	{
+		return;
+	}
+
+	const FSkeletalMesh* MeshAsset = Mesh->GetSkeletalMeshAsset();
+	if (!MeshAsset)
+	{
+		return;
+	}
+
+	const FString& SkeletonAssetPath = MeshAsset->SkeletonAssetPath;
+	for (UAnimSequence* Sequence : SceneAsset->GetAnimSequences())
+	{
+		if (!Sequence)
+		{
+			continue;
+		}
+
+		if (SkeletonAssetPath.empty() || Sequence->GetSkeletonAssetPath() == SkeletonAssetPath)
+		{
+			OutSequences.push_back(Sequence);
+		}
+	}
+}
+
+FString GetViewerAnimSequenceLabel(const UAnimSequence* Sequence, int32 SequenceIndex)
+{
+	if (!Sequence)
+	{
+		return "AnimSequence " + std::to_string(SequenceIndex);
+	}
+
+	const FString& SequenceName = Sequence->GetSequenceName();
+	return SequenceName.empty()
+		? "AnimSequence " + std::to_string(SequenceIndex)
+		: SequenceName;
 }
 
 void DrawViewerMeshStatsOverlay(const FSkeletalMesh* MeshAsset, const ImVec2& ViewportMin)
@@ -756,6 +799,7 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	CurrentFbxPath = FbxPath;
 	CurrentSceneAsset = FMeshManager::LoadFbxScene(FbxPath);
 	SelectedResourceIndex = -1;
+	SelectedAnimSequenceIndex = 0;
 	SelectedBoneIndex = -1;
 
 	if (!CurrentSceneAsset)
@@ -867,6 +911,7 @@ void FEditorSkeletalMeshViewerWidget::RenderResourcePanel()
 				if (ImGui::Selectable(Label.c_str(), bSelected))
 				{
 					SelectedResourceIndex = MeshIndex;
+					SelectedAnimSequenceIndex = 0;
 					SelectedBoneIndex = -1; // UI 선택 초기화
 
 					// [추가] 매니저의 선택 상태도 초기화 (기즈모 숨김 처리 등)
@@ -1193,70 +1238,95 @@ void FEditorSkeletalMeshViewerWidget::RenderBonePanel()
 	ImGui::EndChild();
 }
 
-// TODO
 void FEditorSkeletalMeshViewerWidget::RenderAnimationPlaybackPanel()
 {
-	const FSkeletalMesh* Asset = (PreviewSkeletalMesh && PreviewMeshComponent)
-		? PreviewSkeletalMesh->GetSkeletalMeshAsset() : nullptr;
-
 	ImGui::TextUnformatted("Animation");
 	ImGui::Separator();
 
-	// if (!Asset || Asset->AnimationClips.empty())
-	// {
-	// 	ImGui::TextDisabled("No baked animation clips.");
-	// 	ImGui::Separator();
-	// 	return;
-	// }
+	USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
+	if (!CurrentSceneAsset || !SelectedMesh || !PreviewMeshComponent)
+	{
+		ImGui::TextDisabled("No SkeletalMesh selected");
+		ImGui::Separator();
+		return;
+	}
 
-	// const int32 ClipCount = static_cast<int32>(Asset->AnimationClips.size());
-	// int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
-	// const FAnimationClip& Clip = Asset->AnimationClips[ClipIdx];
+	TArray<UAnimSequence*> Sequences;
+	GetViewerAnimSequencesForMesh(CurrentSceneAsset, SelectedMesh, Sequences);
+	if (Sequences.empty())
+	{
+		PreviewMeshComponent->SetAnimation(nullptr);
+		ImGui::TextDisabled("No AnimSequence for this skeleton");
+		ImGui::Separator();
+		return;
+	}
 
-	// if (ImGui::BeginCombo("Clip", Clip.Name.c_str()))
-	// {
-	// 	for (int32 i = 0; i < ClipCount; ++i)
-	// 	{
-	// 		const bool bSelected = (i == ClipIdx);
-	// 		if (ImGui::Selectable(Asset->AnimationClips[i].Name.c_str(), bSelected))
-	// 		{
-	// 			PreviewMeshComponent->SetBakedAnimClipIndex(i);
-	// 			PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	// 		}
-	// 		if (bSelected)
-	// 		{
-	// 			ImGui::SetItemDefaultFocus();
-	// 		}
-	// 	}
-	// 	ImGui::EndCombo();
-	// }
+	const int32 SequenceCount = static_cast<int32>(Sequences.size());
+	SelectedAnimSequenceIndex = std::clamp(SelectedAnimSequenceIndex, 0, SequenceCount - 1);
+	UAnimSequence* CurrentSequence = Sequences[SelectedAnimSequenceIndex];
+	const FString CurrentLabel = GetViewerAnimSequenceLabel(CurrentSequence, SelectedAnimSequenceIndex);
 
-	//const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
-	//if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
-	//{
-	//	PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
-	//}
-	//ImGui::SameLine();
-	//if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
-	//{
-	//	PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	//}
+	if (ImGui::BeginCombo("Sequence", CurrentLabel.c_str()))
+	{
+		for (int32 SequenceIndex = 0; SequenceIndex < SequenceCount; ++SequenceIndex)
+		{
+			const bool bSelected = SequenceIndex == SelectedAnimSequenceIndex;
+			const FString Label = GetViewerAnimSequenceLabel(Sequences[SequenceIndex], SequenceIndex);
+			if (ImGui::Selectable(Label.c_str(), bSelected))
+			{
+				SelectedAnimSequenceIndex = SequenceIndex;
+				CurrentSequence = Sequences[SelectedAnimSequenceIndex];
+				PreviewMeshComponent->SetAnimation(CurrentSequence);
+				PreviewMeshComponent->SetBakedAnimTime(0.0f);
+				PreviewMeshComponent->SetBakedAnimPaused(true);
+				PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, 0.0f);
+			}
+			if (bSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
 
-	// if (Clip.Duration > 0.0f)
-	// {
-	// 	float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip.Duration);
-	// 	if (Time < 0.0f) Time += Clip.Duration;
-	// 	if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip.Duration, "%.3f"))
-	// 	{
-	// 		PreviewMeshComponent->SetBakedAnimTime(Time);
-	// 	}
-	// }
+	if (PreviewMeshComponent->GetAnimation() != CurrentSequence)
+	{
+		PreviewMeshComponent->SetAnimation(CurrentSequence);
+		PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, PreviewMeshComponent->GetBakedAnimTime());
+	}
 
-	//float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
-	//if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
-	//{
-	//	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
-	//}
+	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
+	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
+	{
+		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
+	{
+		PreviewMeshComponent->SetBakedAnimTime(0.0f);
+		PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, 0.0f);
+	}
+
+	const float PlayLength = CurrentSequence ? CurrentSequence->GetPlayLength() : 0.0f;
+	if (PlayLength > 0.0f)
+	{
+		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), PlayLength);
+		if (Time < 0.0f)
+		{
+			Time += PlayLength;
+		}
+		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, PlayLength, "%.3f"))
+		{
+			PreviewMeshComponent->SetBakedAnimTime(Time);
+			PreviewMeshComponent->EvaluateAnimationPose(CurrentSequence, Time);
+		}
+	}
+
+	float Speed = PreviewMeshComponent->GetBakedAnimPlaybackSpeed();
+	if (ImGui::SliderFloat("Speed", &Speed, 0.0f, 3.0f, "%.2fx"))
+	{
+		PreviewMeshComponent->SetBakedAnimPlaybackSpeed(Speed);
+	}
 
 	ImGui::Separator();
 }

@@ -49,43 +49,54 @@ namespace
 			FMatrix::MakeTranslationMatrix(Location);
 	}
 
-	UAnimSequence* FindAnimSequenceForMeshClip(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh, int32 ClipIndex, FString* OutPath)
+	TArray<UAnimSequence*> GetAnimSequencesForMesh(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh)
+	{
+		TArray<UAnimSequence*> Result;
+		const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
+		if (!SceneAsset || !MeshAsset)
+		{
+			return Result;
+		}
+
+		for (UAnimSequence* Sequence : SceneAsset->GetAnimSequences())
+		{
+			if (Sequence && Sequence->GetSkeletonAssetPath() == MeshAsset->SkeletonAssetPath)
+			{
+				Result.push_back(Sequence);
+			}
+		}
+		return Result;
+	}
+
+	FString MakeAnimSequencePath(const FString& FbxPath, int32 SequenceIndex, UAnimSequence* Sequence)
+	{
+		FString Name = Sequence ? Sequence->GetSequenceName() : FString();
+		if (Name.empty())
+		{
+			Name = "Sequence" + std::to_string(SequenceIndex);
+		}
+		return FbxPath + "#Anim_" + std::to_string(SequenceIndex) + "_" + Name;
+	}
+
+	UAnimSequence* FindAnimSequenceForMeshClip(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh, int32 ClipIndex, const FString& FbxPath, FString* OutPath)
 	{
 		if (!SceneAsset || !PreviewMesh || ClipIndex < 0)
 		{
 			return nullptr;
 		}
 
-		const TArray<UAnimSequence*>& AnimSequences = SceneAsset->GetAnimSequences();
-		int32 SequenceOffset = 0;
-		for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+		TArray<UAnimSequence*> AnimSequences = GetAnimSequencesForMesh(SceneAsset, PreviewMesh);
+		if (ClipIndex >= static_cast<int32>(AnimSequences.size()))
 		{
-			const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
-			if (!MeshAsset)
-			{
-				continue;
-			}
-
-			const int32 SequenceCount = static_cast<int32>(MeshAsset->AnimationSequenceAssetPaths.size());
-			if (Mesh == PreviewMesh)
-			{
-				const int32 FlatIndex = SequenceOffset + ClipIndex;
-				if (ClipIndex >= 0 && ClipIndex < SequenceCount &&
-					FlatIndex >= 0 && FlatIndex < static_cast<int32>(AnimSequences.size()))
-				{
-					if (OutPath)
-					{
-						*OutPath = MeshAsset->AnimationSequenceAssetPaths[ClipIndex];
-					}
-					return AnimSequences[FlatIndex];
-				}
-				return nullptr;
-			}
-
-			SequenceOffset += SequenceCount;
+			return nullptr;
 		}
 
-		return nullptr;
+		UAnimSequence* Sequence = AnimSequences[ClipIndex];
+		if (OutPath)
+		{
+			*OutPath = MakeAnimSequencePath(FbxPath, ClipIndex, Sequence);
+		}
+		return Sequence;
 	}
 
 }
@@ -136,6 +147,7 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 	CurrentFbxPath = FbxPath;
 	CurrentSceneAsset = FMeshManager::LoadFbxScene(FbxPath);
 	SelectedResourceIndex = -1;
+	SelectedAnimSequenceIndex = 0;
 	SelectedBoneIndex = -1;
 
 	if (!CurrentSceneAsset)
@@ -194,6 +206,7 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 				if (ImGui::Selectable(Label.c_str(), bSelected))
 				{
 					SelectedResourceIndex = MeshIndex;
+					SelectedAnimSequenceIndex = 0;
 					SelectedBoneIndex = -1;
 
 					if (PreviewViewportClient)
@@ -267,45 +280,51 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 
 	const FSkeletalMesh* Asset = (PreviewSkeletalMesh && PreviewMeshComponent)
 		? PreviewSkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+	TArray<UAnimSequence*> AnimSequences = GetAnimSequencesForMesh(CurrentSceneAsset, PreviewSkeletalMesh);
 
 	ImGui::TextUnformatted("Animation");
 	ImGui::Separator();
 
-	if (!Asset || Asset->AnimationSequenceAssetPaths.empty())
+	if (!Asset || AnimSequences.empty())
 	{
 		ImGui::TextDisabled("No animation sequences.");
 		ImGui::Separator();
 		return;
 	}
 
-	const int32 ClipCount = static_cast<int32>(Asset->AnimationSequenceAssetPaths.size());
-	int32 ClipIdx = std::clamp(PreviewMeshComponent->GetBakedAnimClipIndex(), 0, ClipCount - 1);
+	const int32 ClipCount = static_cast<int32>(AnimSequences.size());
+	int32 ClipIdx = std::clamp(SelectedAnimSequenceIndex, 0, ClipCount - 1);
+	SelectedAnimSequenceIndex = ClipIdx;
 	FString CurrentAnimSequencePath;
-	UAnimSequence* CurrentSequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, ClipIdx, &CurrentAnimSequencePath);
+	UAnimSequence* CurrentSequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, ClipIdx, CurrentFbxPath, &CurrentAnimSequencePath);
 	if (CurrentSequence && PreviewMeshComponent->GetAnimation() != CurrentSequence)
 	{
 		PreviewMeshComponent->SetAnimation(CurrentSequence);
 	}
-	const FAnimationClip* Clip = CurrentSequence ? &CurrentSequence->GetAnimationClip() : nullptr;
-	const char* CurrentClipName = (Clip && !Clip->Name.empty()) ? Clip->Name.c_str() : "<no sequence>";
+	const float CurrentDuration = CurrentSequence ? CurrentSequence->GetPlayLength() : 0.0f;
+	FString CurrentClipName = CurrentSequence ? CurrentSequence->GetSequenceName() : FString();
+	if (CurrentClipName.empty())
+	{
+		CurrentClipName = "<no sequence>";
+	}
 
-	if (ImGui::BeginCombo("Clip", CurrentClipName))
+	if (ImGui::BeginCombo("Clip", CurrentClipName.c_str()))
 	{
 		for (int32 i = 0; i < ClipCount; ++i)
 		{
 			FString AnimSequencePath;
-			UAnimSequence* Sequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, i, &AnimSequencePath);
-			const FAnimationClip* SequenceClip = Sequence ? &Sequence->GetAnimationClip() : nullptr;
-			const char* SequenceName = (SequenceClip && !SequenceClip->Name.empty())
-				? SequenceClip->Name.c_str()
-				: Asset->AnimationSequenceAssetPaths[i].c_str();
+			UAnimSequence* Sequence = FindAnimSequenceForMeshClip(CurrentSceneAsset, PreviewSkeletalMesh, i, CurrentFbxPath, &AnimSequencePath);
+			FString SequenceName = Sequence ? Sequence->GetSequenceName() : FString();
+			if (SequenceName.empty())
+			{
+				SequenceName = AnimSequencePath;
+			}
 
 			const bool bSelected = (i == ClipIdx);
-			if (ImGui::Selectable(SequenceName, bSelected))
+			if (ImGui::Selectable(SequenceName.c_str(), bSelected))
 			{
+				SelectedAnimSequenceIndex = i;
 				PreviewMeshComponent->SetAnimation(Sequence);
-				PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
-				PreviewMeshComponent->SetBakedAnimClipIndex(i);
 				PreviewMeshComponent->SetBakedAnimTime(0.0f);
 			}
 			if (bSelected)
@@ -332,23 +351,20 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
 	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
 	{
-		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
 	{
-		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 	}
 
-	if (Clip && Clip->Duration > 0.0f)
+	if (CurrentDuration > 0.0f)
 	{
-		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), Clip->Duration);
-		if (Time < 0.0f) Time += Clip->Duration;
-		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, Clip->Duration, "%.3f"))
+		float Time = std::fmod(PreviewMeshComponent->GetBakedAnimTime(), CurrentDuration);
+		if (Time < 0.0f) Time += CurrentDuration;
+		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, CurrentDuration, "%.3f"))
 		{
-			PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
 			PreviewMeshComponent->SetBakedAnimTime(Time);
 		}
 	}
@@ -432,7 +448,8 @@ void FSkeletalMeshEditorTab::RenderTransformPanel()
 int32 FSkeletalMeshEditorTab::GetCurrentClipIndex() const
 {
 	const USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
-	return Comp ? Comp->GetBakedAnimClipIndex() : 0;
+	(void)Comp;
+	return SelectedAnimSequenceIndex;
 }
 
 UAnimSequence* FSkeletalMeshEditorTab::GetCurrentAnimSequence(FString* OutPath) const
@@ -441,6 +458,7 @@ UAnimSequence* FSkeletalMeshEditorTab::GetCurrentAnimSequence(FString* OutPath) 
 		CurrentSceneAsset,
 		PreviewSkeletalMesh,
 		GetCurrentClipIndex(),
+		CurrentFbxPath,
 		OutPath);
 }
 

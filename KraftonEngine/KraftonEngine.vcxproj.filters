@@ -331,6 +331,12 @@
     <Filter Include="ThirdParty\Sol">
       <UniqueIdentifier>{89819dae-4557-ab83-f57d-79039c6f4f48}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Editor\UI\SkeletalEditor">
+      <UniqueIdentifier>{dc1e718c-aa20-45e8-bc68-6a1305cf3918}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Asset\Animation\Runtime">
+      <UniqueIdentifier>{1cee8bc4-212e-4715-a1d9-816a445cc796}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\ConstantBuffers.hlsli">
@@ -1254,6 +1260,30 @@
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.cpp">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.cpp">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Editor\EditorEngine.h">
@@ -3430,6 +3460,30 @@
     </ClInclude>
     <ClInclude Include="ThirdParty\Sol\sol.hpp">
       <Filter>ThirdParty\Sol</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.h">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.h">
+      <Filter>Source\Engine\Asset\Animation\Runtime</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

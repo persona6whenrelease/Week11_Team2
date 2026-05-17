@@ -97,7 +97,6 @@ void FSkeletalEditorPreviewScene::SetPreviewMesh(USkeletalMesh* InMesh, bool bRe
 	// 사용자가 명시적으로 Play를 누르도록 viewer는 일시정지 상태로 시작.
 	PreviewMeshComponent->SetBakedAnimPaused(true);
 	PreviewMeshComponent->SetBakedAnimTime(0.0f);
-	PreviewMeshComponent->SetBakedAnimClipIndex(0);
 	PreviewMeshComponent->SetBakedAnimPlaybackSpeed(1.0f);
 
 	if (PreviewViewportClient)

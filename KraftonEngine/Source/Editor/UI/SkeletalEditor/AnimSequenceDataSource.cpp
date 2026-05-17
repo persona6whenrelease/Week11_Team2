@@ -5,7 +5,12 @@
 
 namespace
 {
-	const TArray<FBoneAnimTrack> EmptyTracks;
+	const TArray<FBoneAnimationTrack> EmptyTracks;
+
+	const UAnimDataModel* GetDataModel(const UAnimSequence* Sequence)
+	{
+		return Sequence ? Sequence->GetDataModel() : nullptr;
+	}
 }
 
 FUAnimSequenceDataSource::FUAnimSequenceDataSource(UAnimSequence* InSequence)
@@ -17,28 +22,30 @@ FUAnimSequenceDataSource::FUAnimSequenceDataSource(UAnimSequence* InSequence)
 FString FUAnimSequenceDataSource::GetName() const
 {
 	if (!Sequence) return "<no anim sequence>";
-	const FAnimationClip& Clip = Sequence->GetAnimationClip();
-	return Clip.Name.empty() ? Sequence->GetFName().ToString() : Clip.Name;
+	return Sequence->GetSequenceName().empty() ? Sequence->GetFName().ToString() : Sequence->GetSequenceName();
 }
 
 float FUAnimSequenceDataSource::GetDuration() const
 {
-	return Sequence ? Sequence->GetAnimationClip().Duration : 0.0f;
+	return Sequence ? Sequence->GetPlayLength() : 0.0f;
 }
 
 float FUAnimSequenceDataSource::GetFrameRate() const
 {
-	return Sequence ? Sequence->GetAnimationClip().FrameRate : 0.0f;
+	const UAnimDataModel* Model = GetDataModel(Sequence);
+	return Model ? Model->GetFrameRate().AsDecimal() : 0.0f;
 }
 
 int32 FUAnimSequenceDataSource::GetFrameCount() const
 {
-	return Sequence ? Sequence->GetAnimationClip().FrameCount : 0;
+	const UAnimDataModel* Model = GetDataModel(Sequence);
+	return Model ? Model->GetNumberOfFrames() : 0;
 }
 
-const TArray<FBoneAnimTrack>& FUAnimSequenceDataSource::GetTracks() const
+const TArray<FBoneAnimationTrack>& FUAnimSequenceDataSource::GetTracks() const
 {
-	return Sequence ? Sequence->GetAnimationClip().Tracks : EmptyTracks;
+	const UAnimDataModel* Model = GetDataModel(Sequence);
+	return Model ? Model->GetBoneAnimationTracks() : EmptyTracks;
 }
 
 int32 FUAnimSequenceDataSource::AddNotify(const FAnimNotifyEntry& Notify)

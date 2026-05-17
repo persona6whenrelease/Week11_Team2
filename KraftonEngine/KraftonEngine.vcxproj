@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -337,6 +337,12 @@
     <ClCompile Include="Source\Editor\UI\EditorSceneWidget.cpp" />
     <ClCompile Include="Source\Editor\UI\EditorShadowMapDebugWidget.cpp" />
     <ClCompile Include="Source\Editor\UI\EditorSkeletalMeshViewerWidget.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.cpp" />
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.cpp" />
     <ClCompile Include="Source\Editor\UI\EditorStatWidget.cpp" />
     <ClCompile Include="Source\Editor\UI\EditorViewportWidget.cpp" />
     <ClCompile Include="Source\Editor\UI\EditorWidget.cpp" />
@@ -347,6 +353,8 @@
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\Skeleton.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.cpp" />
     <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxMeshGeometryBuilder.cpp" />
     <ClCompile Include="Source\Engine\Asset\Import\FBX\Builder\FbxSkeletalMeshAssembler.cpp" />
     <ClCompile Include="Source\Engine\Asset\Import\FBX\Core\FBXImporter.cpp" />
@@ -615,6 +623,12 @@
     <ClInclude Include="Source\Editor\UI\EditorSceneWidget.h" />
     <ClInclude Include="Source\Editor\UI\EditorShadowMapDebugWidget.h" />
     <ClInclude Include="Source\Editor\UI\EditorSkeletalMeshViewerWidget.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.h" />
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.h" />
     <ClInclude Include="Source\Editor\UI\EditorStatWidget.h" />
     <ClInclude Include="Source\Editor\UI\EditorViewportWidget.h" />
     <ClInclude Include="Source\Editor\UI\EditorWidget.h" />
@@ -627,6 +641,8 @@
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimationTypes.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\Skeleton.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimationRuntime.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Runtime\AnimInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Notify\AnimNotify.h" />
     <ClInclude Include="Source\Engine\Asset\AssetFileHeader.h" />
     <ClInclude Include="Source\Engine\Asset\AssetTypes.h" />

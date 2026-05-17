@@ -6,7 +6,7 @@
 
 class UAnimSequence;
 struct FAnimationClip;
-struct FBoneAnimTrack;
+struct FBoneAnimationTrack;
 
 // Notify 한 개의 임시 표현. UAnimSequence 본격 도입 전까지 viewer 내부에서만 사용한다.
 // 추후 엔진의 정식 FAnimNotifyEvent로 교체된다.
@@ -30,7 +30,7 @@ public:
 	virtual float   GetDuration() const = 0;
 	virtual float   GetFrameRate() const = 0;
 	virtual int32   GetFrameCount() const = 0;
-	virtual const TArray<FBoneAnimTrack>& GetTracks() const = 0;
+	virtual const TArray<FBoneAnimationTrack>& GetTracks() const = 0;
 
 	// Notify 편집 — 현재는 어댑터 메모리에만 보관(transient).
 	// UAnimSequence 어댑터가 들어오면 실제 asset에 쓰기/저장.
@@ -51,7 +51,7 @@ public:
 	float   GetDuration() const override;
 	float   GetFrameRate() const override;
 	int32   GetFrameCount() const override;
-	const TArray<FBoneAnimTrack>& GetTracks() const override;
+	const TArray<FBoneAnimationTrack>& GetTracks() const override;
 
 	const TArray<FAnimNotifyEntry>& GetNotifies() const override { return CachedNotifyEntries; }
 	int32 AddNotify(const FAnimNotifyEntry& Notify) override;

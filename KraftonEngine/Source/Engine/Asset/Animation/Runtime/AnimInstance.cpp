@@ -67,5 +67,5 @@ void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
         }
     }
 
-    OwnerComponent->EvaluateAnimationPose(Sequence->GetAnimationClip(), CurrentTime);
+    OwnerComponent->EvaluateAnimationPose(Sequence, CurrentTime);
 }

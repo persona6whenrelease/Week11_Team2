@@ -6,6 +6,7 @@
 #include "Render/Types/ViewTypes.h"
 
 class UFBXSceneAsset;
+class UAnimSequence;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 class ADirectionalLightActor;
@@ -47,6 +48,7 @@ private:
 	FString CurrentFbxPath;
 	FString StatusMessage = "Double-click an FBX asset in ContentBrowser";
 	int32 SelectedResourceIndex = -1;
+	int32 SelectedAnimSequenceIndex = 0;
 	int32 SelectedBoneIndex = -1;
 	bool bScrollToSelectedBone = false;
 	int32 RequestSetOpenBoneIndex = -1;

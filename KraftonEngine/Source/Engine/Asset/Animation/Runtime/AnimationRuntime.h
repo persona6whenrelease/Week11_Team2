@@ -9,6 +9,8 @@
 
 #include "Asset/Animation/Core/AnimationTypes.h"
 
+class UAnimSequence;
+
 /**
  * 애니메이션 에셋 데이터를 현재 시간의 본 포즈로 평가하는 계산 전용 클래스이다.
  *
@@ -20,7 +22,7 @@ public:
     /**
      * 애니메이션 클립과 시간을 입력받아 본별 로컬 포즈 행렬 배열을 계산한다.
      */
-    static bool SampleLocalPose(const FAnimationClip& Clip, float TimeSeconds, const TArray<FBoneInfo>& Bones, TArray<FMatrix>& OutLocalPose);
+    static bool SampleLocalPose(const UAnimSequence* Sequence, float TimeSeconds, const TArray<FBoneInfo>& Bones, TArray<FMatrix>& OutLocalPose);
     /**
      * 두 로컬 포즈 배열을 같은 본 인덱스 기준으로 선형 보간한다.
      */

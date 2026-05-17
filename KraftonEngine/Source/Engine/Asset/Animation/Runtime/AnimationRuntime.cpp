@@ -8,6 +8,8 @@
 
 #include "Asset/Animation/Runtime/AnimationRuntime.h"
 
+#include "Asset/Animation/Core/AnimSequence.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -28,42 +30,49 @@ namespace
     }
 }
 
-bool FAnimationRuntime::SampleLocalPose(const FAnimationClip& Clip, float TimeSeconds, const TArray<FBoneInfo>& Bones, TArray<FMatrix>& OutLocalPose)
+bool FAnimationRuntime::SampleLocalPose(const UAnimSequence* Sequence, float TimeSeconds, const TArray<FBoneInfo>& Bones, TArray<FMatrix>& OutLocalPose)
 {
-    if (Clip.FrameCount <= 0 || Clip.Duration <= 0.0f || Clip.Tracks.empty() || Bones.empty())
+    const UAnimDataModel* Model = Sequence ? Sequence->GetDataModel() : nullptr;
+    if (!Model || Model->GetNumberOfFrames() <= 0 || Model->GetPlayLength() <= 0.0f ||
+        Model->GetBoneAnimationTracks().empty() || Bones.empty())
     {
         return false;
     }
 
-    float LoopedTime = std::fmod(TimeSeconds, Clip.Duration);
+    const float Duration = Model->GetPlayLength();
+    const int32 FrameCount = Model->GetNumberOfFrames();
+    const TArray<FBoneAnimationTrack>& Tracks = Model->GetBoneAnimationTracks();
+
+    float LoopedTime = std::fmod(TimeSeconds, Duration);
     if (LoopedTime < 0.0f)
     {
-        LoopedTime += Clip.Duration;
+        LoopedTime += Duration;
     }
 
-    const float Alpha = LoopedTime / Clip.Duration;
-    const float FrameFloat = Alpha * static_cast<float>(Clip.FrameCount - 1);
+    const float Alpha = LoopedTime / Duration;
+    const float FrameFloat = Alpha * static_cast<float>(FrameCount - 1);
     int32 FrameA = static_cast<int32>(std::floor(FrameFloat));
-    FrameA = std::clamp(FrameA, 0, Clip.FrameCount - 1);
-    int32 FrameB = std::clamp(FrameA + 1, 0, Clip.FrameCount - 1);
+    FrameA = std::clamp(FrameA, 0, FrameCount - 1);
+    int32 FrameB = std::clamp(FrameA + 1, 0, FrameCount - 1);
     const float Blend = FrameFloat - static_cast<float>(FrameA);
 
     OutLocalPose.resize(Bones.size(), FMatrix::Identity);
     for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones.size()); ++BoneIndex)
     {
         OutLocalPose[BoneIndex] = Bones[BoneIndex].LocalBindPose;
-        if (BoneIndex >= static_cast<int32>(Clip.Tracks.size()))
+        if (BoneIndex >= static_cast<int32>(Tracks.size()))
         {
             continue;
         }
 
-        const FBoneAnimTrack& Track = Clip.Tracks[BoneIndex];
-        if (FrameA >= static_cast<int32>(Track.Samples.size()) || FrameB >= static_cast<int32>(Track.Samples.size()))
+        const FBoneAnimationTrack& Track = Tracks[BoneIndex];
+        const TArray<FMatrix>& Samples = Track.InternalTrack.LocalMatrixKeys;
+        if (FrameA >= static_cast<int32>(Samples.size()) || FrameB >= static_cast<int32>(Samples.size()))
         {
             continue;
         }
 
-        OutLocalPose[BoneIndex] = LerpMatrix(Track.Samples[FrameA].LocalMatrix, Track.Samples[FrameB].LocalMatrix, Blend);
+        OutLocalPose[BoneIndex] = LerpMatrix(Samples[FrameA], Samples[FrameB], Blend);
     }
 
     return true;

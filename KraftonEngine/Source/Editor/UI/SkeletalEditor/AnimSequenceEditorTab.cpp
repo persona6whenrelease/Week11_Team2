@@ -105,6 +105,59 @@ namespace
 		}
 		return ImGui::ImageButton(Id, reinterpret_cast<ImTextureID>(SRV), ImVec2(IconSize, IconSize));
 	}
+
+	FString GetFbxPathFromAnimPath(const FString& AssetPath)
+	{
+		const size_t MarkerPos = AssetPath.find("#Anim_");
+		return MarkerPos == FString::npos ? FString() : AssetPath.substr(0, MarkerPos);
+	}
+
+	int32 GetAnimIndexFromAnimPath(const FString& AssetPath)
+	{
+		const size_t MarkerPos = AssetPath.find("#Anim_");
+		if (MarkerPos == FString::npos)
+		{
+			return -1;
+		}
+
+		const size_t Start = MarkerPos + 6;
+		size_t End = Start;
+		while (End < AssetPath.size() && std::isdigit(static_cast<unsigned char>(AssetPath[End])))
+		{
+			++End;
+		}
+
+		return End > Start ? std::atoi(AssetPath.substr(Start, End - Start).c_str()) : -1;
+	}
+
+	TArray<UAnimSequence*> GetAnimSequencesForMesh(UFBXSceneAsset* SceneAsset, USkeletalMesh* PreviewMesh)
+	{
+		TArray<UAnimSequence*> Result;
+		const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
+		if (!SceneAsset || !MeshAsset)
+		{
+			return Result;
+		}
+
+		for (UAnimSequence* Sequence : SceneAsset->GetAnimSequences())
+		{
+			if (Sequence && Sequence->GetSkeletonAssetPath() == MeshAsset->SkeletonAssetPath)
+			{
+				Result.push_back(Sequence);
+			}
+		}
+		return Result;
+	}
+
+	FString MakeAnimSequencePath(const FString& FbxPath, int32 SequenceIndex, UAnimSequence* Sequence)
+	{
+		FString Name = Sequence ? Sequence->GetSequenceName() : FString();
+		if (Name.empty())
+		{
+			Name = "Sequence" + std::to_string(SequenceIndex);
+		}
+		return FbxPath + "#Anim_" + std::to_string(SequenceIndex) + "_" + Name;
+	}
 }
 
 // =================================================================
@@ -121,27 +174,43 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 	// UAnimSequence asset 진입점 — 아직 stub
 	UObject* ResolvedAsset = FMeshManager::ResolveFbxSceneAssetReference(AssetPath);
 	UAnimSequence* ResolvedSequence = Cast<UAnimSequence>(ResolvedAsset);
+	USkeletalMesh* ResolvedPreviewMesh = nullptr;
 	if (!ResolvedSequence)
 	{
-		return false;
+		const FString SourceFbxPath = GetFbxPathFromAnimPath(AssetPath);
+		const int32 AnimIndex = GetAnimIndexFromAnimPath(AssetPath);
+		UFBXSceneAsset* SceneAsset = SourceFbxPath.empty() ? nullptr : FMeshManager::LoadFbxScene(SourceFbxPath);
+		if (SceneAsset && AnimIndex >= 0 && AnimIndex < static_cast<int32>(SceneAsset->GetAnimSequences().size()))
+		{
+			ResolvedSequence = SceneAsset->GetAnimSequences()[AnimIndex];
+			for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+			{
+				TArray<UAnimSequence*> MeshSequences = GetAnimSequencesForMesh(SceneAsset, Mesh);
+				if (std::find(MeshSequences.begin(), MeshSequences.end(), ResolvedSequence) != MeshSequences.end())
+				{
+					ResolvedPreviewMesh = Mesh;
+					break;
+				}
+			}
+		}
+		if (!ResolvedSequence)
+		{
+			return false;
+		}
 	}
 
-	USkeletalMesh* ResolvedPreviewMesh = nullptr;
-	if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
+	if (!ResolvedPreviewMesh)
 	{
-		for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
+		if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
 		{
-			const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
-			if (!MeshAsset) continue;
-
-			const auto It = std::find(
-				MeshAsset->AnimationSequenceAssetPaths.begin(),
-				MeshAsset->AnimationSequenceAssetPaths.end(),
-				AssetPath);
-			if (It != MeshAsset->AnimationSequenceAssetPaths.end())
+			for (USkeletalMesh* Mesh : SceneAsset->GetSkeletalMeshes())
 			{
-				ResolvedPreviewMesh = Mesh;
-				break;
+				TArray<UAnimSequence*> MeshSequences = GetAnimSequencesForMesh(SceneAsset, Mesh);
+				if (std::find(MeshSequences.begin(), MeshSequences.end(), ResolvedSequence) != MeshSequences.end())
+				{
+					ResolvedPreviewMesh = Mesh;
+					break;
+				}
 			}
 		}
 	}
@@ -227,7 +296,6 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 {
 	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
 	if (!Comp || !DataSource) return;
-	Comp->SetBakedAnimClipIndex(BakedClipIndex);
 	if (AnimSequence)
 	{
 		Comp->SetAnimation(AnimSequence);
@@ -916,8 +984,9 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 		ImGui::TextDisabled("No mesh");
 		return;
 	}
-	const TArray<FString>& Paths = MeshAsset->AnimationSequenceAssetPaths;
-	if (Paths.empty())
+	UFBXSceneAsset* SceneAsset = FbxPath.empty() ? nullptr : FMeshManager::LoadFbxScene(FbxPath);
+	TArray<UAnimSequence*> Sequences = GetAnimSequencesForMesh(SceneAsset, PreviewMesh);
+	if (Sequences.empty())
 	{
 		ImGui::TextDisabled("No anim sequences for this mesh");
 		return;
@@ -945,19 +1014,19 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 		ImGui::TableSetupScrollFreeze(0, 1);
 		ImGui::TableHeadersRow();
 
-		for (int32 i = 0; i < static_cast<int32>(Paths.size()); ++i)
+		for (int32 i = 0; i < static_cast<int32>(Sequences.size()); ++i)
 		{
-			const FString& Path = Paths[i];
+			UAnimSequence* Sequence = Sequences[i];
+			const FString Path = MakeAnimSequencePath(FbxPath, i, Sequence);
 
 			// Name: 실제 anim sequence의 이름을 resolve해서 가져옴
 			//       (없으면 path의 stem으로 fallback)
 			FString Name;
-			if (UObject* AssetObj = FMeshManager::ResolveFbxSceneAssetReference(Path))
+			if (UObject* AssetObj = Sequence)
 			{
 				if (UAnimSequence* Seq = Cast<UAnimSequence>(AssetObj))
 				{
-					const FAnimationClip& Clip = Seq->GetAnimationClip();
-					Name = Clip.Name.empty() ? Seq->GetFName().ToString() : Clip.Name;
+					Name = Seq->GetSequenceName().empty() ? Seq->GetFName().ToString() : Seq->GetSequenceName();
 				}
 			}
 			if (Name.empty()) Name = ExtractFileName(Path);
