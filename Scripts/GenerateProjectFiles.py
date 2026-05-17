@@ -675,6 +675,7 @@ def generate_vcxproj(
             subsystem = props.get("subsystem", "Windows" if is_x64 else "Console")
             ET.SubElement(link, "SubSystem").text = subsystem
             ET.SubElement(link, "GenerateDebugInformation").text = "true"
+            ET.SubElement(link, "AdditionalOptions").text = "/ignore:4099 %(AdditionalOptions)"
 
             deps: list[str] = []
             post_build_commands: list[str] = []

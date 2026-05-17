@@ -2099,6 +2099,9 @@
     <ClInclude Include="Source\Engine\Serialization\Archive.h">
       <Filter>Source\Engine\Serialization</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Serialization\ArchiveMath.h">
+      <Filter>Source\Engine\Serialization</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Serialization\CurveSaveManager.h">
       <Filter>Source\Engine\Serialization</Filter>
     </ClInclude>
