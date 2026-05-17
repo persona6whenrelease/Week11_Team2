@@ -355,18 +355,6 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 	}
 
 	// 현재 선택된 클립을 AnimSequence Editor 탭으로 점프 (임시 트리거 — UAnimSequence asset 도입 전까지)
-	ImGui::SameLine();
-	const bool bCanJump = OpenAnimEditorCallback && PreviewSkeletalMesh && CurrentSequence;
-	if (!bCanJump) ImGui::BeginDisabled();
-	if (ImGui::SmallButton("Edit in Anim Editor"))
-	{
-		if (CurrentSequence)
-		{
-			OpenAnimEditorCallback(CurrentAnimSequencePath, PreviewSkeletalMesh, CurrentSequence);
-		}
-	}
-	if (!bCanJump) ImGui::EndDisabled();
-
 	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
 	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
 	{
