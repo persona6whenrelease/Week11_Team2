@@ -16,6 +16,7 @@
 #include <cstring>
 #include <filesystem>
 #include <functional>
+#include <limits>
 
 namespace
 {
@@ -562,6 +563,151 @@ namespace
         return Text;
     }
 
+    bool IsSupportedTextureExtension(const std::filesystem::path &Path)
+    {
+        const FString Ext = ToLowerAscii(FPaths::ToUtf8(Path.extension().wstring()));
+        return Ext == ".png" || Ext == ".jpg" || Ext == ".jpeg" || Ext == ".bmp" ||
+               Ext == ".tga" || Ext == ".dds";
+    }
+
+    bool TextureFileNameMatchesRole(const FString &FileNameLower, const char *TextureRole)
+    {
+        if (!TextureRole)
+        {
+            return false;
+        }
+
+        if (std::strcmp(TextureRole, "Diffuse") == 0)
+        {
+            return ContainsToken(FileNameLower, "_d.") || ContainsToken(FileNameLower, "-d.") ||
+                   ContainsToken(FileNameLower, "diffuse") || ContainsToken(FileNameLower, "albedo") ||
+                   ContainsToken(FileNameLower, "basecolor") || ContainsToken(FileNameLower, "base_color");
+        }
+        if (std::strcmp(TextureRole, "Normal") == 0)
+        {
+            return ContainsToken(FileNameLower, "_n.") || ContainsToken(FileNameLower, "-n.") ||
+                   ContainsToken(FileNameLower, "_bn.") || ContainsToken(FileNameLower, "-bn.") ||
+                   ContainsToken(FileNameLower, "normal") || ContainsToken(FileNameLower, "normalmap");
+        }
+        if (std::strcmp(TextureRole, "Specular") == 0)
+        {
+            return ContainsToken(FileNameLower, "_mra.") || ContainsToken(FileNameLower, "-mra.") ||
+                   ContainsToken(FileNameLower, "specular") || ContainsToken(FileNameLower, "spec");
+        }
+        if (std::strcmp(TextureRole, "Emissive") == 0)
+        {
+            return ContainsToken(FileNameLower, "_e.") || ContainsToken(FileNameLower, "-e.") ||
+                   ContainsToken(FileNameLower, "emission") || ContainsToken(FileNameLower, "emissive");
+        }
+
+        return false;
+    }
+
+    TArray<FString> TokenizeTextureName(FString Text)
+    {
+        TArray<FString> Tokens;
+        Text = ToLowerAscii(Text);
+
+        FString Current;
+        for (char Ch : Text)
+        {
+            if (std::isalnum(static_cast<unsigned char>(Ch)))
+            {
+                Current.push_back(Ch);
+                continue;
+            }
+
+            if (!Current.empty())
+            {
+                Tokens.push_back(Current);
+                Current.clear();
+            }
+        }
+
+        if (!Current.empty())
+        {
+            Tokens.push_back(Current);
+        }
+        return Tokens;
+    }
+
+    int32 ScoreTextureNameForMaterial(const FString &MaterialNameLower,
+                                      const FString &FileNameLower,
+                                      const char    *TextureRole)
+    {
+        if (!TextureFileNameMatchesRole(FileNameLower, TextureRole))
+        {
+            return std::numeric_limits<int32>::min();
+        }
+
+        int32 Score = 100;
+        const TArray<FString> MaterialTokens = TokenizeTextureName(MaterialNameLower);
+        for (const FString &Token : MaterialTokens)
+        {
+            if (Token.size() < 2 || Token == "mi" || Token == "mat" || Token == "new")
+            {
+                continue;
+            }
+
+            if (ContainsToken(FileNameLower, Token.c_str()))
+            {
+                Score += (std::isdigit(static_cast<unsigned char>(Token[0])) ? 20 : 10);
+            }
+        }
+
+        return Score;
+    }
+
+    FString ResolveTexturePathByMaterialNameHeuristic(
+        FbxSurfaceMaterial *SurfaceMaterial,
+        const TArray<std::filesystem::path> &SearchBaseDirs,
+        const char *TextureRole)
+    {
+        if (!SurfaceMaterial || !SurfaceMaterial->GetName())
+        {
+            return "";
+        }
+
+        const FString MaterialNameLower = ToLowerAscii(SurfaceMaterial->GetName());
+        int32 BestScore = std::numeric_limits<int32>::min();
+        std::filesystem::path BestPath;
+
+        for (const std::filesystem::path &BaseDir : SearchBaseDirs)
+        {
+            if (!std::filesystem::exists(BaseDir) || !std::filesystem::is_directory(BaseDir))
+            {
+                continue;
+            }
+
+            for (const std::filesystem::directory_entry &Entry :
+                 std::filesystem::recursive_directory_iterator(BaseDir))
+            {
+                if (!Entry.is_regular_file() || !IsSupportedTextureExtension(Entry.path()))
+                {
+                    continue;
+                }
+
+                const FString FileNameLower =
+                    ToLowerAscii(FPaths::ToUtf8(Entry.path().filename().wstring()));
+                const int32 Score =
+                    ScoreTextureNameForMaterial(MaterialNameLower, FileNameLower, TextureRole);
+                if (Score > BestScore)
+                {
+                    BestScore = Score;
+                    BestPath = Entry.path();
+                }
+            }
+        }
+
+        if (BestScore <= std::numeric_limits<int32>::min() || BestPath.empty())
+        {
+            return "";
+        }
+
+        FString ResolvedPath;
+        return TryMakeProjectRelativePath(BestPath, ResolvedPath) ? ResolvedPath : FString();
+    }
+
     FString ReadTexturePath(FbxSurfaceMaterial *SurfaceMaterial, const FString &SourceFilePath,
                             FbxFileTexture *Texture, const char *TextureRole)
     {
@@ -629,7 +775,27 @@ namespace
             Texture = FindFileTextureByRoleFallback(SurfaceMaterial, TextureRole);
         }
 
-        return ReadTexturePath(SurfaceMaterial, SourceFilePath, Texture, TextureRole);
+        FString ResolvedPath = ReadTexturePath(SurfaceMaterial, SourceFilePath, Texture, TextureRole);
+        if (!ResolvedPath.empty())
+        {
+            return ResolvedPath;
+        }
+
+        const std::filesystem::path SourceFbxDir =
+            std::filesystem::path(FPaths::ToWide(SourceFilePath)).parent_path();
+        const TArray<std::filesystem::path> SearchBaseDirs =
+            BuildTextureSearchBaseDirs(SourceFbxDir);
+        ResolvedPath =
+            ResolveTexturePathByMaterialNameHeuristic(SurfaceMaterial, SearchBaseDirs, TextureRole);
+        if (!ResolvedPath.empty())
+        {
+            UE_LOG("[FBXImporter] Resolved %s texture by material name. Material=%s Path=%s",
+                   TextureRole,
+                   SurfaceMaterial && SurfaceMaterial->GetName() ? SurfaceMaterial->GetName()
+                                                                 : "<null>",
+                   ResolvedPath.c_str());
+        }
+        return ResolvedPath;
     }
 
     /**
@@ -1315,6 +1481,23 @@ void FFbxMetaParser::BuildSkeletonTables()
         }
 
         FindOrCreateSkeletonForRoot(RootBoneId, false, true, RootBoneIdToSkeletonId);
+    }
+
+    if (ImportMeta.Meshes.empty() && !ImportMeta.Bones.empty())
+    {
+        for (int32 BoneId = 0; BoneId < static_cast<int32>(ImportMeta.Bones.size()); ++BoneId)
+        {
+            const int32 RootBoneId = FindTopRootBone(BoneId);
+            if (!IsValidIndex(ImportMeta.Bones, RootBoneId) ||
+                RootBoneIdToSkeletonId.find(RootBoneId) != RootBoneIdToSkeletonId.end())
+            {
+                continue;
+            }
+
+            FindOrCreateSkeletonForRoot(RootBoneId, false, true, RootBoneIdToSkeletonId);
+            UE_LOG("[FBXMetaParser] Built animation-only skeleton table. RootBoneId=%d RootName=%s",
+                   RootBoneId, ImportMeta.Bones[RootBoneId].Name.c_str());
+        }
     }
 }
 

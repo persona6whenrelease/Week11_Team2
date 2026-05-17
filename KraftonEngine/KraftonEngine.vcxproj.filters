@@ -49,6 +49,9 @@
     <Filter Include="Source\Editor\UI\ContentBrowser">
       <UniqueIdentifier>{09a2ea7f-e891-b580-bef0-471bcd9b5d4b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Editor\UI\SkeletalEditor">
+      <UniqueIdentifier>{7e0f436f-6ad3-b6f4-8572-501c2f58827b}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Editor\Viewport">
       <UniqueIdentifier>{42b90bf1-e993-e912-0e50-58d7095d5e8c}</UniqueIdentifier>
     </Filter>
@@ -535,6 +538,24 @@
     </ClCompile>
     <ClCompile Include="Source\Editor\UI\NotificationToast.cpp">
       <Filter>Source\Editor\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.cpp">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClCompile>
     <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
@@ -1363,6 +1384,24 @@
     </ClInclude>
     <ClInclude Include="Source\Editor\UI\NotificationToast.h">
       <Filter>Source\Editor\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceDataSource.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\AnimSequenceEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorPreviewScene.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletalMeshEditorTab.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\UI\SkeletalEditor\SkeletonTreeUtil.h">
+      <Filter>Source\Editor\UI\SkeletalEditor</Filter>
     </ClInclude>
     <ClInclude Include="Source\Editor\Viewport\EditorViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>

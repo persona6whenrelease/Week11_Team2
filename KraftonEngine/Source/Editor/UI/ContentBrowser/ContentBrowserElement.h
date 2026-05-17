@@ -100,6 +100,14 @@ public:
 	void OnDoubleLeftClicked(ContentBrowserContext& Context) override { (void)Context; }
 };
 
+class ImportedAnimSequenceElement final : public ContentBrowserElement
+{
+public:
+	virtual const char* GetDragItemType() override { return "AnimSequenceContentItem"; }
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetElementIcon(ContentBrowserContext& Context) override;
+	void OnDoubleLeftClicked(ContentBrowserContext& Context) override;
+};
+
 class ImportableElement : public ExpandableElement
 {
 public:

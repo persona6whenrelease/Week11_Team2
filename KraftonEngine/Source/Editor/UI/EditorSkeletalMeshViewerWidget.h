@@ -1,67 +1,36 @@
-﻿#pragma once
+#pragma once
 
 #include "Editor/UI/EditorWidget.h"
-#include "GameFramework/World.h"
-#include "ImGui/imgui.h"
-#include "Render/Types/ViewTypes.h"
+#include "Editor/UI/SkeletalEditor/SkeletalEditorTab.h"
 
-class UFBXSceneAsset;
+#include <memory>
+
 class USkeletalMesh;
-class USkeletalMeshComponent;
-class ADirectionalLightActor;
-class FViewport;
-class FSkeletalMeshViewerViewportClient;
+class UAnimSequence;
 
+// 통합 셸: 여러 Skeletal Editor 탭(SkeletalMesh / AnimSequence)을 모은 하나의 ImGui 윈도우.
 class FEditorSkeletalMeshViewerWidget : public FEditorWidget
 {
 public:
 	~FEditorSkeletalMeshViewerWidget() override;
-	
+
 	void UpdateInput(float DeltaTime);
 	void Render(float DeltaTime) override;
+
 	bool OpenFbxAsset(const FString& FbxPath);
-	bool WantsMouseCapture() const { return bPreviewViewportWantsMouseCapture; }
-	bool WantsKeyboardCapture() const { return bPreviewViewportWantsKeyboardCapture; }
+	bool OpenAnimSequenceAsset(const FString& AssetPath);
+	bool OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence);
+
+	bool WantsMouseCapture() const;
+	bool WantsKeyboardCapture() const;
 
 private:
-	void EnsurePreviewScene();
-	void ReleasePreviewScene();
-	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bResetCamera = true);
-	void TickPreviewScene(float DeltaTime);
-	
-	void RenderResourcePanel();
-	void RenderViewportPanel(float DeltaTime);
-	void RenderBonePanel();
-	void RenderAnimationPlaybackPanel();
-	void RenderTransformPanel();
+	FSkeletalEditorTab* FindTabBySource(const FString& Path) const;
+	FSkeletalEditorTab* GetActiveTab() const;
+	void RequestCloseTab(int32 Index);
 
-	void RenderViewerViewportToolbar();
-	void DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId);
-
-	USkeletalMesh* GetSelectedSkeletalMesh() const;
-
-	void UpdateBoneDebugLines();
-
-	UFBXSceneAsset* CurrentSceneAsset = nullptr;
-	USkeletalMesh* PreviewSkeletalMesh = nullptr;
-	FString CurrentFbxPath;
-	FString StatusMessage = "Double-click an FBX asset in ContentBrowser";
-	int32 SelectedResourceIndex = -1;
-	int32 SelectedBoneIndex = -1;
-	bool bScrollToSelectedBone = false;
-	int32 RequestSetOpenBoneIndex = -1;
-	bool bRequestSetOpenValue = false;
-
-	UWorld* PreviewWorld = nullptr;
-	AActor* PreviewActor = nullptr;
-	ADirectionalLightActor* PreviewDirectionalLightActor = nullptr;
-	USkeletalMeshComponent* PreviewMeshComponent = nullptr;
-	FViewport* PreviewViewport = nullptr;
-	FSkeletalMeshViewerViewportClient* PreviewViewportClient = nullptr;
-	ImVec2 PreviewViewportMin = ImVec2(0.0f, 0.0f);
-	ImVec2 PreviewViewportMax = ImVec2(0.0f, 0.0f);
-	bool bHasPreviewViewportRect = false;
-	bool bPreviewViewportWantsMouseCapture = false;
-	bool bPreviewViewportWantsKeyboardCapture = false;
-	bool bDrawBoneDebugLines = true;
+	TArray<std::unique_ptr<FSkeletalEditorTab>> Tabs;
+	int32 ActiveTabIndex = -1;
+	int32 NextTabId = 1;
+	int32 RequestedFocusTabId = -1;
 };

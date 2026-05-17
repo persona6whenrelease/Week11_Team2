@@ -52,7 +52,11 @@ UMaterial* FMaterialManager::GetOrCreateMaterial(const FString& MatFilePath)
 	auto It = MaterialCache.find(GenericPath);
 	if (It != MaterialCache.end())
 	{
-		return It->second;
+		if (GenericPath.find("Asset/Materials/Auto/") == FString::npos)
+		{
+			return It->second;
+		}
+		MaterialCache.erase(It);
 	}
 
 	
