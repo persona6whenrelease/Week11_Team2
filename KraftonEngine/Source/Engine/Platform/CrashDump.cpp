@@ -1,14 +1,29 @@
-#include "Engine/Platform/CrashDump.h"
+﻿#include "Engine/Platform/CrashDump.h"
 #include "Engine/Platform/Paths.h"
 
 #include <DbgHelp.h>
 #include <ctime>
 #include <cstdio>
+#include <mutex>
 
 #pragma comment(lib, "DbgHelp.lib")
 
+namespace
+{
+	static std::mutex DumpMutex;
+}
+
+[[noreturn]] __declspec(noinline) void CauseIntentionalCrash()
+{
+    ::OutputDebugStringA("CauseCrash command triggered.\n");
+    ::RaiseException(EXCEPTION_NONCONTINUABLE_EXCEPTION, 0, 0, nullptr);
+    __assume(0);
+}
+
 LONG WINAPI WriteCrashDump(EXCEPTION_POINTERS* ExceptionInfo)
 {
+	std::lock_guard<std::mutex> Lock(DumpMutex);
+
 	FPaths::CreateDir(FPaths::DumpDir());
 
 	// 타임스탬프 기반 파일명 생성

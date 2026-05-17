@@ -5,6 +5,14 @@
 
 namespace
 {
+    int CrashFilter(EXCEPTION_POINTERS* ExceptionPointers)
+    {
+        WriteCrashDump(ExceptionPointers);
+
+        // 예외는 여기서 처리하고, __except 블록으로 진입시킨다.
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
+
 	int GuardedMain(HINSTANCE hInstance, int nShowCmd)
 	{
 		FEngineLoop EngineLoop;
@@ -25,8 +33,8 @@ int Launch(HINSTANCE hInstance, int nShowCmd)
 	{
 		return GuardedMain(hInstance, nShowCmd);
 	}
-	__except (WriteCrashDump(GetExceptionInformation()))
+	__except (CrashFilter(GetExceptionInformation()))
 	{
-		return static_cast<int>(GetExceptionCode());
+		ExitProcess(static_cast<int>(GetExceptionCode()));
 	}
 }
