@@ -1,4 +1,4 @@
-#include "Engine/Platform/CrashDump.h"
+﻿#include "Engine/Platform/CrashDump.h"
 #include "Engine/Platform/Paths.h"
 
 #include <DbgHelp.h>
@@ -6,6 +6,13 @@
 #include <cstdio>
 
 #pragma comment(lib, "DbgHelp.lib")
+
+[[noreturn]] __declspec(noinline) void CauseIntentionalCrash()
+{
+    ::OutputDebugStringA("CauseCrash command triggered.\n");
+    ::RaiseException(EXCEPTION_NONCONTINUABLE_EXCEPTION, 0, 0, nullptr);
+    __assume(0);
+}
 
 LONG WINAPI WriteCrashDump(EXCEPTION_POINTERS* ExceptionInfo)
 {
