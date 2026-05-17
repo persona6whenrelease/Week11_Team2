@@ -1,15 +1,12 @@
 #include "Asset/Animation/Core/AnimSingleNodeInstance.h"
 
 #include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Animation/Core/Skeleton.h"
 #include "Object/ObjectFactory.h"
 
 IMPLEMENT_CLASS(UAnimSingleNodeInstance, UAnimInstance)
 
-UAnimSingleNodeInstance::UAnimSingleNodeInstance()
-{
-    AnimGraphPtr = std::make_unique<AnimGraph>();
-    AnimGraphPtr->SetRoot(std::make_unique<FAnimGraphNode_SequencePlayer>());
-}
+UAnimSingleNodeInstance::UAnimSingleNodeInstance() = default;
 
 void UAnimSingleNodeInstance::SetAnimation(UAnimSequence *InSequence)
 {
@@ -27,6 +24,30 @@ void UAnimSingleNodeInstance::InitializeAnimation(USkeleton *InSkeleton)
     {
         RebuildTrackToBoneIndex();
     }
+}
+
+void UAnimSingleNodeInstance::EvaluateGraph()
+{
+    // graph 트리를 우회해 단일 SequencePlayer를 직접 호출한다. base AnimGraphPtr은 미사용.
+    if (!Skeleton)
+    {
+        OutputLocalPose.clear();
+        return;
+    }
+
+    const size_t BoneCount = Skeleton->GetBones().size();
+    if (OutputLocalPose.size() != BoneCount)
+    {
+        OutputLocalPose.resize(BoneCount);
+    }
+
+    FAnimEvalContext Ctx;
+    Ctx.Skeleton         = Skeleton;
+    Ctx.DataModel        = GetActiveDataModel();
+    Ctx.TrackToBoneIndex = &TrackToBoneIndex;
+    Ctx.TimeSeconds      = CurrentTime;
+
+    SequencePlayer.Evaluate(Ctx, OutputLocalPose);
 }
 
 float UAnimSingleNodeInstance::GetEffectivePlayLength() const

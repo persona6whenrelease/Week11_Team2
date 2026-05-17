@@ -23,6 +23,7 @@ class UAnimSingleNodeInstance : public UAnimInstance
     UAnimSequence *GetAnimation() const { return CurrentSequence; }
 
     void InitializeAnimation(USkeleton *InSkeleton) override;
+    void EvaluateGraph() override;
 
   protected:
     float                                 GetEffectivePlayLength() const override;
@@ -30,5 +31,6 @@ class UAnimSingleNodeInstance : public UAnimInstance
     const UAnimDataModel                 *GetActiveDataModel() const override;
 
   private:
-    UAnimSequence *CurrentSequence = nullptr; // ref, not owned
+    UAnimSequence                *CurrentSequence = nullptr; // ref, not owned
+    FAnimGraphNode_SequencePlayer SequencePlayer;            // 단일 시퀀스 샘플링 — graph 트리 우회를 위해 값 보유
 };
