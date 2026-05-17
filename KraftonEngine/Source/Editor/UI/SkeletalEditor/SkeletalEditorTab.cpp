@@ -860,14 +860,19 @@ void FSkeletalEditorTab::UpdateBoneDebugLines()
 
 	USkeletalMesh* MeshObj = PreviewMeshComponent ? PreviewMeshComponent->GetSkeletalMesh() : nullptr;
 	const FSkeletalMesh* MeshAsset = MeshObj ? MeshObj->GetSkeletalMeshAsset() : nullptr;
-	if (!MeshAsset || !PreviewMeshComponent || !PreviewWorld)
+	const USkeleton* SkeletonAsset = MeshObj ? MeshObj->GetSkeleton() : nullptr;
+	if (!MeshAsset || !SkeletonAsset || !PreviewMeshComponent || !PreviewWorld)
 	{
 		return;
 	}
 
-	const auto& Bones = MeshAsset->Bones;
+	const auto& Bones = SkeletonAsset->GetBones();
 
 	const auto& BoneMatrices = PreviewMeshComponent->GetMeshSpaceBoneMatrices();
+	if (BoneMatrices.size() < Bones.size())
+	{
+		return;
+	}
 	const int32 CurrentSelectedBoneIndex = PreviewViewportClient
 		? PreviewViewportClient->GetBoneSelectionManager().GetPrimarySelectedBone()
 		: -1;

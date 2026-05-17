@@ -199,9 +199,6 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
             Tracks[BoneIndex].InternalTrack.LocalMatrixKeys.resize(FrameCount, FMatrix::Identity);
         }
 
-        TArray<FMatrix> LocalMatrices;
-        LocalMatrices.resize(BoneCount, FMatrix::Identity);
-
         TArray<FMatrix> GlobalMatrices;
         GlobalMatrices.resize(BoneCount, FMatrix::Identity);
 
@@ -218,32 +215,24 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
             for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
             {
                 FbxNode* Node = BoneNodes[BoneIndex];
-                if (!Node)
-                {
-                    LocalMatrices[BoneIndex] = FMatrix::Identity;
-                    GlobalMatrices[BoneIndex] = FMatrix::Identity;
-                    continue;
-                }
+                GlobalMatrices[BoneIndex] = Node
+                    ? FBXUtil::ConvertFbxMatrix(Node->EvaluateGlobalTransform(SampleTime))
+                    : FMatrix::Identity;
+            }
 
-                LocalMatrices[BoneIndex] =
-                    FBXUtil::ConvertFbxMatrix(SampleLocalMatrixFromBaseLayer(Node, BaseLayer, SampleTime));
-
+            for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
+            {
                 const int32 ParentIndex = (BoneIndex < static_cast<int32>(SkeletonBones.size()))
                                               ? SkeletonBones[BoneIndex].ParentIndex
                                               : -1;
+                FMatrix LocalMatrix = GlobalMatrices[BoneIndex];
 
                 if (ParentIndex >= 0 && ParentIndex < BoneCount)
                 {
-                    // 기존 importer의 local 계산식이 Local = Global * ParentGlobal^-1 이므로,
-                    // 같은 행렬 규약을 유지하기 위해 Global = Local * ParentGlobal 로 누적한다.
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex] * GlobalMatrices[ParentIndex];
-                }
-                else
-                {
-                    GlobalMatrices[BoneIndex] = LocalMatrices[BoneIndex];
+                    LocalMatrix = GlobalMatrices[BoneIndex] * GlobalMatrices[ParentIndex].GetInverse();
                 }
 
-                Tracks[BoneIndex].InternalTrack.LocalMatrixKeys[FrameIndex] = LocalMatrices[BoneIndex];
+                Tracks[BoneIndex].InternalTrack.LocalMatrixKeys[FrameIndex] = LocalMatrix;
             }
         }
 

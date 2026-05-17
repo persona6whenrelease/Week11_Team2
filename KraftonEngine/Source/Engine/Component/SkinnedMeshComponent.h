@@ -26,8 +26,8 @@ public:
 
 	int32 FindBoneIndexByName(const FString& BoneName) const;
 	void ResetBonePoseToBindPose();
-	bool SetBoneLocalPose(int32 BoneIndex, const FMatrix& LocalPose);
-	bool SetBoneLocalPoseByName(const FString& BoneName, const FMatrix& LocalPose);
+	virtual bool SetBoneLocalPose(int32 BoneIndex, const FMatrix& LocalPose);
+	virtual bool SetBoneLocalPoseByName(const FString& BoneName, const FMatrix& LocalPose);
 	const TArray<FMatrix>& GetMeshSpaceBoneMatrices() const { return MeshSpaceBoneMatrices; }
 
 	void Serialize(FArchive& Ar) override;
@@ -41,6 +41,7 @@ protected:
 	void BuildBindPoseRenderVertices();
 	void UploadSkinnedVertices();
 	void RebuildMeshSpaceBoneMatrices();
+	virtual void OnManualBonePoseEdited() {}
 	virtual void SkinVerticesToReferencePose();
 
 	USkeletalMesh* SkeletalMesh = nullptr;

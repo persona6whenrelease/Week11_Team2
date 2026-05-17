@@ -114,6 +114,7 @@ bool USkinnedMeshComponent::SetBoneLocalPose(int32 BoneIndex, const FMatrix &Loc
     SkinVerticesToReferencePose();
     EnsureRuntimeResources();
     MarkWorldBoundsDirty();
+    OnManualBonePoseEdited();
     return true;
 }
 

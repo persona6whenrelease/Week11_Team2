@@ -235,6 +235,7 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
 	{
 		Comp->SetAnimation(InSequence);
+		Comp->SetBakedAnimationEvaluationEnabled(true);
 		Comp->SetBakedAnimTime(0.0f);
 		Comp->SetBakedAnimPlaybackSpeed(1.0f);
 		Comp->SetBakedAnimPaused(true);
@@ -280,10 +281,19 @@ FString FAnimSequenceEditorTab::GetTabLabel() const
 void FAnimSequenceEditorTab::OnTickPreview(float DeltaTime)
 {
 	if (!DataSource) return;
+	if (PreviewScene.PreviewMeshComponent &&
+		!PreviewScene.PreviewMeshComponent->IsBakedAnimationEvaluationEnabled())
+	{
+		bPlaying = false;
+	}
 
 	const float Duration = DataSource->GetDuration();
 	if (bPlaying && Duration > 0.0f)
 	{
+		if (PreviewScene.PreviewMeshComponent)
+		{
+			PreviewScene.PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
+		}
 		CurrentTime += DeltaTime * PlayRate;
 		if (bLooping)
 		{
@@ -303,13 +313,13 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 {
 	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
 	if (!Comp || !DataSource) return;
-	if (AnimSequence)
+	if (AnimSequence && Comp->GetAnimation() != AnimSequence)
 	{
 		Comp->SetAnimation(AnimSequence);
 	}
 	Comp->SetBakedAnimPaused(true);
 	Comp->SetBakedAnimTime(CurrentTime);
-	if (AnimSequence)
+	if (AnimSequence && Comp->IsBakedAnimationEvaluationEnabled())
 	{
 		Comp->EvaluateAnimationPose(AnimSequence, CurrentTime);
 	}
@@ -513,6 +523,10 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		{
 			CurrentTime = SnapT;
 			bPlaying = false;
+			if (PreviewScene.PreviewMeshComponent)
+			{
+				PreviewScene.PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
+			}
 		}
 	}
 	if (bDeactivated)
@@ -698,6 +712,13 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	const float Duration = DataSource ? DataSource->GetDuration() : 0.0f;
 	const float FrameRate = DataSource ? DataSource->GetFrameRate() : 30.0f;
 	const float FrameStep = (FrameRate > 0.0f) ? (1.0f / FrameRate) : 0.0f;
+	auto EnableAnimationEvaluation = [this]()
+	{
+		if (PreviewScene.PreviewMeshComponent)
+		{
+			PreviewScene.PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(true);
+		}
+	};
 
 	constexpr float ButtonSpacing = 2.0f;
 	constexpr float GroupSpacing = 12.0f;
@@ -709,6 +730,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	// |◀ 처음으로
 	if (DrawAnimIconButton("##GoToFront", EAnimToolIcon::GoToFront, true, "|<"))
 	{
+		EnableAnimationEvaluation();
 		CurrentTime = 0.0f;
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -718,6 +740,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	{
 		if (FrameStep > 0.0f)
 		{
+			EnableAnimationEvaluation();
 			CurrentTime = std::max(0.0f, CurrentTime - FrameStep);
 			bPlaying = false;
 		}
@@ -731,7 +754,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 		if (DrawAnimIconButton("##Backwards", BackIcon, true, bReversePlaying ? "||" : "<<"))
 		{
 			if (bReversePlaying) bPlaying = false;
-			else { PlayRate = -std::abs(PlayRate); bPlaying = true; }
+			else { EnableAnimationEvaluation(); PlayRate = -std::abs(PlayRate); bPlaying = true; }
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -750,7 +773,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 		if (DrawAnimIconButton("##PlayPause", PlayIcon, true, bForwardPlaying ? "Pause" : "Play"))
 		{
 			if (bForwardPlaying) bPlaying = false;
-			else { PlayRate = std::abs(PlayRate); bPlaying = true; }
+			else { EnableAnimationEvaluation(); PlayRate = std::abs(PlayRate); bPlaying = true; }
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -760,6 +783,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	{
 		if (FrameStep > 0.0f)
 		{
+			EnableAnimationEvaluation();
 			CurrentTime = std::min(Duration, CurrentTime + FrameStep);
 			bPlaying = false;
 		}
@@ -769,6 +793,7 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	// ▶| 끝으로
 	if (DrawAnimIconButton("##GoToEnd", EAnimToolIcon::GoToEnd, true, ">|"))
 	{
+		EnableAnimationEvaluation();
 		CurrentTime = Duration;
 	}
 
@@ -900,8 +925,9 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 			ImGui::TextUnformatted("Skeleton Tree");
 			ImGui::Separator();
 
-			const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
-			if (!MeshAsset || MeshAsset->Bones.empty())
+			const USkeleton* SkeletonAsset = PreviewMesh ? PreviewMesh->GetSkeleton() : nullptr;
+			const TArray<FBoneInfo>* Bones = SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
+			if (!Bones || Bones->empty())
 			{
 				ImGui::TextDisabled("No skeleton");
 			}
@@ -914,7 +940,7 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 				const int32 PrevSelected = SelectedBoneIndex;
 
 				const int32 DoubleClicked = SkeletonTreeUtil::RenderSkeletonTree(
-					MeshAsset->Bones,
+					*Bones,
 					SelectedBoneIndex,
 					bScrollToSelectedBone,
 					RequestSetOpenBoneIndex,

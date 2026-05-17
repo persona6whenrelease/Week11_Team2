@@ -261,11 +261,13 @@ void FSkeletalMeshEditorTab::RenderBonePanel()
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
 		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		const TArray<FBoneInfo>* Bones = SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
 		if (!MeshAsset)
 		{
 			ImGui::TextDisabled("No SkeletalMesh selected");
 		}
-		else if (MeshAsset->Bones.empty())
+		else if (!Bones || Bones->empty())
 		{
 			ImGui::TextDisabled("No bones found");
 		}
@@ -273,7 +275,7 @@ void FSkeletalMeshEditorTab::RenderBonePanel()
 		{
 			const int32 PrevSelectedBoneIndex = SelectedBoneIndex;
 			const int32 DoubleClicked = SkeletonTreeUtil::RenderSkeletonTree(
-				MeshAsset->Bones,
+				*Bones,
 				SelectedBoneIndex,
 				bScrollToSelectedBone,
 				RequestSetOpenBoneIndex,
@@ -344,6 +346,7 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 			{
 				SelectedAnimSequenceIndex = i;
 				PreviewMeshComponent->SetAnimation(Sequence);
+				PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(Sequence != nullptr);
 				PreviewMeshComponent->SetBakedAnimTime(0.0f);
 			}
 			if (bSelected)
@@ -358,11 +361,13 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 	const bool bPaused = PreviewMeshComponent->IsBakedAnimPaused();
 	if (ImGui::Button(bPaused ? "Play" : "Pause", ImVec2(70.0f, 0.0f)))
 	{
+		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(CurrentSequence != nullptr);
 		PreviewMeshComponent->SetBakedAnimPaused(!bPaused);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Reset", ImVec2(70.0f, 0.0f)))
 	{
+		PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(CurrentSequence != nullptr);
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 	}
 
@@ -372,6 +377,7 @@ void FSkeletalMeshEditorTab::RenderAnimationPlaybackPanel()
 		if (Time < 0.0f) Time += CurrentDuration;
 		if (ImGui::SliderFloat("Time (s)", &Time, 0.0f, CurrentDuration, "%.3f"))
 		{
+			PreviewMeshComponent->SetBakedAnimationEvaluationEnabled(CurrentSequence != nullptr);
 			PreviewMeshComponent->SetBakedAnimTime(Time);
 		}
 	}
@@ -402,10 +408,13 @@ void FSkeletalMeshEditorTab::RenderTransformPanel()
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
 		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
+		const USkeleton* SkeletonAsset = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		const TArray<FBoneInfo>* Bones = SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
 		if (!MeshAsset ||
+			!Bones ||
 			!PreviewMeshComponent ||
 			SelectedBoneIndex < 0 ||
-			SelectedBoneIndex >= static_cast<int32>(MeshAsset->Bones.size()))
+			SelectedBoneIndex >= static_cast<int32>(Bones->size()))
 		{
 			ImGui::TextDisabled("No bone selected");
 		}
@@ -419,7 +428,7 @@ void FSkeletalMeshEditorTab::RenderTransformPanel()
 				return;
 			}
 
-			const FBoneInfo& Bone = MeshAsset->Bones[SelectedBoneIndex];
+			const FBoneInfo& Bone = (*Bones)[SelectedBoneIndex];
 			const FMatrix& LocalPose = LocalPoses[SelectedBoneIndex];
 			const FVector LocationVector = LocalPose.GetLocation();
 			const FVector RotationVector = GetRotationEulerNoScale(LocalPose);
