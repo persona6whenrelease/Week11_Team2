@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 
 namespace
 {
@@ -54,17 +53,17 @@ namespace
             0.0);
     }
 
-    FQuat SampleLocalRotationQuatFromBaseLayer(FbxNode* Node, FbxAnimLayer* BaseLayer, FbxTime Time)
+    FQuat SampleLocalRotationQuatFromLayer(FbxNode* Node, FbxAnimLayer* Layer, FbxTime Time)
     {
         FbxAMatrix RotationMatrix;
         RotationMatrix.SetIdentity();
 
-        if (!Node || !BaseLayer)
+        if (!Node || !Layer)
         {
             return FQuat::Identity;
         }
 
-        const FbxVector4 RotationEuler = SampleDouble3PropertyFromLayer(Node->LclRotation, BaseLayer, Time);
+        const FbxVector4 RotationEuler = SampleDouble3PropertyFromLayer(Node->LclRotation, Layer, Time);
         RotationMatrix.SetR(RotationEuler);
         return FBXUtil::ConvertFbxMatrix(RotationMatrix).ToQuat().GetNormalized();
     }
@@ -220,7 +219,7 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                     FBXUtil::ConvertFbxVector(
                         SampleDouble3PropertyFromLayer(Node->LclTranslation, BaseLayer, SampleTime));
                 Tracks[BoneIndex].InternalTrack.RotKeys[FrameIndex] =
-                    SampleLocalRotationQuatFromBaseLayer(Node, BaseLayer, SampleTime);
+                    SampleLocalRotationQuatFromLayer(Node, BaseLayer, SampleTime);
                 Tracks[BoneIndex].InternalTrack.ScaleKeys[FrameIndex] =
                     FBXUtil::ConvertFbxVector(
                         SampleDouble3PropertyFromLayer(Node->LclScaling, BaseLayer, SampleTime));
