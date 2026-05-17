@@ -191,20 +191,22 @@ void FSkeletalMeshEditorTab::RenderBonePanel()
 		}
 
 		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
-		const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
-		if (!MeshAsset)
+		const USkeleton* Skeleton = SelectedMesh ? SelectedMesh->GetSkeleton() : nullptr;
+		if (!SelectedMesh)
 		{
 			ImGui::TextDisabled("No SkeletalMesh selected");
 		}
-		else if (MeshAsset->Bones.empty())
+		else if (!Skeleton || Skeleton->GetBones().empty())
 		{
 			ImGui::TextDisabled("No bones found");
 		}
 		else
 		{
+			const TArray<FBoneInfo>& Bones = Skeleton->GetBones();
+			
 			const int32 PrevSelectedBoneIndex = SelectedBoneIndex;
 			const int32 DoubleClicked = SkeletonTreeUtil::RenderSkeletonTree(
-				MeshAsset->Bones,
+				Bones,
 				SelectedBoneIndex,
 				bScrollToSelectedBone,
 				RequestSetOpenBoneIndex,

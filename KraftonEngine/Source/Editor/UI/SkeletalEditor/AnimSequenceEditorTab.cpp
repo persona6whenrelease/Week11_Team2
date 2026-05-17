@@ -805,13 +805,15 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 			ImGui::TextUnformatted("Skeleton Tree");
 			ImGui::Separator();
 
-			const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
-			if (!MeshAsset || MeshAsset->Bones.empty())
+			const USkeleton* Skeleton = PreviewMesh ? PreviewMesh->GetSkeleton() : nullptr;
+			if (!Skeleton || Skeleton->GetBones().empty())
 			{
 				ImGui::TextDisabled("No skeleton");
 			}
 			else
 			{
+				const TArray<FBoneInfo>& Bones = Skeleton->GetBones();
+				
 				if (PreviewViewportClient)
 				{
 					SelectedBoneIndex = PreviewViewportClient->GetBoneSelectionManager().GetPrimarySelectedBone();
@@ -819,7 +821,7 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 				const int32 PrevSelected = SelectedBoneIndex;
 
 				const int32 DoubleClicked = SkeletonTreeUtil::RenderSkeletonTree(
-					MeshAsset->Bones,
+					Bones,
 					SelectedBoneIndex,
 					bScrollToSelectedBone,
 					RequestSetOpenBoneIndex,
