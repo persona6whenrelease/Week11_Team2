@@ -40,6 +40,7 @@ private:
 	void RenderPlaybackControls();
 	void RenderNotifyPropertyInline();        // 선택된 notify의 속성을 timeline 패널 안에 인라인 표시
 	void RenderAssetBrowser();                // 우하단: 같은 mesh의 다른 anim sequence 리스트
+	void RenderBoneTransformPanel();
 	void SyncPlaybackToComponent();
 
 	std::unique_ptr<IAnimSequenceDataSource> DataSource;
@@ -71,6 +72,6 @@ private:
 	char  TimelineFilterBuf[64] = "";
 
 	// Right panel layout state (Details 위 / Asset Browser 아래)
-	float RightPanelTopHeight = 120.0f;
+	float RightPanelTopHeight = 280.0f;
 	char  AssetBrowserFilterBuf[64] = "";
 };

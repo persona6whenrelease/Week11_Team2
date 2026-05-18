@@ -34,6 +34,14 @@ public:
 	void PostDuplicate() override;
 	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
+	
+	// === Animation Bone Transform ===
+	// 본을 사용자가 직접 수정한 경우 마킹.
+	// 마킹된 본은 다음 애니메이션 평가세어 시퀀스 결과로 덮어쓰여지지 않고 사용자 값을 유지함.
+	bool IsBoneOverridden(int32 BondIndex) const;
+	void ClearBoneOverride(int32 BondIndex);
+	void ClearAllBoneOverrides();
+	void MarkBoneOverridden(int32 BondIndex);
 
 protected:
 	void CacheLocalBounds();
@@ -43,6 +51,9 @@ protected:
 	void RebuildMeshSpaceBoneMatrices();
 	virtual void OnManualBonePoseEdited() {}
 	virtual void SkinVerticesToReferencePose();
+	// 시퀀스 평가 결과를 LocalBonePoseMatrics에 반영하되, 
+	// override 마스크가 켜진 본은 사용자가 수정한 값을 유지함. Tick 흐름에서 매 프레임 호출됨.
+	void ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose);
 
 	USkeletalMesh* SkeletalMesh = nullptr;
 	FString SkeletalMeshPath = "None";
@@ -50,6 +61,7 @@ protected:
 	TArray<FVertexPNCTT> SkinnedVertices;
 	TArray<FMatrix> LocalBonePoseMatrices;
 	TArray<FMatrix> MeshSpaceBoneMatrices;
+	TArray<bool> BoneOverrideMask; // true = 사용자가 수정.
 	FMeshBuffer RuntimeMeshBuffer;
 
 	FVector CachedLocalCenter = { 0, 0, 0 };

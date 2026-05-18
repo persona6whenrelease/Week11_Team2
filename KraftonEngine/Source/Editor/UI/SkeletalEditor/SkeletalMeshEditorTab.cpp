@@ -395,6 +395,28 @@ void FSkeletalMeshEditorTab::RenderTransformPanel()
 					SelectedBoneIndex,
 					MakeLocalPoseMatrix(NewLocation, NewRotation, NewScale));
 			}
+			
+			// === Override 마스크 컨트롤 ===
+			ImGui::Separator();
+			const bool bThisBoneOverridden = PreviewMeshComponent->IsBoneOverridden(SelectedBoneIndex);
+			if (bThisBoneOverridden)
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "* User Modified");
+			}
+			else
+			{
+				ImGui::TextDisabled("(Follows animation)");
+			}
+
+			if (ImGui::Button("Reset This Bone", ImVec2(140.0f, 0.0f)))
+			{
+				PreviewMeshComponent->ClearBoneOverride(SelectedBoneIndex);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset All Bones", ImVec2(140.0f, 0.0f)))
+			{
+				PreviewMeshComponent->ClearAllBoneOverrides();
+			}
 		}
 	}
 	ImGui::EndChild();

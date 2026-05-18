@@ -127,16 +127,20 @@ bool USkeletalMeshComponent::EvaluateAnimationPose(const UAnimSequence *Sequence
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType,
-                                           FActorComponentTickFunction &ThisTickFunction)
+										   FActorComponentTickFunction &ThisTickFunction)
 {
-    if (!AnimInstance)
-    {
-        return;
-    }
+	if (!AnimInstance)
+	{
+		return;
+	}
 
-    AnimInstance->Update(DeltaTime);
-	RefreshAnimationPose();
+	AnimInstance->Update(DeltaTime);
+	AnimInstance->EvaluateGraph();
 
+	// 시퀀스 평가 결과를 적용. override 마스크가 켜진 본은 사용자 값을 유지
+	ApplyEvaluatedPose(AnimInstance->GetOutputLocalPose());
+
+	// 외부 호환 mirror.
 	BakedAnimTime = AnimInstance->GetCurrentTime();
 }
 
@@ -146,12 +150,7 @@ void USkeletalMeshComponent::RefreshAnimationPose()
 	{
 		return;
 	}
+
 	AnimInstance->EvaluateGraph();
-	
-	LocalBonePoseMatrices = AnimInstance->GetOutputLocalPose();
-	
-	RebuildMeshSpaceBoneMatrices();
-	SkinVerticesToReferencePose();
-	EnsureRuntimeResources();
-	MarkWorldBoundsDirty();
+	ApplyEvaluatedPose(AnimInstance->GetOutputLocalPose());
 }

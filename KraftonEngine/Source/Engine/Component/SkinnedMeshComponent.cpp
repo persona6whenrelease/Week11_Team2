@@ -5,6 +5,7 @@
 #include "Object/ObjectFactory.h"
 #include "Render/Proxy/SkeletalMeshSceneProxy.h"
 #include "Serialization/Archive.h"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -29,7 +30,7 @@ FPrimitiveSceneProxy *USkinnedMeshComponent::CreateSceneProxy()
 
 void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh *InMesh)
 {
-    SkeletalMesh = InMesh;
+	SkeletalMesh = InMesh;
     if (SkeletalMesh)
     {
         SkeletalMeshPath = SkeletalMesh->GetAssetPathFileName();
@@ -44,6 +45,7 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh *InMesh)
     SkinnedVertices.clear();
     LocalBonePoseMatrices.clear();
     MeshSpaceBoneMatrices.clear();
+	BoneOverrideMask.clear();
     RuntimeMeshBuffer.Release();
 
     CacheLocalBounds();
@@ -68,6 +70,7 @@ void USkinnedMeshComponent::ResetBonePoseToBindPose()
 {
     LocalBonePoseMatrices.clear();
     MeshSpaceBoneMatrices.clear();
+	BoneOverrideMask.clear();
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
         return;
@@ -80,6 +83,7 @@ void USkinnedMeshComponent::ResetBonePoseToBindPose()
     }
 
     LocalBonePoseMatrices.resize(Bones->size(), FMatrix::Identity);
+	BoneOverrideMask.assign(Bones->size(), false);
     for (int32 BoneIndex = 0; BoneIndex < static_cast<int32>(Bones->size()); ++BoneIndex)
     {
         LocalBonePoseMatrices[BoneIndex] = (*Bones)[BoneIndex].LocalBindPose;
@@ -109,7 +113,14 @@ bool USkinnedMeshComponent::SetBoneLocalPose(int32 BoneIndex, const FMatrix &Loc
         ResetBonePoseToBindPose();
     }
 
-    LocalBonePoseMatrices[BoneIndex] = LocalPose;
+	if (BoneOverrideMask.size() != Bones->size())
+	{
+		BoneOverrideMask.assign(Bones->size(), false);
+	}
+	
+	LocalBonePoseMatrices[BoneIndex] = LocalPose;
+	BoneOverrideMask[BoneIndex] = true;
+
     RebuildMeshSpaceBoneMatrices();
     SkinVerticesToReferencePose();
     EnsureRuntimeResources();
@@ -408,4 +419,75 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
         Dest.UV = Source.tex;
         Dest.Tangent = Source.tangent;
     }
+}
+
+void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose)
+{
+	if (EvaluatedLocalPose.empty())
+	{
+		return;
+	}
+	
+	if (LocalBonePoseMatrices.size() != EvaluatedLocalPose.size())
+	{
+		LocalBonePoseMatrices = EvaluatedLocalPose;
+		BoneOverrideMask.assign(EvaluatedLocalPose.size(), false);
+	}
+	else
+	{
+		const size_t MaskSize = BoneOverrideMask.size();
+		for (size_t i = 0; i < EvaluatedLocalPose.size(); ++i)
+		{
+			const bool bOverridden = (i < MaskSize) ? BoneOverrideMask[i] : false;
+			// User-edited bones keep their current local pose.
+			if (!bOverridden)
+			{
+				LocalBonePoseMatrices[i] = EvaluatedLocalPose[i];
+			}
+		}
+	}
+	
+	RebuildMeshSpaceBoneMatrices();
+	SkinVerticesToReferencePose();
+	EnsureRuntimeResources();
+	MarkWorldBoundsDirty();
+}
+
+bool USkinnedMeshComponent::IsBoneOverridden(int32 BoneIndex) const
+{
+	if (BoneIndex < 0 || static_cast<size_t>(BoneIndex) >= BoneOverrideMask.size())
+	{
+		return false;
+	}
+	return BoneOverrideMask[BoneIndex];
+}
+
+void USkinnedMeshComponent::ClearBoneOverride(int32 BoneIndex)
+{
+	if (BoneIndex < 0 || static_cast<size_t>(BoneIndex) >= BoneOverrideMask.size())
+	{
+		return;
+	}
+	BoneOverrideMask[BoneIndex] = false;
+	// 마스크만 끄면 다음 Tick에서 시퀀스 결과가 이 본을 덮으므로
+	// 즉시 시각적 효과는 다음 프레임에 반영된다 — 별도 처리 불필요.
+}
+
+void USkinnedMeshComponent::ClearAllBoneOverrides()
+{
+	std::fill(BoneOverrideMask.begin(), BoneOverrideMask.end(), false);
+}
+
+void USkinnedMeshComponent::MarkBoneOverridden(int32 BoneIndex)
+{
+	if (BoneIndex < 0) return;
+
+	const TArray<FBoneInfo> *Bones = GetSkeletonBones(SkeletalMesh);
+	if (!Bones || static_cast<size_t>(BoneIndex) >= Bones->size()) return;
+
+	if (BoneOverrideMask.size() != Bones->size())
+	{
+		BoneOverrideMask.assign(Bones->size(), false);
+	}
+	BoneOverrideMask[BoneIndex] = true;
 }

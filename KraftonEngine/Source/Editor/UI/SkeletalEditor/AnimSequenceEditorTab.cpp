@@ -105,6 +105,39 @@ namespace
 		}
 		return ImGui::ImageButton(Id, reinterpret_cast<ImTextureID>(SRV), ImVec2(IconSize, IconSize));
 	}
+	
+	FVector GetRotationEulerNoScale(const FMatrix& Matrix)
+	{
+		FMatrix RotationMatrix = Matrix;
+		const FVector Scale = Matrix.GetScale();
+		if (std::abs(Scale.X) > 0.0001f)
+		{
+			RotationMatrix.M[0][0] /= Scale.X;
+			RotationMatrix.M[0][1] /= Scale.X;
+			RotationMatrix.M[0][2] /= Scale.X;
+		}
+		if (std::abs(Scale.Y) > 0.0001f)
+		{
+			RotationMatrix.M[1][0] /= Scale.Y;
+			RotationMatrix.M[1][1] /= Scale.Y;
+			RotationMatrix.M[1][2] /= Scale.Y;
+		}
+		if (std::abs(Scale.Z) > 0.0001f)
+		{
+			RotationMatrix.M[2][0] /= Scale.Z;
+			RotationMatrix.M[2][1] /= Scale.Z;
+			RotationMatrix.M[2][2] /= Scale.Z;
+		}
+		RotationMatrix.SetLocation(FVector(0.0f, 0.0f, 0.0f));
+		return RotationMatrix.GetEuler();
+	}
+
+	FMatrix MakeLocalPoseMatrix(const FVector& Location, const FVector& Rotation, const FVector& Scale)
+	{
+		return FMatrix::MakeScaleMatrix(Scale) *
+			FMatrix::MakeRotationEuler(Rotation) *
+			FMatrix::MakeTranslationMatrix(Location);
+	}
 }
 
 // =================================================================
@@ -892,14 +925,10 @@ void FAnimSequenceEditorTab::RenderRightPanel()
 	const float MaxTop = std::max(MinTop, Avail.y - MinBottom - SplitterH);
 	RightPanelTopHeight = std::clamp(RightPanelTopHeight, MinTop, MaxTop);
 
-	// 상단: Details placeholder
+	// 상단: Bone Transform 패널 (선택된 본의 Location/Rotation/Scale 편집)
 	if (ImGui::BeginChild("##AnimSeqDetails", ImVec2(0, RightPanelTopHeight), false))
 	{
-		ImGui::TextUnformatted("Details");
-		ImGui::Separator();
-		ImGui::TextDisabled("Notify properties moved to timeline panel");
-		ImGui::Spacing();
-		ImGui::TextDisabled("(Asset details / Preview Settings — TODO)");
+		RenderBoneTransformPanel();
 	}
 	ImGui::EndChild();
 
@@ -1020,4 +1049,94 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 		}
 		ImGui::EndTable();
 	}
+}
+
+void FAnimSequenceEditorTab::RenderBoneTransformPanel()
+{
+    USkeletalMeshComponent* PreviewMeshComponent = PreviewScene.PreviewMeshComponent;
+    FSkeletalMeshViewerViewportClient* PreviewViewportClient = PreviewScene.PreviewViewportClient;
+
+    ImGui::TextUnformatted("Transform");
+    ImGui::Separator();
+
+    // 본 선택은 BoneSelectionManager가 단일 진리이므로 매 프레임 sync한다.
+    if (PreviewViewportClient)
+    {
+        SelectedBoneIndex = PreviewViewportClient->GetBoneSelectionManager().GetPrimarySelectedBone();
+    }
+
+    if (!PreviewMeshComponent || SelectedBoneIndex < 0)
+    {
+        ImGui::TextDisabled("No bone selected");
+        return;
+    }
+
+    // 본 배열은 USkeleton에서 (FSkeletalMesh.Bones는 비어있음)
+    const USkeleton* Skeleton = PreviewMesh ? PreviewMesh->GetSkeleton() : nullptr;
+    if (!Skeleton || SelectedBoneIndex >= static_cast<int32>(Skeleton->GetBones().size()))
+    {
+        ImGui::TextDisabled("No bone selected");
+        return;
+    }
+
+    const TArray<FMatrix>& LocalPoses = PreviewMeshComponent->GetLocalBonePoseMatrices();
+    if (SelectedBoneIndex >= static_cast<int32>(LocalPoses.size()))
+    {
+        ImGui::TextDisabled("No bone pose available");
+        return;
+    }
+
+    const FBoneInfo& Bone = Skeleton->GetBones()[SelectedBoneIndex];
+    const FMatrix& LocalPose = LocalPoses[SelectedBoneIndex];
+    const FVector LocationVector = LocalPose.GetLocation();
+    const FVector RotationVector = GetRotationEulerNoScale(LocalPose);
+    const FVector ScaleVector = LocalPose.GetScale();
+    float Location[3] = { LocationVector.X, LocationVector.Y, LocationVector.Z };
+    float Rotation[3] = { RotationVector.X, RotationVector.Y, RotationVector.Z };
+    float Scale[3] = { ScaleVector.X, ScaleVector.Y, ScaleVector.Z };
+
+    ImGui::TextUnformatted(Bone.Name.c_str());
+    ImGui::Separator();
+
+    bool bChanged = false;
+    bChanged |= ImGui::DragFloat3("Location", Location, 0.1f, -100000.0f, 100000.0f, "%.3f");
+    bChanged |= ImGui::DragFloat3("Rotation", Rotation, 0.1f, -360.0f, 360.0f, "%.3f");
+    bChanged |= ImGui::DragFloat3("Scale", Scale, 0.01f, 0.001f, 100.0f, "%.3f");
+
+    if (bChanged)
+    {
+        FVector NewLocation(Location[0], Location[1], Location[2]);
+        FVector NewRotation(Rotation[0], Rotation[1], Rotation[2]);
+        FVector NewScale(
+            (std::max)(Scale[0], 0.001f),
+            (std::max)(Scale[1], 0.001f),
+            (std::max)(Scale[2], 0.001f));
+        // 이 호출이 LocalBonePoseMatrices[i]를 갱신하고 BoneOverrideMask[i] = true 마킹한다.
+        // 이후 Tick에서 ApplyEvaluatedPose가 마스크 보고 사용자 값을 유지.
+        PreviewMeshComponent->SetBoneLocalPose(
+            SelectedBoneIndex,
+            MakeLocalPoseMatrix(NewLocation, NewRotation, NewScale));
+    }
+
+    // === Override 마스크 표시 + Reset ===
+    ImGui::Separator();
+    const bool bThisBoneOverridden = PreviewMeshComponent->IsBoneOverridden(SelectedBoneIndex);
+    if (bThisBoneOverridden)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "* User Modified");
+    }
+    else
+    {
+        ImGui::TextDisabled("(Follows animation)");
+    }
+
+    if (ImGui::Button("Reset This Bone", ImVec2(140.0f, 0.0f)))
+    {
+        PreviewMeshComponent->ClearBoneOverride(SelectedBoneIndex);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset All Bones", ImVec2(140.0f, 0.0f)))
+    {
+        PreviewMeshComponent->ClearAllBoneOverrides();
+    }
 }
