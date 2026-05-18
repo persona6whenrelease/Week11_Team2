@@ -43,6 +43,7 @@ struct FShowFlags
 	bool bShowShadowFrustum = false;
 	bool bVignette = true;
 	bool bFade = true;
+	bool bBoneWeightHeatmap = true;
 };
 
 // 뷰포트 카메라 프리셋 (Perspective / 6방향 Orthographic)

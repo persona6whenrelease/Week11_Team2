@@ -20,6 +20,22 @@ const TArray<FBoneInfo> *GetSkeletonBones(const USkeletalMesh *SkeletalMesh)
     const USkeleton *SkeletonAsset = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
     return SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
 }
+	
+float Saturate(float Value)
+{
+	return (std::max)(0.0f, (std::min)(1.0f, Value));
+}
+	
+	FVector4 LerpColor(const FVector4& A, const FVector4& B, float T)
+{
+	T = Saturate(T);
+	return FVector4(
+		A.X + (B.X - A.X) * T,
+		A.Y + (B.Y - A.Y) * T,
+		A.Z + (B.Z - A.Z) * T,
+		A.W + (B.W - A.W) * T
+	);
+}
 } // namespace
 
 FPrimitiveSceneProxy *USkinnedMeshComponent::CreateSceneProxy()
@@ -309,7 +325,7 @@ void USkinnedMeshComponent::BuildBindPoseRenderVertices()
         FVertexPNCTT RenderVert;
         RenderVert.Position = RawVert.pos;
         RenderVert.Normal = RawVert.normal;
-        RenderVert.Color = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderVert.Color = ResolveVertexDebugColor(RawVert);
         RenderVert.UV = RawVert.tex;
         RenderVert.Tangent = RawVert.tangent;
         SkinnedVertices.push_back(RenderVert);
@@ -415,7 +431,7 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
             Dest.Position = Source.pos;
             Dest.Normal = Source.normal;
         }
-        Dest.Color = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+        Dest.Color = ResolveVertexDebugColor(Source);
         Dest.UV = Source.tex;
         Dest.Tangent = Source.tangent;
     }
@@ -490,4 +506,91 @@ void USkinnedMeshComponent::MarkBoneOverridden(int32 BoneIndex)
 		BoneOverrideMask.assign(Bones->size(), false);
 	}
 	BoneOverrideMask[BoneIndex] = true;
+}
+
+// === Bone Weight Heatmap ===
+void USkinnedMeshComponent::SetBoneWeightHeatmapState(bool bEnabled, int32 BoneIndex)
+{
+	const int32 NewBoneIndex = bEnabled ? BoneIndex : -1;
+	const bool bNewEnabled = bEnabled && NewBoneIndex >= 0;
+	
+	if (bBoneWeightHeatmapEnabled == bNewEnabled && BoneWeightHeatmapBoneIndex == NewBoneIndex)
+	{
+		return;	
+	}
+	
+	bBoneWeightHeatmapEnabled = true;
+	BoneWeightHeatmapBoneIndex = bNewEnabled ? NewBoneIndex : -1;
+	
+	ApplyVertexDebugColors();
+	
+	if (RuntimeMeshBuffer.IsValid())
+	{
+		UploadSkinnedVertices();
+	}
+}
+
+float USkinnedMeshComponent::GetBoneWeightForVertex(const FSkeletalVertex& SourceVertex, int32 BoneIndex)
+{
+	if (BoneIndex < 0)
+	{
+		return 0.0f;
+	}
+
+	const uint32 TargetBoneIndex = static_cast<uint32>(BoneIndex);
+	for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
+	{
+		if (SourceVertex.BoneIDs[InfluenceIndex] == TargetBoneIndex)
+		{
+			return SourceVertex.BoneWeights[InfluenceIndex];
+		}
+	}
+
+	return 0.0f;
+}
+
+FVector4 USkinnedMeshComponent::MakeBoneWeightHeatmapColor(float Weight)
+{
+	const float W = Saturate(Weight);
+	
+	const FVector4 ZeroColor(0.95f, 0.25f, 1.00f, 1.0f); // UE 느낌의 낮은 weight 영역
+	const FVector4 LowColor (0.05f, 0.20f, 1.00f, 1.0f);
+	const FVector4 MidColor (0.00f, 0.90f, 1.00f, 1.0f);
+	const FVector4 HighColor(0.95f, 1.00f, 0.10f, 1.0f);
+	const FVector4 MaxColor (1.00f, 0.05f, 0.00f, 1.0f);
+
+	if (W < 0.25f) return LerpColor(ZeroColor, LowColor, W / 0.25f);
+	if (W < 0.50f) return LerpColor(LowColor, MidColor, (W - 0.25f) / 0.25f);
+	if (W < 0.75f) return LerpColor(MidColor, HighColor, (W - 0.50f) / 0.25f);
+	return LerpColor(HighColor, MaxColor, (W - 0.75f) / 0.25f);
+}
+
+FVector4 USkinnedMeshComponent::ResolveVertexDebugColor(const FSkeletalVertex& SourceVertex) const
+{
+	if (!bBoneWeightHeatmapEnabled || BoneWeightHeatmapBoneIndex < 0)
+	{
+		return FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	const float Weight = GetBoneWeightForVertex(SourceVertex, BoneWeightHeatmapBoneIndex);
+	return MakeBoneWeightHeatmapColor(Weight);
+}
+
+void USkinnedMeshComponent::ApplyVertexDebugColors()
+{
+	if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
+	{
+		return;
+	}
+
+	const FSkeletalMesh* Asset = SkeletalMesh->GetSkeletalMeshAsset();
+	if (SkinnedVertices.size() != Asset->Vertices.size())
+	{
+		return;
+	}
+
+	for (int32 VertexIndex = 0; VertexIndex < static_cast<int32>(Asset->Vertices.size()); ++VertexIndex)
+	{
+		SkinnedVertices[VertexIndex].Color = ResolveVertexDebugColor(Asset->Vertices[VertexIndex]);
+	}
 }

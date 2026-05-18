@@ -42,7 +42,11 @@ public:
 	void ClearBoneOverride(int32 BondIndex);
 	void ClearAllBoneOverrides();
 	void MarkBoneOverridden(int32 BondIndex);
-
+	// === Bone Weight Heatmap ===
+	void SetBoneWeightHeatmapState(bool bEnabled, int32 BoneIndex);
+	bool IsBoneWeightHeatmapEnabled() const { return bBoneWeightHeatmapEnabled; }
+	int32 GetBoneWeightHeatmapBoneIndex() const {return BoneWeightHeatmapBoneIndex;}
+	
 protected:
 	void CacheLocalBounds();
 	void EnsureRuntimeResources();
@@ -54,6 +58,15 @@ protected:
 	// 시퀀스 평가 결과를 LocalBonePoseMatrics에 반영하되, 
 	// override 마스크가 켜진 본은 사용자가 수정한 값을 유지함. Tick 흐름에서 매 프레임 호출됨.
 	void ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose);
+	
+	FVector4 ResolveVertexDebugColor(const FSkeletalVertex& SourceVertex) const;
+	void ApplyVertexDebugColors();
+	
+	static float GetBoneWeightForVertex(const FSkeletalVertex& SourceVertex, int32 BoneIndex);
+	static FVector4 MakeBoneWeightHeatmapColor(float Weight);
+	
+	bool bBoneWeightHeatmapEnabled = false;
+	int32 BoneWeightHeatmapBoneIndex = -1;
 
 	USkeletalMesh* SkeletalMesh = nullptr;
 	FString SkeletalMeshPath = "None";

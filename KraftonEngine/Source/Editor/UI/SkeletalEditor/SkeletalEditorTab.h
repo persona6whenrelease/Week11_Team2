@@ -71,6 +71,7 @@ private:
 	void RenderViewerViewportToolbar();
 	void DrawViewerShowFlagsControls(FViewportRenderOptions& Opts, const char* TableId);
 	void UpdateBoneDebugLines();
+	void UpdateBoneWeightHeatmapState();
 
 	int32 TabId = 0;
 	FString SourcePath;

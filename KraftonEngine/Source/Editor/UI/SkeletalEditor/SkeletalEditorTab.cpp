@@ -624,6 +624,8 @@ void FSkeletalEditorTab::RenderViewportPanel(float DeltaTime)
 			bPreviewViewportWantsMouseCapture,
 			InputFrame);
 
+		UpdateBoneWeightHeatmapState();
+		
 		EditorEngine->RenderSkeletalMeshViewerPreview(
 			PreviewWorld,
 			PreviewViewport,
@@ -676,7 +678,9 @@ void FSkeletalEditorTab::DrawViewerShowFlagsControls(FViewportRenderOptions& Opt
 		ImGui::TableNextColumn();
 		ImGui::Checkbox("Debug Draw", &Opts.ShowFlags.bDebugDraw);
 		ImGui::TableNextColumn();
-
+		ImGui::Checkbox("Bone Weight Heatmap", &Opts.ShowFlags.bBoneWeightHeatmap);
+		ImGui::TableNextColumn();
+		
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();
 		ImGui::Checkbox("FXAA", &Opts.ShowFlags.bFXAA);
@@ -927,4 +931,20 @@ void FSkeletalEditorTab::UpdateBoneDebugLines()
 		const FColor BoneColor = i == CurrentSelectedBoneIndex ? SelectedBoneDebugColor : FColor::Green();
 		DrawDebugOctahedralBone(PreviewWorld, ParentPos, ChildPos, BoneColor);
 	}
+}
+
+void FSkeletalEditorTab::UpdateBoneWeightHeatmapState()
+{
+	USkeletalMeshComponent* PreviewMeshComponent = PreviewScene.PreviewMeshComponent;
+	FSkeletalMeshViewerViewportClient* PreviewViewportClient = PreviewScene.PreviewViewportClient;
+	
+	if (!PreviewMeshComponent || !PreviewViewportClient)
+	{
+		return;
+	}
+	
+	FViewportRenderOptions& Opts = PreviewViewportClient->GetRenderOptions();
+	const int32 SelectedBoneIndex = PreviewViewportClient->GetBoneSelectionManager().GetPrimarySelectedBone();
+	
+	PreviewMeshComponent->SetBoneWeightHeatmapState(Opts.ShowFlags.bBoneWeightHeatmap, SelectedBoneIndex);
 }
