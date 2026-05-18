@@ -13,7 +13,11 @@ public:
 	void UpdateMesh() override;
 	void UpdatePerViewport(const FFrameContext& Frame) override;
 
+	bool WantsBoneWeightHeatmap() const override { return bBoneWeightHeatmapActive; }
+	
 private:
 	USkinnedMeshComponent* GetSkinnedMeshComponent() const;
 	void RebuildSectionDraws();
+	
+	bool bBoneWeightHeatmapActive = false;
 };

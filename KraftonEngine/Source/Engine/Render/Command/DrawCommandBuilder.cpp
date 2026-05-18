@@ -142,6 +142,9 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 		bHasSelectionMaskCommands = true;
 
 	const bool bDepthOnly = (Pass == ERenderPass::PreDepth);
+	const bool bBoneWeightHeatmap =
+		Proxy.WantsBoneWeightHeatmap() &&
+		Pass == ERenderPass::Opaque;
 
 	// MeshBuffer → FDrawCommandBuffer 변환
 	FDrawCommandBuffer ProxyBuffer;
@@ -159,18 +162,26 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 		FShader* SectionShader = (Section.Material && Section.Material->GetShader())
 			? Section.Material->GetShader()
 			: Proxy.GetShader();
-		FShader* EffectiveShader = SelectEffectiveShader(SectionShader, CollectViewMode);
+		FShader* EffectiveShader = bBoneWeightHeatmap
+			? FShaderManager::Get().GetOrCreate(FShaderKey(
+				EShaderPath::BoneWeightHeatmap,
+				EBoneWeightHeatmapDefines::Solid))
+			: SelectEffectiveShader(SectionShader, CollectViewMode);
 
 		FDrawCommand& Cmd = DrawCommandList.AddCommand();
 		Cmd.Pass = Pass;
 		Cmd.Shader = EffectiveShader;
 		Cmd.RenderState = BaseRenderState;
+		if (bBoneWeightHeatmap)
+		{
+			Cmd.RenderState.Rasterizer = ERasterizerState::SolidNoCull;
+		}
 		Cmd.Buffer = ProxyBuffer;
 		Cmd.PerObjectCB = PerObjCB;
 		Cmd.Buffer.FirstIndex = Section.FirstIndex;
 		Cmd.Buffer.IndexCount = Section.IndexCount;
 
-		if (!bDepthOnly && Section.Material)
+		if (!bDepthOnly && !bBoneWeightHeatmap && Section.Material)
 		{
 			UMaterial* Mat = Section.Material;
 
@@ -191,6 +202,25 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 		}
 
 		Cmd.BuildSortKey();
+
+		if (bBoneWeightHeatmap)
+		{
+			FDrawCommand& WireCmd = DrawCommandList.AddCommand();
+			WireCmd.Pass = ERenderPass::EditorLines;
+			WireCmd.Shader = FShaderManager::Get().GetOrCreate(FShaderKey(
+				EShaderPath::BoneWeightHeatmap,
+				EBoneWeightHeatmapDefines::Wire));
+			WireCmd.RenderState = BaseRenderState;
+			WireCmd.RenderState.DepthStencil = EDepthStencilState::DepthReadOnly;
+			WireCmd.RenderState.Blend = EBlendState::AlphaBlend;
+			WireCmd.RenderState.Rasterizer = ERasterizerState::WireFrame;
+			WireCmd.RenderState.Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			WireCmd.Buffer = ProxyBuffer;
+			WireCmd.PerObjectCB = PerObjCB;
+			WireCmd.Buffer.FirstIndex = Section.FirstIndex;
+			WireCmd.Buffer.IndexCount = Section.IndexCount;
+			WireCmd.BuildSortKey();
+		}
 	}
 }
 
@@ -340,6 +370,13 @@ void FDrawCommandBuilder::BuildDecalCommands(FPrimitiveSceneProxy* Proxy, const 
 // ============================================================
 void FDrawCommandBuilder::BuildMeshCommands(const FPrimitiveSceneProxy* Proxy)
 {
+	if (Proxy->WantsBoneWeightHeatmap())
+	{
+		BuildCommandForProxy(*Proxy, ERenderPass::PreDepth);
+		BuildCommandForProxy(*Proxy, ERenderPass::Opaque);
+		return;
+	}
+
 	if (Proxy->GetRenderPass() == ERenderPass::Opaque)
 		BuildCommandForProxy(*Proxy, ERenderPass::PreDepth);
 

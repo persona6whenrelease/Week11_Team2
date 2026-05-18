@@ -512,15 +512,15 @@ void USkinnedMeshComponent::MarkBoneOverridden(int32 BoneIndex)
 void USkinnedMeshComponent::SetBoneWeightHeatmapState(bool bEnabled, int32 BoneIndex)
 {
 	const int32 NewBoneIndex = bEnabled ? BoneIndex : -1;
-	const bool bNewEnabled = bEnabled && NewBoneIndex >= 0;
+	const bool bNewEnabled = bEnabled;
 	
 	if (bBoneWeightHeatmapEnabled == bNewEnabled && BoneWeightHeatmapBoneIndex == NewBoneIndex)
 	{
 		return;	
 	}
 	
-	bBoneWeightHeatmapEnabled = true;
-	BoneWeightHeatmapBoneIndex = bNewEnabled ? NewBoneIndex : -1;
+	bBoneWeightHeatmapEnabled = bNewEnabled;
+	BoneWeightHeatmapBoneIndex = NewBoneIndex;
 	
 	ApplyVertexDebugColors();
 	
@@ -553,10 +553,10 @@ FVector4 USkinnedMeshComponent::MakeBoneWeightHeatmapColor(float Weight)
 {
 	const float W = Saturate(Weight);
 	
-	const FVector4 ZeroColor(0.95f, 0.25f, 1.00f, 1.0f); // UE 느낌의 낮은 weight 영역
+	const FVector4 ZeroColor(0.95f, 0.20f, 1.00f, 1.0f);
 	const FVector4 LowColor (0.05f, 0.20f, 1.00f, 1.0f);
 	const FVector4 MidColor (0.00f, 0.90f, 1.00f, 1.0f);
-	const FVector4 HighColor(0.95f, 1.00f, 0.10f, 1.0f);
+	const FVector4 HighColor(1.00f, 1.00f, 0.05f, 1.0f);
 	const FVector4 MaxColor (1.00f, 0.05f, 0.00f, 1.0f);
 
 	if (W < 0.25f) return LerpColor(ZeroColor, LowColor, W / 0.25f);
@@ -567,13 +567,12 @@ FVector4 USkinnedMeshComponent::MakeBoneWeightHeatmapColor(float Weight)
 
 FVector4 USkinnedMeshComponent::ResolveVertexDebugColor(const FSkeletalVertex& SourceVertex) const
 {
-	if (!bBoneWeightHeatmapEnabled || BoneWeightHeatmapBoneIndex < 0)
+	if (!bBoneWeightHeatmapEnabled)
 	{
 		return FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
-	const float Weight = GetBoneWeightForVertex(SourceVertex, BoneWeightHeatmapBoneIndex);
-	return MakeBoneWeightHeatmapColor(Weight);
+	return MakeBoneWeightHeatmapColor(GetBoneWeightForVertex(SourceVertex, BoneWeightHeatmapBoneIndex));
 }
 
 void USkinnedMeshComponent::ApplyVertexDebugColors()

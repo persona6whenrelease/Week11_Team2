@@ -1,4 +1,4 @@
-#include "Render/Proxy/SkeletalMeshSceneProxy.h"
+﻿#include "Render/Proxy/SkeletalMeshSceneProxy.h"
 
 #include <algorithm>
 #include "Component/SkinnedMeshComponent.h"
@@ -24,6 +24,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(USkinnedMeshComponent* InCompon
 	: FPrimitiveSceneProxy(InComponent)
 {
 	ProxyFlags |= EPrimitiveProxyFlags::PerViewportUpdate;
+	ProxyFlags |= EPrimitiveProxyFlags::SkeletalMesh;
 }
 
 USkinnedMeshComponent* FSkeletalMeshSceneProxy::GetSkinnedMeshComponent() const
@@ -52,6 +53,13 @@ void FSkeletalMeshSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 
 		return;
 	}
+	
+	USkinnedMeshComponent* SkinnedComp = GetSkinnedMeshComponent();
+	bBoneWeightHeatmapActive =
+		Frame.RenderOptions.ShowFlags.bBoneWeightHeatmap &&
+		SkinnedComp &&
+		SkinnedComp->IsBoneWeightHeatmapEnabled();
+	
 	RebuildSectionDraws();
 }
 

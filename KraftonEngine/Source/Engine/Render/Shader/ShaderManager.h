@@ -69,6 +69,7 @@ namespace EShaderPath
 
 	inline constexpr const char* Editor = "Shaders/Editor/Editor.hlsl";
 	inline constexpr const char* Gizmo = "Shaders/Editor/Gizmo.hlsl";
+	inline constexpr const char* BoneWeightHeatmap = "Shaders/Editor/BoneWeightHeatmap.hlsl";
 
 	inline constexpr const char* FXAA = "Shaders/PostProcess/FXAA.hlsl";
 	inline constexpr const char* Outline = "Shaders/PostProcess/Outline.hlsl";
@@ -96,6 +97,12 @@ namespace EUberLitDefines
 	inline const D3D_SHADER_MACRO Gouraud[] = { {"LIGHTING_MODEL_GOURAUD", "1"}, {nullptr, nullptr} };
 	inline const D3D_SHADER_MACRO Lambert[] = { {"LIGHTING_MODEL_LAMBERT", "1"}, {nullptr, nullptr} };
 	inline const D3D_SHADER_MACRO Phong[] = { {"LIGHTING_MODEL_PHONG", "1"}, {nullptr, nullptr} };
+}
+
+namespace EBoneWeightHeatmapDefines
+{
+	inline const D3D_SHADER_MACRO Solid[] = { {nullptr, nullptr} };
+	inline const D3D_SHADER_MACRO Wire[] = { {"BONE_WEIGHT_HEATMAP_WIRE", "1"}, {nullptr, nullptr} };
 }
 
 // 셰이더별 저장된 매크로 정보 (핫 리로드 시 재컴파일에 사용)
