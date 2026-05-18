@@ -16,7 +16,6 @@
 #include <memory>
 
 class USkeleton;
-class UAnimDataModel;
 
 class UAnimInstance : public UObject
 {
@@ -27,7 +26,7 @@ class UAnimInstance : public UObject
     ~UAnimInstance() override;
 
     /**
-     * 스켈레톤을 결합하고 OutputLocalPose / TrackToBoneIndex 캐시를 초기화한다.
+     * 스켈레톤을 결합하고 OutputLocalPose를 초기화한다.
      */
     virtual void InitializeAnimation(USkeleton *InSkeleton);
 
@@ -76,17 +75,6 @@ class UAnimInstance : public UObject
     virtual const TArray<FAnimNotifyEvent> *GetActiveNotifies() const { return nullptr; }
 
     /**
-     * 파생이 현재 활성 DataModel을 노출한다. 트랙 -> 본 인덱스 캐시 빌드에 사용.
-     */
-    virtual const UAnimDataModel *GetActiveDataModel() const { return nullptr; }
-
-    /**
-     * 현재 활성 DataModel의 트랙 이름(FName)을 USkeleton 본 인덱스로 변환해 캐싱한다.
-     * 시퀀스를 set한 직후 1회 호출 — FName::ToString() 비용을 매 프레임에서 회피한다.
-     */
-    void RebuildTrackToBoneIndex();
-
-    /**
      * Skeleton 본 수에 맞춰 OutputLocalPose를 bind pose로 초기화한다.
      */
     void FillBindPose();
@@ -94,7 +82,6 @@ class UAnimInstance : public UObject
     USkeleton                  *Skeleton = nullptr;     // ref, not owned
     std::unique_ptr<AnimGraph>  AnimGraphPtr;           // owned
     TArray<FMatrix>             OutputLocalPose;        // size = BoneCount
-    TArray<int32>               TrackToBoneIndex;       // size = current DataModel 트랙 수
     TArray<FName>               TriggeredNotifiesThisFrame;
 
     float CurrentTime   = 0.0f;

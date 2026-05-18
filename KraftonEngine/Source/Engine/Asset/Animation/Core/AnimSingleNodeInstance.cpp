@@ -11,18 +11,17 @@ UAnimSingleNodeInstance::UAnimSingleNodeInstance() = default;
 void UAnimSingleNodeInstance::SetAnimation(UAnimSequence *InSequence)
 {
     CurrentSequence = InSequence;
-    RebuildTrackToBoneIndex();
+    SequencePlayer.SetSequence(Skeleton, CurrentSequence);
     ResetTime();
 }
 
 void UAnimSingleNodeInstance::InitializeAnimation(USkeleton *InSkeleton)
 {
     UAnimInstance::InitializeAnimation(InSkeleton);
-    // base가 RebuildTrackToBoneIndex를 이미 호출하지만, 시퀀스가 이미 set 된 상태에서
-    // 스켈레톤이 늦게 들어오는 경우를 위해 안전망 차원에서 한 번 더 호출.
+    // 시퀀스가 이미 set 된 상태에서 스켈레톤이 늦게 들어온 경우를 위해 노드에 다시 setting한다.
     if (CurrentSequence)
     {
-        RebuildTrackToBoneIndex();
+        SequencePlayer.SetSequence(Skeleton, CurrentSequence);
     }
 }
 
@@ -42,10 +41,8 @@ void UAnimSingleNodeInstance::EvaluateGraph()
     }
 
     FAnimEvalContext Ctx;
-    Ctx.Skeleton         = Skeleton;
-    Ctx.DataModel        = GetActiveDataModel();
-    Ctx.TrackToBoneIndex = &TrackToBoneIndex;
-    Ctx.TimeSeconds      = CurrentTime;
+    Ctx.Skeleton    = Skeleton;
+    Ctx.TimeSeconds = CurrentTime;
 
     SequencePlayer.Evaluate(Ctx, OutputLocalPose);
 }
@@ -58,9 +55,4 @@ float UAnimSingleNodeInstance::GetEffectivePlayLength() const
 const TArray<FAnimNotifyEvent> *UAnimSingleNodeInstance::GetActiveNotifies() const
 {
     return CurrentSequence ? &CurrentSequence->GetNotifies() : nullptr;
-}
-
-const UAnimDataModel *UAnimSingleNodeInstance::GetActiveDataModel() const
-{
-    return CurrentSequence ? CurrentSequence->GetDataModel() : nullptr;
 }

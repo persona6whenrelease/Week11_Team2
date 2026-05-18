@@ -42,9 +42,30 @@ void AnimGraph::Evaluate(const FAnimEvalContext &Ctx, TArray<FMatrix> &OutLocalP
     Root->Evaluate(Ctx, OutLocalPose);
 }
 
+void FAnimGraphNode_SequencePlayer::SetSequence(const USkeleton *InSkeleton, const UAnimSequence *InSequence)
+{
+    Sequence  = InSequence;
+    DataModel = InSequence ? InSequence->GetDataModel() : nullptr;
+
+    TrackToBoneIndex.clear();
+
+    if (!InSkeleton || !Sequence || !Sequence->IsValidSequence())
+    {
+        return; // 캐시 빌드 불가 — 평가 시 bind pose.
+    }
+
+    const TArray<FBoneAnimationTrack> &Tracks = DataModel->GetBoneAnimationTracks();
+    TrackToBoneIndex.resize(Tracks.size());
+    for (size_t TIdx = 0; TIdx < Tracks.size(); ++TIdx)
+    {
+        const FString BoneName = Tracks[TIdx].Name.ToString();
+        TrackToBoneIndex[TIdx] = InSkeleton->FindBoneIndexByName(BoneName);
+    }
+}
+
 void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray<FMatrix> &OutLocalPose)
 {
-    const UAnimDataModel *Model    = Ctx.DataModel;
+    const UAnimDataModel *Model    = this->DataModel;
     const USkeleton      *Skeleton = Ctx.Skeleton;
 
     if (!Model || !Skeleton)
@@ -65,11 +86,11 @@ void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray
     FillBindPose(Skeleton, OutLocalPose);
     const TArray<FBoneInfo> &Bones = Skeleton->GetBones();
 
-    if (!Ctx.TrackToBoneIndex)
+    if (TrackToBoneIndex.empty())
     {
         return; // 캐시 없음 — bind pose 유지.
     }
-    const TArray<int32> &Track2Bone = *Ctx.TrackToBoneIndex;
+    const TArray<int32> &Track2Bone = this->TrackToBoneIndex;
 
     const TArray<FBoneAnimationTrack> &Tracks = Model->GetBoneAnimationTracks();
     if (Track2Bone.size() != Tracks.size())

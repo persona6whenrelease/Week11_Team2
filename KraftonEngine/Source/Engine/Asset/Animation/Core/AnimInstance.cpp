@@ -1,11 +1,8 @@
-#include "Asset/Animation/Core/AnimInstance.h"
+﻿#include "Asset/Animation/Core/AnimInstance.h"
 
-#include "Asset/Animation/Core/AnimSequence.h"
-#include "Asset/Animation/Core/AnimationTypes.h"
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Object/ObjectFactory.h"
 
-#include <algorithm>
 #include <cmath>
 
 IMPLEMENT_CLASS(UAnimInstance, UObject)
@@ -20,7 +17,6 @@ void UAnimInstance::InitializeAnimation(USkeleton *InSkeleton)
     TriggeredNotifiesThisFrame.clear();
 
     FillBindPose();
-    RebuildTrackToBoneIndex();
 }
 
 void UAnimInstance::Update(float DeltaTime)
@@ -101,31 +97,10 @@ void UAnimInstance::EvaluateGraph()
     }
 
     FAnimEvalContext Ctx;
-    Ctx.Skeleton         = Skeleton;
-    Ctx.DataModel        = GetActiveDataModel();
-    Ctx.TrackToBoneIndex = &TrackToBoneIndex;
-    Ctx.TimeSeconds      = CurrentTime;
+    Ctx.Skeleton    = Skeleton;
+    Ctx.TimeSeconds = CurrentTime;
 
     AnimGraphPtr->Evaluate(Ctx, OutputLocalPose);
-}
-
-void UAnimInstance::RebuildTrackToBoneIndex()
-{
-    TrackToBoneIndex.clear();
-
-    const UAnimDataModel *Model = GetActiveDataModel();
-    if (!Model || !Skeleton)
-    {
-        return;
-    }
-
-    const TArray<FBoneAnimationTrack> &Tracks = Model->GetBoneAnimationTracks();
-    TrackToBoneIndex.resize(Tracks.size());
-    for (size_t TIdx = 0; TIdx < Tracks.size(); ++TIdx)
-    {
-        const FString BoneName = Tracks[TIdx].Name.ToString();
-        TrackToBoneIndex[TIdx] = Skeleton->FindBoneIndexByName(BoneName);
-    }
 }
 
 void UAnimInstance::FillBindPose()

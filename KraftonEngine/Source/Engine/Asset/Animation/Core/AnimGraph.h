@@ -18,14 +18,14 @@ class UAnimSequence;
 
 /**
  * AnimGraph 노드가 한 프레임 평가에 필요한 입력값 묶음이다.
+ *
+ * 시퀀스/DataModel/트랙-본 캐시는 노드가 자체 보유한다(예: FAnimGraphNode_SequencePlayer::SetSequence).
+ * Ctx는 평가 시점에 노드들이 공통으로 참조해야 할 최소값만 운반한다.
  */
 struct FAnimEvalContext
 {
-    const USkeleton      *Skeleton         = nullptr;
-    const UAnimDataModel *DataModel        = nullptr; // 단일 시퀀스 경로 단축용
-    const UAnimSequence  *Sequence         = nullptr; // 향후 노드가 시퀀스 메타에 접근할 때 사용
-    const TArray<int32>  *TrackToBoneIndex = nullptr; // 트랙 idx -> 본 idx
-    float                 TimeSeconds      = 0.0f;
+    const USkeleton *Skeleton    = nullptr;
+    float            TimeSeconds = 0.0f;
 };
 
 /**
@@ -44,7 +44,18 @@ struct FAnimGraphNode_Base
  */
 struct FAnimGraphNode_SequencePlayer : FAnimGraphNode_Base
 {
+    /**
+     * 평가에 필요한 입력 시퀀스를 set하고 트랙 -> 본 인덱스 캐시를 빌드한다.
+     * InSkeleton 또는 InSequence가 nullptr/invalid면 캐시를 비워둔다(평가 시 bind pose).
+     * 노드는 두 포인터를 own하지 않는다 — ref hold.
+     */
+    void SetSequence(const USkeleton *InSkeleton, const UAnimSequence *InSequence);
+
     void Evaluate(const FAnimEvalContext &Ctx, TArray<FMatrix> &OutLocalPose) override;
+
+    const UAnimSequence  *Sequence  = nullptr; // ref, not owned
+    const UAnimDataModel *DataModel = nullptr; // ref, not owned (Sequence->GetDataModel() 캐시)
+    TArray<int32>         TrackToBoneIndex;    // 값 보유 (캐시)
 };
 
 /**
