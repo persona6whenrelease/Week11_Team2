@@ -9,6 +9,7 @@
 
 #include "Engine/Platform/Paths.h"
 #include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/AssetFileHeader.h"
 #include "Asset/Import/FBX/Core/FBXManager.h"
 #include "Asset/Import/OBJ/ObjManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
@@ -219,6 +220,30 @@ bool FMeshManager::SaveAnimSequenceToFile(const UAnimSequence *Sequence, const F
     }
 
     const_cast<UAnimSequence *>(Sequence)->Serialize(Writer);
+    return true;
+}
+
+bool TryReadAssetType(const FString &PathFileName, EAssetType &OutType)
+{
+    if (PathFileName.empty())
+    {
+        return false;
+    }
+
+    FWindowsBinReader Reader(PathFileName);
+    if (!Reader.IsValid())
+    {
+        return false;
+    }
+
+    FAssetFileHeader Header;
+    Reader << Header;
+    if (Header.Magic != FAssetFileHeader::ExpectedMagic)
+    {
+        return false;
+    }
+
+    OutType = Header.AssetType;
     return true;
 }
 

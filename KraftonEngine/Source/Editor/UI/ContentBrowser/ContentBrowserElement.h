@@ -108,6 +108,16 @@ public:
 	void OnDoubleLeftClicked(ContentBrowserContext& Context) override;
 };
 
+// 디스크 상의 `.asset` 파일(헤더 AssetType == AnimSequence)을 대응하는 Element.
+// 분류 단계에서는 확장자만 본다 — 더블클릭 시점에 헤더의 AssetType을 검사한다.
+class AnimSequenceAssetElement final : public ContentBrowserElement
+{
+public:
+	virtual const char* GetDragItemType() override { return "AnimSequenceAssetContentItem"; }
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetElementIcon(ContentBrowserContext& Context) override;
+	void OnDoubleLeftClicked(ContentBrowserContext& Context) override;
+};
+
 class ImportableElement : public ExpandableElement
 {
 public:

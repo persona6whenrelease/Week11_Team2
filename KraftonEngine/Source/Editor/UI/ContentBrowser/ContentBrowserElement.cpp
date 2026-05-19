@@ -4,10 +4,12 @@
 #include "Editor/EditorEngine.h"
 #include "GameFramework/AActor.h"
 #include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/AssetTypes.h"
 #include "Asset/Material/MaterialManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Import/MeshManager.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
+#include "Core/Log.h"
 #include "Object/Object.h"
 #include "Platform/Paths.h"
 #include "Render/Device/D3DDevice.h"
@@ -578,6 +580,42 @@ void ImportedAnimSequenceElement::OnDoubleLeftClicked(ContentBrowserContext& Con
 	}
 
 	Context.EditorEngine->OpenAnimSequenceAsset(FPaths::ToUtf8(ContentItem.Path.wstring()));
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> AnimSequenceAssetElement::GetElementIcon(ContentBrowserContext& Context)
+{
+	// `.asset` 단일 파일도 BuildAnimSequenceSnapshot이 ResolveAnimSequenceReference 분기를 통해
+	// 동일하게 처리한다 (절대 경로 OK). 헤더 검사가 실패하면 nullptr이 떨어져 fallback 아이콘이 쓰인다.
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Result;
+	Result.Attach(BuildAnimSequenceSnapshot(Context, FPaths::ToUtf8(ContentItem.Path.wstring())));
+	return Result;
+}
+
+void AnimSequenceAssetElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
+{
+	if (!Context.EditorEngine)
+	{
+		return;
+	}
+
+	const FString AssetPath = FPaths::ToUtf8(ContentItem.Path.wstring());
+
+	EAssetType AssetType = EAssetType::Unknown;
+	if (!TryReadAssetType(AssetPath, AssetType))
+	{
+		UE_LOG("[ContentBrowser] AnimSequenceAssetElement: failed to read asset header. Path=%s",
+		       AssetPath.c_str());
+		return;
+	}
+
+	if (AssetType != EAssetType::AnimSequence)
+	{
+		UE_LOG("[ContentBrowser] AnimSequenceAssetElement: asset type mismatch (expected AnimSequence, got %s). Path=%s",
+		       LexToString(AssetType), AssetPath.c_str());
+		return;
+	}
+
+	Context.EditorEngine->OpenAnimSequenceAsset(AssetPath);
 }
 
 void FBXElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
