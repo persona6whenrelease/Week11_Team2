@@ -2,6 +2,7 @@
 #include "Editor/UI/SkeletalEditor/SkeletonTreeUtil.h"
 
 #include "Component/SkeletalMeshComponent.h"
+#include "Editor/UI/EditorFileUtils.h"
 #include "Editor/Viewport/SkeletalMeshViewerViewportClient.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Import/MeshManager.h"
@@ -18,6 +19,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 namespace
@@ -160,9 +162,10 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 
 	// PreviewMesh 결정 — 다음 순서로 시도한다.
 	//   1) Sequence의 outer로 잡힌 UFBXSceneAsset이 있으면 그 안에서 SkeletonAssetPath 매칭 mesh
-	//   2) (1)이 실패하면 AssetPath의 "Foo.fbx#Anim_3"에서 fbx 경로를 추출해 SceneAsset을 직접 로드 후 매칭
+	//   2) (1)이 실패하면 ResolvedSequence->GetSkeletonAssetPath()의 "Foo.fbx#SkeletonAsset_0"에서
+	//      fbx 경로를 추출해 SceneAsset을 직접 로드 후 매칭. ".asset" 단독 로드 케이스에서는 outer가
+	//      없으므로 이 경로가 유일한 fallback이 된다.
 	//   3) (2)에서 매칭도 실패하면 그 SceneAsset의 첫 SkeletalMesh를 fallback으로 사용
-	// — outer가 nullptr이거나 매칭 mesh가 없어 탭이 아예 안 열리는 회귀를 막기 위함.
 	USkeletalMesh* ResolvedPreviewMesh = nullptr;
 	if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
 	{
@@ -171,11 +174,11 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 
 	if (!ResolvedPreviewMesh)
 	{
-		// "Foo.fbx#Anim_3" → "Foo.fbx" 로 fbx 경로 추출.
-		const size_t HashPos = AssetPath.find('#');
+		const FString& SkeletonRef = ResolvedSequence->GetSkeletonAssetPath();
+		const size_t HashPos = SkeletonRef.find('#');
 		if (HashPos != FString::npos)
 		{
-			const FString FbxPath = AssetPath.substr(0, HashPos);
+			const FString FbxPath = SkeletonRef.substr(0, HashPos);
 			if (UFBXSceneAsset* FallbackScene = FMeshManager::LoadFbxScene(FbxPath))
 			{
 				ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(FallbackScene, ResolvedSequence);
@@ -888,6 +891,46 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 			ImGui::Text("Tracks:     %d", static_cast<int>(DataSource->GetTracks().size()));
 
 			ImGui::Spacing();
+			if (AnimSequence)
+			{
+				if (ImGui::Button("Save As...##AnimSeqSaveAs"))
+				{
+					// 시퀀스 이름이 비어 있으면 탭의 source path stem을 fallback으로 쓴다.
+					FString DefaultStem = AnimSequence->GetSequenceName();
+					if (DefaultStem.empty())
+					{
+						DefaultStem = ExtractFileStem(GetSourcePath());
+					}
+					if (DefaultStem.empty())
+					{
+						DefaultStem = "AnimSequence";
+					}
+					// "Skeleton|Skeleton|Foo" 처럼 들어오는 경우 디렉터리/구분자만 떼어낸 stem을 다시 추출.
+					DefaultStem = ExtractFileStem(DefaultStem);
+
+					const std::wstring DefaultFileNameW = FPaths::ToWide(DefaultStem) + L".asset";
+					const std::wstring InitialDirW = FPaths::Combine(FPaths::RootDir(), L"Asset/Content/");
+
+					FEditorFileDialogOptions Options;
+					Options.Title = L"Save Anim Sequence As";
+					Options.Filter = L"Asset Files (*.asset)\0*.asset\0All Files (*.*)\0*.*\0";
+					Options.DefaultExtension = L"asset";
+					Options.DefaultFileName = DefaultFileNameW.c_str();
+					Options.InitialDirectory = InitialDirW.c_str();
+					Options.bFileMustExist = false;
+					Options.bPathMustExist = true;
+					Options.bPromptOverwrite = true;
+					Options.bReturnRelativeToProjectRoot = true;
+
+					const FString SavePath = FEditorFileUtils::SaveFileDialog(Options);
+					if (!SavePath.empty())
+					{
+						FMeshManager::SaveAnimSequenceToFile(AnimSequence, SavePath);
+					}
+				}
+				ImGui::Spacing();
+			}
+
 			ImGui::TextUnformatted("Skeleton Tree");
 			ImGui::Separator();
 

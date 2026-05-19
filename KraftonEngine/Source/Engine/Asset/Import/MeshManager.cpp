@@ -8,18 +8,46 @@
 #include "Asset/Import/MeshManager.h"
 
 #include "Engine/Platform/Paths.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Import/FBX/Core/FBXManager.h"
 #include "Asset/Import/OBJ/ObjManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
+#include "Core/Log.h"
+#include "Object/Object.h"
+#include "Serialization/WindowsArchive.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstdlib>
+#include <cwctype>
 #include <filesystem>
 
 namespace
 {
+    // .asset 단일 파일에서 로드한 UAnimSequence를 보관하는 메모리 캐시.
+    // FBX scene cache와 동일한 패턴 — 프로세스 종료까지 비우지 않는다 (의도적 누수 수용).
+    TMap<FString, UAnimSequence*> AnimSequenceAssetCache;
+
+    FString NormalizeAssetCacheKey(const FString &Path)
+    {
+        std::filesystem::path Normalized(FPaths::ToWide(Path));
+        std::wstring          Generic = Normalized.lexically_normal().generic_wstring();
+        std::transform(Generic.begin(), Generic.end(), Generic.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        return FPaths::ToUtf8(Generic);
+    }
+
+    bool HasAssetExtension(const FString &Path)
+    {
+        std::filesystem::path FsPath(FPaths::ToWide(Path));
+        std::wstring          Ext = FsPath.extension().wstring();
+        std::transform(Ext.begin(), Ext.end(), Ext.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        return Ext == L".asset";
+    }
+
     void EnsureFbxSceneCacheDirExists()
     {
         static bool bCreated = false;
@@ -145,7 +173,95 @@ USkeletalMesh *FMeshManager::LoadSkeletalMesh(const FString &PathFileName)
 
 UAnimSequence *FMeshManager::ResolveAnimSequenceReference(const FString &PathFileName)
 {
+    if (PathFileName.empty() || PathFileName == "None")
+    {
+        return nullptr;
+    }
+
+    // FBX 가상 참조("Foo.fbx#Anim_0_0")는 기존 경로로, ".asset" 단일 파일은 새 로더로 보낸다.
+    if (PathFileName.find("#Anim_") != FString::npos)
+    {
+        return FFBXManager::ResolveAnimSequenceReference(PathFileName);
+    }
+    if (HasAssetExtension(PathFileName))
+    {
+        return LoadAnimSequenceFromFile(PathFileName);
+    }
     return FFBXManager::ResolveAnimSequenceReference(PathFileName);
+}
+
+bool FMeshManager::SaveAnimSequenceToFile(const UAnimSequence *Sequence, const FString &PathFileName)
+{
+    if (!Sequence)
+    {
+        UE_LOG("[MeshManager] SaveAnimSequenceToFile: null sequence");
+        return false;
+    }
+    if (PathFileName.empty())
+    {
+        UE_LOG("[MeshManager] SaveAnimSequenceToFile: empty path");
+        return false;
+    }
+
+    if (Sequence->GetSkeletonAssetPath().empty())
+    {
+        UE_LOG("[MeshManager] SaveAnimSequenceToFile: sequence has empty SkeletonAssetPath; "
+               "saving anyway but reload may fail to resolve a PreviewMesh. Path=%s",
+               PathFileName.c_str());
+    }
+
+    FWindowsBinWriter Writer(PathFileName);
+    if (!Writer.IsValid())
+    {
+        UE_LOG("[MeshManager] SaveAnimSequenceToFile: failed to open writer. Path=%s",
+               PathFileName.c_str());
+        return false;
+    }
+
+    const_cast<UAnimSequence *>(Sequence)->Serialize(Writer);
+    return true;
+}
+
+UAnimSequence *FMeshManager::LoadAnimSequenceFromFile(const FString &PathFileName)
+{
+    if (PathFileName.empty() || PathFileName == "None")
+    {
+        return nullptr;
+    }
+
+    const FString CacheKey = NormalizeAssetCacheKey(PathFileName);
+    auto          It = AnimSequenceAssetCache.find(CacheKey);
+    if (It != AnimSequenceAssetCache.end())
+    {
+        return It->second;
+    }
+
+    FWindowsBinReader Reader(PathFileName);
+    if (!Reader.IsValid())
+    {
+        UE_LOG("[MeshManager] LoadAnimSequenceFromFile: failed to open reader. Path=%s",
+               PathFileName.c_str());
+        return nullptr;
+    }
+
+    UAnimSequence *Sequence = UObjectManager::Get().CreateObject<UAnimSequence>();
+    if (!Sequence)
+    {
+        UE_LOG("[MeshManager] LoadAnimSequenceFromFile: failed to create UAnimSequence");
+        return nullptr;
+    }
+
+    Sequence->Serialize(Reader);
+    if (!Sequence->IsValidSequence())
+    {
+        UE_LOG("[MeshManager] LoadAnimSequenceFromFile: deserialized sequence is invalid. Path=%s",
+               PathFileName.c_str());
+        UObjectManager::Get().DestroyObject(Sequence);
+        return nullptr;
+    }
+
+    AnimSequenceAssetCache[CacheKey] = Sequence;
+    return Sequence;
 }
 
 UFBXSceneAsset *FMeshManager::LoadFbxScene(const FString &PathFileName)
