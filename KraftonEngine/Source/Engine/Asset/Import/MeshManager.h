@@ -41,6 +41,17 @@ class FMeshManager
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
     static UAnimSequence *ResolveAnimSequenceReference(const FString &PathFileName);
 
+    /**
+     * UAnimSequence를 단일 `.asset` 파일로 저장한다. 본문 헤더는 UAnimSequence::Serialize가 자체 작성한다.
+     * SkeletonAssetPath가 비어 있어도 저장은 그대로 진행되며, 다시 로드했을 때 PreviewMesh 매칭이 실패할 수 있다.
+     */
+    static bool SaveAnimSequenceToFile(const UAnimSequence *Sequence, const FString &PathFileName);
+    /**
+     * `.asset` 단일 파일에서 UAnimSequence를 로드한다. 같은 경로로 반복 호출하면 메모리 캐시 적중분을 반환한다.
+     * 캐시는 프로세스 종료 전까지 비우지 않는다 (FBX scene cache와 동일한 영구 보관 패턴).
+     */
+    static UAnimSequence *LoadAnimSequenceFromFile(const FString &PathFileName);
+
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
     static int32          GetAnimSequenceCountForSkeletalMesh(const UFBXSceneAsset *SceneAsset,
                                                               const USkeletalMesh  *SkeletalMesh);
