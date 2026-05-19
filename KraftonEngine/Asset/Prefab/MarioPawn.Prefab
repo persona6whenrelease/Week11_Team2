@@ -1,0 +1,52 @@
+{
+  "Name" : "MarioPawn",
+  "RootActor" : {
+    "ActorUUID" : 300,
+    "ClassName" : "APawn",
+    "NonSceneComponents" : [{
+        "ClassName" : "ULuaScriptComponent",
+        "Properties" : {
+          "ScriptPath" : "Game/MarioController.lua",
+          "bEditorOnly" : false,
+          "bTickEnable" : true
+        }
+      }],
+    "RootComponent" : {
+      "Children" : [{
+          "Children" : [],
+          "ClassName" : "USkeletalMeshComponent",
+          "Properties" : {
+            "Skeletal Mesh" : "Asset/FBX/Mario2/Mario2.asset",
+            "Animation Mode" : 0,
+            "Blocks Movement" : false,
+            "Cast Shadow" : true,
+            "Generate Overlap Events" : false,
+            "Location" : [0.000000, 0.000000, 0.000000],
+            "Rotation" : [0.000000, 0.000000, 0.000000],
+            "Scale" : [1.000000, 1.000000, 1.000000],
+            "Visible" : true,
+            "bEditorOnly" : false,
+            "bTickEnable" : true
+          }
+        }],
+      "ClassName" : "UBoxComponent",
+      "Properties" : {
+        "Blocks Movement" : true,
+        "Box Extent" : [0.300000, 0.300000, 0.900000],
+        "Cast Shadow" : false,
+        "Generate Overlap Events" : true,
+        "Location" : [0.000000, 0.000000, 0.000000],
+        "Rotation" : [0.000000, 0.000000, 0.000000],
+        "Scale" : [1.000000, 1.000000, 1.000000],
+        "Two Sided Shadow" : false,
+        "Visible" : false,
+        "bEditorOnly" : false,
+        "bTickEnable" : true
+      }
+    },
+    "Tags" : [],
+    "bVisible" : true
+  },
+  "Type" : "ActorPrefab",
+  "Version" : 1
+}
