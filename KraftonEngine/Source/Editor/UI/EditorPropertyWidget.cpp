@@ -15,6 +15,7 @@
 #include "Component/Movement/PawnMovementComponent.h"
 #include "Component/GizmoComponent.h"
 #include "Component/PrimitiveComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/SceneComponent.h"
 #include "Component/TextRenderComponent.h"
@@ -32,6 +33,8 @@
 #include "Object/FName.h"
 #include "Object/ObjectIterator.h"
 #include "Asset/Material/Material.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Import/MeshManager.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
@@ -414,6 +417,93 @@ namespace
 				}
 			}
 			ImGui::EndCombo();
+		}
+
+		return bChanged;
+	}
+
+	bool RenderAnimSequenceObjectRefWidget(
+		const FPropertyDescriptor& Prop,
+		UActorComponent* SelectedComponent,
+		bool& bChanged)
+	{
+		FString* Val = static_cast<FString*>(Prop.ValuePtr);
+		USkeletalMeshComponent* SkinnedMeshComponent = SelectedComponent ? Cast<USkeletalMeshComponent>(SelectedComponent) : nullptr;
+		USkeletalMesh* SkeletalMesh = SkinnedMeshComponent ? SkinnedMeshComponent->GetSkeletalMesh() : nullptr;
+		UFBXSceneAsset* SceneAsset = SkeletalMesh ? SkeletalMesh->GetTypedOuter<UFBXSceneAsset>() : nullptr;
+
+		FString Preview = "None";
+		if (UAnimSequence* CurrentSequence = FMeshManager::ResolveAnimSequenceReference(*Val))
+		{
+			Preview = CurrentSequence->GetSequenceName().empty() ? GetStemFromPath(*Val) : CurrentSequence->GetSequenceName();
+		}
+		else if (Val && !Val->empty() && *Val != "None")
+		{
+			Preview = GetStemFromPath(*Val);
+		}
+
+		ImGui::Text("%s", Prop.GetName());
+		ImGui::SameLine(120);
+		ImGui::SetNextItemWidth(-1.0f);
+
+		const int32 SequenceCount = (SceneAsset && SkeletalMesh)
+			? FMeshManager::GetAnimSequenceCountForSkeletalMesh(SceneAsset, SkeletalMesh)
+			: 0;
+		const bool bHasChoices = SequenceCount > 0;
+		if (!bHasChoices)
+		{
+			ImGui::BeginDisabled();
+		}
+
+		const char* ComboPreview = bHasChoices ? Preview.c_str() : "No compatible animation sequences";
+		if (ImGui::BeginCombo("##AnimSequence", ComboPreview))
+		{
+			const bool bSelectedNone = (Val->empty() || *Val == "None");
+			if (ImGui::Selectable("None", bSelectedNone))
+			{
+				*Val = "None";
+				bChanged = true;
+			}
+			if (bSelectedNone)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+
+			ImGui::Separator();
+
+			for (int32 SequenceIndex = 0; SequenceIndex < SequenceCount; ++SequenceIndex)
+			{
+				FString AnimSequencePath;
+				UAnimSequence* Sequence = FMeshManager::FindAnimSequenceForSkeletalMesh(
+					SceneAsset,
+					SkeletalMesh,
+					SequenceIndex,
+					&AnimSequencePath);
+				if (!Sequence)
+				{
+					continue;
+				}
+
+				const FString SequenceName = Sequence->GetSequenceName().empty()
+					? (!AnimSequencePath.empty() ? GetStemFromPath(AnimSequencePath) : FString("AnimSequence_") + std::to_string(SequenceIndex))
+					: Sequence->GetSequenceName();
+				const bool bSelected = (*Val == AnimSequencePath);
+				if (ImGui::Selectable(SequenceName.c_str(), bSelected))
+				{
+					*Val = AnimSequencePath;
+					bChanged = true;
+				}
+				if (bSelected)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		if (!bHasChoices)
+		{
+			ImGui::EndDisabled();
 		}
 
 		return bChanged;
@@ -1893,6 +1983,10 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		else if (IsObjectRefType(Prop, USkeletalMesh::StaticClass()))
 		{
 			bChanged = RenderSkeletalMeshObjectRefWidget(Prop, bChanged);
+		}
+		else if (IsObjectRefType(Prop, UAnimSequence::StaticClass()))
+		{
+			bChanged = RenderAnimSequenceObjectRefWidget(Prop, SelectedComponent, bChanged);
 		}
 		else if (IsObjectRefType(Prop, USceneComponent::StaticClass()))
 		{

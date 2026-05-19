@@ -7,8 +7,8 @@
 #include "Viewport/Viewport.h"
 #include "Component/CameraComponent.h"
 #include "GameFramework/World.h"
+#include "Profiling/FrameProfiler.h"
 #include "Profiling/Stats.h"
-#include "Profiling/GPUProfiler.h"
 #include "Engine/Render/Types/ForwardLightData.h"
 #include "Component/Light/LightComponentBase.h"
 #include "Core/ProjectSettings.h"
@@ -52,11 +52,7 @@ FGPUOcclusionCulling& FEditorRenderPipeline::GetOcclusionForViewport(FLevelEdito
 
 void FEditorRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 {
-#if STATS
-	FStatManager::Get().TakeSnapshot();
-	FGPUProfiler::Get().TakeSnapshot();
-	FGPUProfiler::Get().BeginFrame();
-#endif
+	FFrameProfiler::BeginRenderFrame();
 
 	// 이전 프레임 시각화 데이터 readback + 디버그 라인 제출
 	Renderer.SubmitCullingDebugLines(Editor->GetWorld());
@@ -82,9 +78,7 @@ void FEditorRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 		Editor->RenderUI(DeltaTime);
 	}
 
-#if STATS
-	FGPUProfiler::Get().EndFrame();
-#endif
+	FFrameProfiler::EndRenderFrame();
 
 	{
 		SCOPE_STAT_CAT("Present", "2_Render");

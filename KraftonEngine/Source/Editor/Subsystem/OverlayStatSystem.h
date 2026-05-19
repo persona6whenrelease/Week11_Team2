@@ -31,9 +31,15 @@ public:
 	void ShowPickingTime(bool bEnable = true) { bShowPickingTime = bEnable; }
 	void ShowMemory(bool bEnable = true) { bShowMemory = bEnable; }
 	void ShowShadow(bool bEnable = true) { bShowShadow = bEnable; }
+	void ShowSkinning(bool bEnable = true) { bShowSkinning = bEnable; }
+	bool IsShowingFPS() const { return bShowFPS; }
+	bool IsShowingMemory() const { return bShowMemory; }
+	bool IsShowingShadow() const { return bShowShadow; }
+	bool IsShowingSkinning() const { return bShowSkinning; }
 	bool ToggleFPS() { bShowFPS = !bShowFPS; return bShowFPS; }
 	bool ToggleMemory() { bShowMemory = !bShowMemory; return bShowMemory; }
 	bool ToggleShadow() { bShowShadow = !bShowShadow; return bShowShadow; }
+	bool ToggleSkinning() { bShowSkinning = !bShowSkinning; return bShowSkinning; }
 	void RecordPickingAttempt(double ElapsedMs);
 	void HideAll()
 	{
@@ -41,6 +47,7 @@ public:
 		bShowPickingTime = false;
 		bShowMemory = false;
 		bShowShadow = false;
+		bShowSkinning = false;
 	}
 
 	const FOverlayStatLayout& GetLayout() const { return Layout; }
@@ -55,11 +62,13 @@ private:
 	void BuildFPSLines(const UEditorEngine& Editor, TArray<FString>& OutLines) const;
 	void BuildMemoryLines(TArray<FString>& OutLines) const;
 	void BuildShadowLines(TArray<FString>& OutLines) const;
+	void BuildSkinningLines(const UEditorEngine& Editor, TArray<FString>& OutLines) const;
 
 	bool bShowFPS = false;
 	bool bShowPickingTime = false; // WM_LBUTTONDOWN , VK_LBUTTON 입력 시점이 아닌 오브젝트 충돌 판정에 걸린 시간을 측정합니다.
 	bool bShowMemory = false;
 	bool bShowShadow = false;
+	bool bShowSkinning = false;
 	double LastPickingTimeMs = 0.0;
 	double AccumulatedPickingTimeMs = 0.0;
 	uint32 PickingAttemptCount = 0;
@@ -69,6 +78,19 @@ private:
 	mutable double FPSAccumulatedFrameTimeMs = 0.0;
 	mutable uint32 FPSAccumulatedFrameCount = 0;
 	mutable bool bFPSAverageInitialized = false;
+	mutable double SkinningAverageWindowStartTime = 0.0;
+	mutable double SkinningAccumulatedPoseSamplingMs = 0.0;
+	mutable double SkinningAccumulatedMatrixUpdateMs = 0.0;
+	mutable double SkinningAccumulatedCPUSkinningMs = 0.0;
+	mutable double SkinningAccumulatedGPUSkinningMs = 0.0;
+	mutable double SkinningAccumulatedBoneUploadMs = 0.0;
+	mutable uint32 SkinningAccumulatedFrameCount = 0;
+	mutable bool bSkinningAverageInitialized = false;
+	mutable FString CachedSkinningPoseSamplingLine;
+	mutable FString CachedSkinningMatrixUpdateLine;
+	mutable FString CachedSkinningCPUSkinningLine;
+	mutable FString CachedSkinningGPUSkinningLine;
+	mutable FString CachedSkinningBoneUploadLine;
 
 	FOverlayStatLayout Layout;
 };

@@ -3,11 +3,15 @@
 #include "Asset/Import/MeshManager.h"
 #include "Engine/Runtime/Engine.h"
 #include "Object/ObjectFactory.h"
+#include "Profiling/GPUProfiler.h"
+#include "Profiling/PlatformTime.h"
+#include "Profiling/SkinningStats.h"
 #include "Render/Proxy/SkeletalMeshSceneProxy.h"
 #include "Serialization/Archive.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <unordered_map>
 
 #include "Render/Shader/ShaderManager.h"
 
@@ -18,6 +22,31 @@ HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 namespace
 {
 ESkinningGlobalMode GSkinningGlobalMode = ESkinningGlobalMode::Component;
+
+struct FDeferredSkinningState
+{
+    bool bPendingDispatch = false;
+    uint32 LastDispatchFrame = UINT32_MAX;
+};
+
+std::unordered_map<const USkinnedMeshComponent*, FDeferredSkinningState> GDeferredSkinningStates;
+
+FDeferredSkinningState& GetDeferredSkinningState(const USkinnedMeshComponent* Component)
+{
+    return GDeferredSkinningStates[Component];
+}
+
+void ResetDeferredSkinningState(const USkinnedMeshComponent* Component)
+{
+    if (!Component)
+    {
+        return;
+    }
+
+    FDeferredSkinningState& State = GDeferredSkinningStates[Component];
+    State.bPendingDispatch = false;
+    State.LastDispatchFrame = UINT32_MAX;
+}
 
 const TArray<FBoneInfo> *GetSkeletonBones(const USkeletalMesh *SkeletalMesh)
 {
@@ -82,7 +111,53 @@ bool USkinnedMeshComponent::ShouldUseGPUSkinning() const
 
 USkinnedMeshComponent::~USkinnedMeshComponent()
 {
+    GDeferredSkinningStates.erase(this);
     ReleaseGPUSkinningResources();
+}
+
+bool USkinnedMeshComponent::EnsureGPUSkinningCacheReady(uint32 FrameId)
+{
+    FDeferredSkinningState& DeferredState = GetDeferredSkinningState(this);
+
+    if (!ShouldUseGPUSkinning())
+    {
+        return false;
+    }
+
+    if (FrameId != UINT32_MAX && DeferredState.LastDispatchFrame == FrameId && bSkinCacheValid)
+    {
+        return true;
+    }
+
+    if (!DeferredState.bPendingDispatch && bSkinCacheValid)
+    {
+        if (FrameId != UINT32_MAX)
+        {
+            DeferredState.LastDispatchFrame = FrameId;
+        }
+        return true;
+    }
+
+    if (!UpdateBonePaletteCB())
+    {
+        return false;
+    }
+
+    if (!DispatchSkinningCompute())
+    {
+        DeferredState.bPendingDispatch = false;
+        bSkinCacheValid = false;
+        SkinVerticesToReferencePose();
+        EnsureRuntimeResources();
+        return false;
+    }
+
+    DeferredState.bPendingDispatch = false;
+    if (FrameId != UINT32_MAX)
+    {
+        DeferredState.LastDispatchFrame = FrameId;
+    }
+    return true;
 }
 
 FPrimitiveSceneProxy *USkinnedMeshComponent::CreateSceneProxy()
@@ -109,7 +184,9 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh *InMesh)
     SkinnedSourceVertices.clear();
     LocalBonePoseMatrices.clear();
     MeshSpaceBoneMatrices.clear();
+    SkinningMatrices.clear();
 	BoneOverrideMask.clear();
+    ResetDeferredSkinningState(this);
     RuntimeMeshBuffer.Release();
     ReleaseGPUSkinningResources();
 
@@ -136,7 +213,9 @@ void USkinnedMeshComponent::ResetBonePoseToBindPose()
 {
     LocalBonePoseMatrices.clear();
     MeshSpaceBoneMatrices.clear();
+    SkinningMatrices.clear();
 	BoneOverrideMask.clear();
+    ResetDeferredSkinningState(this);
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
         return;
@@ -479,7 +558,9 @@ void USkinnedMeshComponent::UploadSkinnedVertices()
 
 void USkinnedMeshComponent::RebuildMeshSpaceBoneMatrices()
 {
+    const uint64 StartCycles = FPlatformTime::Cycles64();
     MeshSpaceBoneMatrices.clear();
+    SkinningMatrices.clear();
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
         return;
@@ -508,10 +589,21 @@ void USkinnedMeshComponent::RebuildMeshSpaceBoneMatrices()
                                        ? LocalBonePoseMatrices[i] * MeshSpaceBoneMatrices[ParentIndex]
                                        : LocalBonePoseMatrices[i];
     }
+
+    SkinningMatrices.resize(Bones->size(), FMatrix::Identity);
+    for (int32 i = 0; i < static_cast<int32>(Bones->size()); ++i)
+    {
+        SkinningMatrices[i] = (*Bones)[i].InverseBindPose * MeshSpaceBoneMatrices[i];
+    }
+
+#if STATS
+    FSkinningStats::AddSkinningMatrixUpdateTime(FPlatformTime::ToMilliseconds(FPlatformTime::Cycles64() - StartCycles) * 0.001);
+#endif
 }
 
 void USkinnedMeshComponent::SkinVerticesToReferencePose()
 {
+    const uint64 StartCycles = FPlatformTime::Cycles64();
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
     {
         return;
@@ -528,7 +620,7 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
     {
         BuildBindPoseRenderVertices();
     }
-    if (MeshSpaceBoneMatrices.size() != Bones->size())
+    if (MeshSpaceBoneMatrices.size() != Bones->size() || SkinningMatrices.size() != Bones->size())
     {
         RebuildMeshSpaceBoneMatrices();
     }
@@ -549,7 +641,7 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
                 continue;
             }
 
-            const FMatrix SkinMatrix = (*Bones)[BoneIndex].InverseBindPose * MeshSpaceBoneMatrices[BoneIndex];
+            const FMatrix& SkinMatrix = SkinningMatrices[BoneIndex];
             SkinnedPos += SkinMatrix.TransformPositionWithW(Source.pos) * Weight;
             SkinnedNormal += SkinMatrix.TransformVector(Source.normal) * Weight;
             TotalWeight += Weight;
@@ -571,6 +663,10 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
         Dest.UV = Source.tex;
         Dest.Tangent = Source.tangent;
     }
+
+#if STATS
+    FSkinningStats::AddCPUSkinningTime(FPlatformTime::ToMilliseconds(FPlatformTime::Cycles64() - StartCycles) * 0.001);
+#endif
 }
 
 bool USkinnedMeshComponent::PrepareGPUSkinningData()
@@ -582,11 +678,14 @@ bool USkinnedMeshComponent::PrepareGPUSkinningData()
     }
 
 	EnsureGPUSkinningBuffers();   // 메쉬 변경시에만 실제 작업 (idempotent)
-	if (!UpdateBonePaletteCB())    // 매 프레임 본 행렬 업로드
+	if (!BonePaletteCB.GetBuffer())
 	{
 		return false;
 	}
-	return DispatchSkinningCompute();     // Compute 실행 → SkinCache에 결과 저장
+    FDeferredSkinningState& DeferredState = GetDeferredSkinningState(this);
+    DeferredState.bPendingDispatch = true;
+    DeferredState.LastDispatchFrame = UINT32_MAX;
+	return true;
 }
 
 void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FTransform>& EvaluatedLocalPose)
@@ -860,6 +959,7 @@ void USkinnedMeshComponent::EnsureGPUSkinningBuffers()
 void USkinnedMeshComponent::ReleaseGPUSkinningResources()
 {
     bSkinCacheValid = false;
+    ResetDeferredSkinningState(this);
     if (SkinningSourceSRV)    { SkinningSourceSRV->Release();    SkinningSourceSRV = nullptr; }
     if (SkinningSourceBuffer) { SkinningSourceBuffer->Release(); SkinningSourceBuffer = nullptr; }
     if (SkinCacheSRV)         { SkinCacheSRV->Release();         SkinCacheSRV = nullptr; }
@@ -871,18 +971,14 @@ void USkinnedMeshComponent::ReleaseGPUSkinningResources()
 
 bool USkinnedMeshComponent::UpdateBonePaletteCB()
 {
-    const TArray<FBoneInfo>* Bones = GetSkeletonBones(SkeletalMesh);
-    if (!Bones || Bones->empty()) return false;
-    if (MeshSpaceBoneMatrices.size() != Bones->size()) return false;
+    const uint64 StartCycles = FPlatformTime::Cycles64();
+    if (SkinningMatrices.empty()) return false;
     if (!BonePaletteCB.GetBuffer()) return false;
 
-    const uint32 BoneCount = std::min<uint32>(static_cast<uint32>(Bones->size()), MAX_SKINNING_BONES);
-
-    // CPU 경로와 동일한 식: SkinMatrix = InverseBindPose * MeshSpaceBoneMatrix
-    // 정점마다 4번 곱하던 걸 본마다 1번으로 줄여서 GPU에 보냄.
+    const uint32 BoneCount = std::min<uint32>(static_cast<uint32>(SkinningMatrices.size()), MAX_SKINNING_BONES);
     for (uint32 i = 0; i < BoneCount; ++i)
     {
-        BonePaletteCPUMirror.BoneMatrices[i] = (*Bones)[i].InverseBindPose * MeshSpaceBoneMatrices[i];
+        BonePaletteCPUMirror.BoneMatrices[i] = SkinningMatrices[i];
     }
     BonePaletteCPUMirror.NumSkinningVertices = SkinningVertexCount;
     BonePaletteCPUMirror.NumSkinningBones    = BoneCount;
@@ -894,6 +990,9 @@ bool USkinnedMeshComponent::UpdateBonePaletteCB()
     }
 
     BonePaletteCB.Update(Context, &BonePaletteCPUMirror, sizeof(FBonePaletteConstants));
+#if STATS
+    FSkinningStats::AddBoneUploadTime(FPlatformTime::ToMilliseconds(FPlatformTime::Cycles64() - StartCycles) * 0.001);
+#endif
     return true;
 }
 
@@ -928,7 +1027,10 @@ bool USkinnedMeshComponent::DispatchSkinningCompute()
     // ---- Dispatch ----
     // numthreads(64,1,1)이므로 그룹 수 = ceil(N / 64)
     const uint32 GroupCount = (SkinningVertexCount + 63) / 64;
-    Context->Dispatch(GroupCount, 1, 1);
+    {
+        GPU_SCOPE_STAT_CAT("SkinningCompute", "Skinning");
+        Context->Dispatch(GroupCount, 1, 1);
+    }
 
     // ---- Unbind (UAV 풀어줘야 다음 단계가 SRV로 읽기 가능) ----
     ID3D11UnorderedAccessView* NullUAV[] = { nullptr };

@@ -11,7 +11,7 @@ class USkeleton;
 class UAnimInstance;
 
 // AnimInstance 종류별 분기. 신규 모드 추가 시 USkeletalMeshComponent::EnsureAnimInstance switch에 case도 함께.
-enum class EAnimationMode
+enum class EAnimationMode : int32
 {
     AnimationSingleNode,
     AnimationStateMachine
@@ -47,6 +47,11 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 
     void Play(bool bLooping = true);
     void Stop();
+    void BeginPlay() override;
+    void Serialize(FArchive& Ar) override;
+    void PostDuplicate() override;
+    void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
+    void PostEditProperty(const char* PropertyName) override;
 
     /**
      * UAnimSequence -> UAnimDataModel -> USkeleton 기준으로 현재 로컬 포즈를 평가한다.
@@ -105,6 +110,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 
     EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
     UAnimationAsset *AnimToPlay = nullptr;
+    FString AnimToPlayPath = "None";
 
     // 파트 2: 시간 누적과 그래프 평가는 AnimInstance에 위임한다. 컴포넌트가 라이프사이클 소유.
     UAnimInstance *AnimInstance = nullptr;

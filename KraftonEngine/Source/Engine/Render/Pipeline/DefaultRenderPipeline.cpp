@@ -4,6 +4,7 @@
 #include "Engine/Runtime/Engine.h"
 #include "Component/CameraComponent.h"
 #include "GameFramework/World.h"
+#include "Profiling/FrameProfiler.h"
 
 FDefaultRenderPipeline::FDefaultRenderPipeline(UEngine* InEngine, FRenderer& InRenderer)
 	: Engine(InEngine)
@@ -16,6 +17,8 @@ FDefaultRenderPipeline::~FDefaultRenderPipeline()
 
 void FDefaultRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 {
+	FFrameProfiler::BeginRenderFrame();
+
 	Frame.ClearViewportResources();
 
 	FDrawCommandBuilder& Builder = Renderer.GetBuilder();
@@ -49,5 +52,6 @@ void FDefaultRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 
 	Renderer.BeginFrame();
 	Renderer.Render(Frame, *Scene);
+	FFrameProfiler::EndRenderFrame();
 	Renderer.EndFrame();
 }

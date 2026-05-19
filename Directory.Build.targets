@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <ReflectionEnabled Condition="'$(MSBuildProjectName)' == 'KraftonEngine' or '$(MSBuildProjectName)' == 'CrossyGame'">true</ReflectionEnabled>
-    <PythonExe Condition="'$(PythonExe)' == ''">py -3</PythonExe>
+    <PythonExe Condition="'$(PythonExe)' == ''">python</PythonExe>
     <ReflectionScript>$(MSBuildThisFileDirectory)Scripts\GenerateReflectionHeaders.py</ReflectionScript>
     <ReflectionStamp>$(MSBuildThisFileDirectory)KraftonEngine\Build\Reflection\reflection_codegen.stamp</ReflectionStamp>
   </PropertyGroup>

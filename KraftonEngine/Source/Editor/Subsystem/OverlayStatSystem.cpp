@@ -1,15 +1,51 @@
 ﻿#include "Editor/Subsystem/OverlayStatSystem.h"
 
 #include "Editor/EditorEngine.h"
+#include "Component/SkinnedMeshComponent.h"
+#include "Object/Object.h"
 #include "Engine/Profiling/Timer.h"
 #include "Engine/Profiling/MemoryStats.h"
 #include "Engine/Profiling/ShadowStats.h"
 #include "Engine/Profiling/GPUProfiler.h"
+#include "Engine/Profiling/SkinningStats.h"
 #include "UI/SWindow.h"
 #include "ImGui/imgui.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+
+namespace
+{
+	bool IsOverlaySectionLine(const FString& Line)
+	{
+		return !Line.empty() && Line.front() == '[' && Line.back() == ']';
+	}
+
+	bool IsOverlayBlankLine(const FString& Line)
+	{
+		return Line.empty();
+	}
+
+	const char* FindOverlayKeyValueSeparator(const FString& Line)
+	{
+		return std::strstr(Line.c_str(), " : ");
+	}
+
+	float GetOverlayLineAdvance(const FString& Line, float TextLineHeight)
+	{
+		if (IsOverlayBlankLine(Line))
+		{
+			return TextLineHeight * 0.45f;
+		}
+
+		if (IsOverlaySectionLine(Line))
+		{
+			return TextLineHeight * 1.05f;
+		}
+
+		return TextLineHeight;
+	}
+}
 
 // バイト数を適切な単位 (B / KB / MB / GB) に変換して文字列化
 static int FormatBytes(char* Buffer, int32 BufferSize, const char* Label, uint64 Bytes)
@@ -26,6 +62,20 @@ static int FormatBytes(char* Buffer, int32 BufferSize, const char* Label, uint64
 	if (KB >= 1.0)
 		return snprintf(Buffer, BufferSize, "%s : %.2f KB", Label, KB);
 	return snprintf(Buffer, BufferSize, "%s : %llu B", Label, static_cast<unsigned long long>(Bytes));
+}
+
+static FString FormatSkinningTimingLine(const char* Label, double TimeMs)
+{
+	char Buffer[160] = {};
+	if (TimeMs >= 0.001)
+	{
+		snprintf(Buffer, sizeof(Buffer), "%-24s : %.3f ms", Label, TimeMs);
+	}
+	else
+	{
+		snprintf(Buffer, sizeof(Buffer), "%-24s : %.1f us", Label, TimeMs * 1000.0);
+	}
+	return FString(Buffer);
 }
 
 void FOverlayStatSystem::AppendLine(TArray<FOverlayStatLine>& OutLines, float Y, const FString& Text) const
@@ -182,6 +232,195 @@ void FOverlayStatSystem::BuildShadowLines(TArray<FString>& OutLines) const
 #endif
 }
 
+void FOverlayStatSystem::BuildSkinningLines(const UEditorEngine& Editor, TArray<FString>& OutLines) const
+{
+#if STATS
+    uint32 VertexCount = 0;
+    uint32 BoneCount = 0;
+    uint32 ComponentCount = 0;
+    uint32 DrawCallCount = 0;
+    uint32 CPUComponentCount = 0;
+    uint32 GPUComponentCount = 0;
+
+    for (UObject* Obj : GUObjectArray)
+    {
+        USkinnedMeshComponent* Skinned = Cast<USkinnedMeshComponent>(Obj);
+        if (!Skinned)
+        {
+            continue;
+        }
+
+        USkeletalMesh* Mesh = Skinned->GetSkeletalMesh();
+        const FSkeletalMesh* MeshAsset = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr;
+        if (!MeshAsset)
+        {
+            continue;
+        }
+
+        ++ComponentCount;
+        VertexCount += static_cast<uint32>(MeshAsset->Vertices.size());
+        DrawCallCount += static_cast<uint32>(Mesh->GetSections().size());
+
+        const USkeleton* Skeleton = Mesh->GetSkeleton();
+        if (Skeleton)
+        {
+            BoneCount += static_cast<uint32>(Skeleton->GetBones().size());
+        }
+
+        if (Skinned->ShouldUseGPUSkinning())
+        {
+            ++GPUComponentCount;
+        }
+        else
+        {
+            ++CPUComponentCount;
+        }
+    }
+
+    FSkinningStats::SetSceneCounts(VertexCount, BoneCount, ComponentCount, DrawCallCount);
+    FSkinningStats::SetComponentModeCounts(CPUComponentCount, GPUComponentCount);
+
+    char Buffer[160] = {};
+    OutLines.push_back(FString(""));
+    snprintf(Buffer, sizeof(Buffer), "[Mode: %s]", FSkinningStats::GetModeLabel());
+    OutLines.push_back(FString(Buffer));
+
+    snprintf(Buffer, sizeof(Buffer), "Component Split          : CPU %u / GPU %u", CPUComponentCount, GPUComponentCount);
+    OutLines.push_back(FString(Buffer));
+
+    OutLines.push_back(FString(""));
+    OutLines.push_back(FString("[Count]"));
+    snprintf(Buffer, sizeof(Buffer), "Vertex Count             : %u", VertexCount);
+    OutLines.push_back(FString(Buffer));
+    snprintf(Buffer, sizeof(Buffer), "Bone Count               : %u", BoneCount);
+    OutLines.push_back(FString(Buffer));
+    snprintf(Buffer, sizeof(Buffer), "Component Count          : %u", ComponentCount);
+    OutLines.push_back(FString(Buffer));
+    snprintf(Buffer, sizeof(Buffer), "Draw Call Count          : %u", DrawCallCount);
+    OutLines.push_back(FString(Buffer));
+
+    double GPUSkinningTimeMs = 0.0;
+    const TArray<FStatEntry>& GPUSnapshot = FGPUProfiler::Get().GetGPUSnapshot();
+    for (const FStatEntry& Entry : GPUSnapshot)
+    {
+        if (Entry.Name && strcmp(Entry.Name, "SkinningCompute") == 0)
+        {
+            GPUSkinningTimeMs = Entry.LastTime * 1000.0;
+            break;
+        }
+    }
+    if (GPUSkinningTimeMs <= 0.0)
+    {
+        GPUSkinningTimeMs = FSkinningStats::GetLastGPUSkeletalPassTimeMs();
+    }
+
+    const FTimer* Timer = Editor.GetTimer();
+    const double CurrentTime = Timer ? Timer->GetTotalTime() : 0.0;
+    constexpr double SkinningAverageWindowSeconds = 0.3;
+
+    if (!bSkinningAverageInitialized)
+    {
+        SkinningAverageWindowStartTime = CurrentTime;
+        SkinningAccumulatedPoseSamplingMs = 0.0;
+        SkinningAccumulatedMatrixUpdateMs = 0.0;
+        SkinningAccumulatedCPUSkinningMs = 0.0;
+        SkinningAccumulatedGPUSkinningMs = 0.0;
+        SkinningAccumulatedBoneUploadMs = 0.0;
+        SkinningAccumulatedFrameCount = 0;
+        bSkinningAverageInitialized = true;
+    }
+
+    SkinningAccumulatedPoseSamplingMs += FSkinningStats::GetLastPoseSamplingTimeMs();
+    SkinningAccumulatedMatrixUpdateMs += FSkinningStats::GetLastSkinningMatrixUpdateTimeMs();
+    SkinningAccumulatedCPUSkinningMs += FSkinningStats::GetLastCPUSkinningTimeMs();
+    SkinningAccumulatedGPUSkinningMs += GPUSkinningTimeMs;
+    SkinningAccumulatedBoneUploadMs += FSkinningStats::GetLastBoneUploadTimeMs();
+    ++SkinningAccumulatedFrameCount;
+
+    const double WindowElapsed = CurrentTime - SkinningAverageWindowStartTime;
+    if (WindowElapsed >= SkinningAverageWindowSeconds && SkinningAccumulatedFrameCount > 0)
+    {
+        const double InvFrameCount = 1.0 / static_cast<double>(SkinningAccumulatedFrameCount);
+        CachedSkinningPoseSamplingLine =
+            FormatSkinningTimingLine("Pose Sampling Time", SkinningAccumulatedPoseSamplingMs * InvFrameCount);
+        CachedSkinningMatrixUpdateLine =
+            FormatSkinningTimingLine("Skinning Matrix Update", SkinningAccumulatedMatrixUpdateMs * InvFrameCount);
+        CachedSkinningCPUSkinningLine =
+            FormatSkinningTimingLine("CPU Vertex Skinning Time", SkinningAccumulatedCPUSkinningMs * InvFrameCount);
+        CachedSkinningGPUSkinningLine =
+            FormatSkinningTimingLine("GPU Skeletal Pass Time", SkinningAccumulatedGPUSkinningMs * InvFrameCount);
+        CachedSkinningBoneUploadLine =
+            FormatSkinningTimingLine("Bone Matrix Upload Time", SkinningAccumulatedBoneUploadMs * InvFrameCount);
+
+        SkinningAverageWindowStartTime = CurrentTime;
+        SkinningAccumulatedPoseSamplingMs = 0.0;
+        SkinningAccumulatedMatrixUpdateMs = 0.0;
+        SkinningAccumulatedCPUSkinningMs = 0.0;
+        SkinningAccumulatedGPUSkinningMs = 0.0;
+        SkinningAccumulatedBoneUploadMs = 0.0;
+        SkinningAccumulatedFrameCount = 0;
+    }
+
+    if (CachedSkinningPoseSamplingLine.empty())
+    {
+        CachedSkinningPoseSamplingLine = FormatSkinningTimingLine("Pose Sampling Time", FSkinningStats::GetLastPoseSamplingTimeMs());
+    }
+    if (CachedSkinningMatrixUpdateLine.empty())
+    {
+        CachedSkinningMatrixUpdateLine = FormatSkinningTimingLine("Skinning Matrix Update", FSkinningStats::GetLastSkinningMatrixUpdateTimeMs());
+    }
+    if (CachedSkinningCPUSkinningLine.empty())
+    {
+        CachedSkinningCPUSkinningLine = FormatSkinningTimingLine("CPU Vertex Skinning Time", FSkinningStats::GetLastCPUSkinningTimeMs());
+    }
+    if (CachedSkinningGPUSkinningLine.empty())
+    {
+        CachedSkinningGPUSkinningLine = FormatSkinningTimingLine("GPU Skeletal Pass Time", GPUSkinningTimeMs);
+    }
+    if (CachedSkinningBoneUploadLine.empty())
+    {
+        CachedSkinningBoneUploadLine = FormatSkinningTimingLine("Bone Matrix Upload Time", FSkinningStats::GetLastBoneUploadTimeMs());
+    }
+
+    OutLines.push_back(FString(""));
+    OutLines.push_back(FString("[Time - 0.3s Avg]"));
+    OutLines.push_back(CachedSkinningPoseSamplingLine);
+    OutLines.push_back(CachedSkinningMatrixUpdateLine);
+
+    if (CPUComponentCount > 0)
+    {
+        OutLines.push_back(CachedSkinningCPUSkinningLine);
+    }
+    else
+    {
+        snprintf(Buffer, sizeof(Buffer), "CPU Vertex Skinning Time : Not Measured");
+        OutLines.push_back(FString(Buffer));
+    }
+
+    if (GPUComponentCount > 0)
+    {
+        OutLines.push_back(CachedSkinningGPUSkinningLine);
+    }
+    else
+    {
+        snprintf(Buffer, sizeof(Buffer), "GPU Skeletal Pass Time   : Not Measured");
+        OutLines.push_back(FString(Buffer));
+    }
+
+    if (GPUComponentCount > 0)
+    {
+        OutLines.push_back(CachedSkinningBoneUploadLine);
+    }
+    else
+    {
+        snprintf(Buffer, sizeof(Buffer), "Bone Matrix Upload Time  : Not Measured");
+        OutLines.push_back(FString(Buffer));
+    }
+#else
+    OutLines.push_back(FString("Skinning stats unavailable (STATS=0)"));
+#endif
+}
+
 void FOverlayStatSystem::BuildLines(const UEditorEngine& Editor, TArray<FOverlayStatLine>& OutLines) const
 {
 	OutLines.clear();
@@ -203,6 +442,10 @@ void FOverlayStatSystem::BuildLines(const UEditorEngine& Editor, TArray<FOverlay
 	{
 		EstimatedLineCount += 8;
 	}
+    if (bShowSkinning)
+    {
+        EstimatedLineCount += 14;
+    }
 	OutLines.reserve(EstimatedLineCount);
 
 	TArray<FString> Lines;
@@ -240,6 +483,13 @@ void FOverlayStatSystem::BuildLines(const UEditorEngine& Editor, TArray<FOverlay
 		BuildShadowLines(Lines);
 		AppendGroup(Lines);
 	}
+
+    if (bShowSkinning)
+    {
+        Lines.clear();
+        BuildSkinningLines(Editor, Lines);
+        AppendGroup(Lines);
+    }
 }
 
 TArray<FOverlayStatLine> FOverlayStatSystem::BuildLines(const UEditorEngine& Editor) const
@@ -260,6 +510,8 @@ void FOverlayStatSystem::RenderImGui(const UEditorEngine& Editor, const FRect& V
 	constexpr float PaddingY = 30.0f;
 	constexpr float WindowGap = 6.0f;
 	constexpr float ColumnGap = 8.0f;
+	constexpr float InnerPaddingX = 10.0f;
+	constexpr float InnerPaddingY = 8.0f;
 	const float ViewportLeft = ViewportRect.X;
 	const float ViewportTop = ViewportRect.Y;
 	const float ViewportRight = ViewportRect.X + ViewportRect.Width;
@@ -268,61 +520,119 @@ void FOverlayStatSystem::RenderImGui(const UEditorEngine& Editor, const FRect& V
 	float CurrentX = ViewportLeft + PaddingX;
 	float CurrentY = ViewportTop + PaddingY;
 	float CurrentColumnWidth = 0.0f;
-	ImGuiViewport* MainViewport = ImGui::GetMainViewport();
+	ImDrawList* ForegroundDrawList = ImGui::GetForegroundDrawList();
+	if (!ForegroundDrawList)
+	{
+		return;
+	}
 
-	ImGuiWindowFlags Flags =
-		ImGuiWindowFlags_NoDecoration |
-		ImGuiWindowFlags_AlwaysAutoResize |
-		ImGuiWindowFlags_NoSavedSettings |
-		ImGuiWindowFlags_NoFocusOnAppearing |
-		ImGuiWindowFlags_NoNav |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoInputs |
-		ImGuiWindowFlags_NoBringToFrontOnFocus;
+	const ImVec4 TitleColor(1.0f, 1.0f, 1.0f, 0.95f);
+	const ImVec4 TextColor(0.92f, 0.95f, 0.98f, 0.95f);
+	const ImU32 SeparatorColor = IM_COL32(255, 255, 255, 48);
 
 	auto RenderWindow = [&](const char* WindowID, const char* Title, const ImVec4& BgColor, const TArray<FString>& Lines)
 		{
+			(void)WindowID;
 			if (Lines.empty())
 			{
 				return;
 			}
 
+			float MaxTextWidth = ImGui::CalcTextSize(Title).x;
+			float MaxLabelWidth = 0.0f;
+			float MaxValueWidth = 0.0f;
+			bool bHasKeyValueLine = false;
+			for (const FString& Line : Lines)
+			{
+				if (const char* Separator = FindOverlayKeyValueSeparator(Line))
+				{
+					bHasKeyValueLine = true;
+					const FString Label(Line.c_str(), static_cast<size_t>(Separator - Line.c_str()));
+					const char* ValueText = Separator + 3;
+					MaxLabelWidth = (std::max)(MaxLabelWidth, ImGui::CalcTextSize(Label.c_str()).x);
+					MaxValueWidth = (std::max)(MaxValueWidth, ImGui::CalcTextSize(ValueText).x);
+					continue;
+				}
+
+				MaxTextWidth = (std::max)(MaxTextWidth, ImGui::CalcTextSize(Line.c_str()).x);
+			}
+			if (bHasKeyValueLine)
+			{
+				const float KeyValueWidth = MaxLabelWidth + ImGui::CalcTextSize(" : ").x + MaxValueWidth;
+				MaxTextWidth = (std::max)(MaxTextWidth, KeyValueWidth);
+			}
+
+			const float TextLineHeight = ImGui::GetTextLineHeightWithSpacing();
+			const float SeparatorHeight = 6.0f;
+			float BodyHeight = 0.0f;
+			for (const FString& Line : Lines)
+			{
+				BodyHeight += GetOverlayLineAdvance(Line, TextLineHeight);
+			}
 			const float EstimatedHeight =
-				ImGui::GetTextLineHeightWithSpacing() * (static_cast<float>(Lines.size()) + 1.0f) +
-				ImGui::GetStyle().WindowPadding.y * 2.0f;
+				InnerPaddingY * 2.0f +
+				TextLineHeight +
+				SeparatorHeight +
+				BodyHeight;
+			const float EstimatedWidth = InnerPaddingX * 2.0f + MaxTextWidth;
 			if (CurrentY > ViewportTop + PaddingY && CurrentY + EstimatedHeight > ViewportBottom - PaddingY)
 			{
 				CurrentX += CurrentColumnWidth + ColumnGap;
 				CurrentY = ViewportTop + PaddingY;
 				CurrentColumnWidth = 0.0f;
 			}
-			CurrentX = (std::max)(ViewportLeft + PaddingX, (std::min)(CurrentX, ViewportRight - PaddingX - 40.0f));
+			CurrentX = (std::max)(ViewportLeft + PaddingX, (std::min)(CurrentX, ViewportRight - PaddingX - EstimatedWidth));
 
-			if (MainViewport)
-			{
-				ImGui::SetNextWindowViewport(MainViewport->ID);
-			}
-			ImGui::SetNextWindowPos(ImVec2(CurrentX, CurrentY), ImGuiCond_Always);
-			ImGui::SetNextWindowBgAlpha(BgColor.w);
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, BgColor);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+			const ImVec2 RectMin(CurrentX, CurrentY);
+			const ImVec2 RectMax(CurrentX + EstimatedWidth, CurrentY + EstimatedHeight);
+			ForegroundDrawList->AddRectFilled(RectMin, RectMax, ImGui::ColorConvertFloat4ToU32(BgColor), 4.0f);
 
-			ImGui::Begin(WindowID, nullptr, Flags);
-			ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.95f), "%s", Title);
-			ImGui::Separator();
+			float TextX = CurrentX + InnerPaddingX;
+			float TextY = CurrentY + InnerPaddingY;
+			const ImU32 TitleTextColor = ImGui::ColorConvertFloat4ToU32(TitleColor);
+			ForegroundDrawList->AddText(ImVec2(TextX, TextY), TitleTextColor, Title);
+			ForegroundDrawList->AddText(ImVec2(TextX + 0.6f, TextY), TitleTextColor, Title);
+			TextY += TextLineHeight;
+
+			ForegroundDrawList->AddLine(
+				ImVec2(TextX, TextY),
+				ImVec2(CurrentX + EstimatedWidth - InnerPaddingX, TextY),
+				SeparatorColor,
+				1.0f);
+			TextY += SeparatorHeight;
+
 			for (const FString& Line : Lines)
 			{
-				ImGui::TextUnformatted(Line.c_str());
+				if (IsOverlayBlankLine(Line))
+				{
+					TextY += GetOverlayLineAdvance(Line, TextLineHeight);
+					continue;
+				}
+
+				if (const char* Separator = FindOverlayKeyValueSeparator(Line))
+				{
+					const FString Label(Line.c_str(), static_cast<size_t>(Separator - Line.c_str()));
+					const char* ValueText = Separator + 3;
+					ForegroundDrawList->AddText(ImVec2(TextX, TextY), ImGui::ColorConvertFloat4ToU32(TextColor), Label.c_str());
+					ForegroundDrawList->AddText(ImVec2(TextX + MaxLabelWidth, TextY), ImGui::ColorConvertFloat4ToU32(TextColor), " : ");
+					ForegroundDrawList->AddText(
+						ImVec2(TextX + MaxLabelWidth + ImGui::CalcTextSize(" : ").x, TextY),
+						ImGui::ColorConvertFloat4ToU32(TextColor),
+						ValueText);
+				}
+				else
+				{
+					ForegroundDrawList->AddText(
+						ImVec2(TextX, TextY),
+						ImGui::ColorConvertFloat4ToU32(TextColor),
+						Line.c_str());
+				}
+
+				TextY += GetOverlayLineAdvance(Line, TextLineHeight);
 			}
-			const ImVec2 WindowSize = ImGui::GetWindowSize();
-			ImGui::End();
 
-			ImGui::PopStyleVar(2);
-			ImGui::PopStyleColor();
-
-			CurrentY += WindowSize.y + WindowGap;
-			CurrentColumnWidth = (std::max)(CurrentColumnWidth, WindowSize.x);
+			CurrentY += EstimatedHeight + WindowGap;
+			CurrentColumnWidth = (std::max)(CurrentColumnWidth, EstimatedWidth);
 		};
 
 	TArray<FString> Lines;
@@ -345,4 +655,11 @@ void FOverlayStatSystem::RenderImGui(const UEditorEngine& Editor, const FRect& V
 		BuildShadowLines(Lines);
 		RenderWindow("##StatShadowOverlay", "Stat Shadow", ImVec4(0.08f, 0.05f, 0.12f, 0.62f), Lines);
 	}
+
+    if (bShowSkinning)
+    {
+        Lines.clear();
+        BuildSkinningLines(Editor, Lines);
+        RenderWindow("##StatSkinningOverlay", "Stat Skinning", ImVec4(0.05f, 0.11f, 0.08f, 0.62f), Lines);
+    }
 }

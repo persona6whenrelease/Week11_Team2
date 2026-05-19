@@ -903,10 +903,16 @@
     <ClCompile Include="Source\Engine\Platform\Paths.cpp">
       <Filter>Source\Engine\Platform</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Profiling\FrameProfiler.cpp">
+      <Filter>Source\Engine\Profiling</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Profiling\GPUProfiler.cpp">
       <Filter>Source\Engine\Profiling</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Profiling\MemoryStats.cpp">
+      <Filter>Source\Engine\Profiling</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Profiling\SkinningStats.cpp">
       <Filter>Source\Engine\Profiling</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Profiling\ShadowStats.cpp">
@@ -1847,6 +1853,9 @@
     <ClInclude Include="Source\Engine\Platform\Paths.h">
       <Filter>Source\Engine\Platform</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Profiling\FrameProfiler.h">
+      <Filter>Source\Engine\Profiling</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Profiling\GPUProfiler.h">
       <Filter>Source\Engine\Profiling</Filter>
     </ClInclude>
@@ -1854,6 +1863,9 @@
       <Filter>Source\Engine\Profiling</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Profiling\PlatformTime.h">
+      <Filter>Source\Engine\Profiling</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Profiling\SkinningStats.h">
       <Filter>Source\Engine\Profiling</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Profiling\ShadowStats.h">

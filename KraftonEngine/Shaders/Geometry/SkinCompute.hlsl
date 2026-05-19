@@ -1,4 +1,4 @@
-﻿#include "Common/ConstantBuffers.hlsli"
+#include "Common/ConstantBuffers.hlsli"
 
 // 입력: FVertexPNCTT_Skinned 
 struct SkinSourceVertex

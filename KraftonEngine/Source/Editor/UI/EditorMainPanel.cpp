@@ -142,11 +142,6 @@ void FEditorMainPanel::Render(float DeltaTime)
 	{
 		SCOPE_STAT_CAT("EditorEngine->RenderViewportUI", "5_UI");
 		EditorEngine->RenderViewportUI(DeltaTime);
-
-		if (FLevelEditorViewportClient* ActiveViewport = EditorEngine->GetActiveViewport())
-		{
-			EditorEngine->GetOverlayStatSystem().RenderImGui(*EditorEngine, ActiveViewport->GetViewportScreenRect());
-		}
 	}
 
 	const FEditorSettings& Settings = FEditorSettings::Get();
@@ -316,6 +311,35 @@ void FEditorMainPanel::RenderMainMenuBar()
 	if (ImGui::MenuItem("Project Settings"))
 	{
 		ProjectSettingsWidget.bOpen = true;
+	}
+
+	if (EditorEngine && ImGui::BeginMenu("Stat"))
+	{
+		FOverlayStatSystem& OverlayStats = EditorEngine->GetOverlayStatSystem();
+
+		if (ImGui::MenuItem("FPS", nullptr, OverlayStats.IsShowingFPS()))
+		{
+			OverlayStats.ToggleFPS();
+		}
+		if (ImGui::MenuItem("Memory", nullptr, OverlayStats.IsShowingMemory()))
+		{
+			OverlayStats.ToggleMemory();
+		}
+		if (ImGui::MenuItem("Shadow", nullptr, OverlayStats.IsShowingShadow()))
+		{
+			OverlayStats.ToggleShadow();
+		}
+		if (ImGui::MenuItem("Skinning", nullptr, OverlayStats.IsShowingSkinning()))
+		{
+			OverlayStats.ToggleSkinning();
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("None"))
+		{
+			OverlayStats.HideAll();
+		}
+
+		ImGui::EndMenu();
 	}
 
 	if (ImGui::MenuItem("Shortcut"))

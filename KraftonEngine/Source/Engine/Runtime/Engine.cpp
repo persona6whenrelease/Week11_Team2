@@ -4,6 +4,7 @@
 #include "Core/Log.h"
 #include "Core/Notification.h"
 #include "Engine/Platform/DirectoryWatcher.h"
+#include "Profiling/FrameProfiler.h"
 #include "Profiling/Stats.h"
 #include "Profiling/StartupProfiler.h"
 #include "Engine/Input/InputSystem.h"
@@ -118,6 +119,7 @@ void UEngine::BeginPlay()
 void UEngine::Tick(float DeltaTime)
 {
 	const float RawDeltaTime = DeltaTime;
+	FFrameProfiler::BeginFrame();
 	TimeManager.Update(RawDeltaTime);
 	const float GameDeltaTime = TimeManager.GetGameDeltaTime();
 

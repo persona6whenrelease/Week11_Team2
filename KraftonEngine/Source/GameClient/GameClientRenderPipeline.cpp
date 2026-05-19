@@ -8,6 +8,7 @@
 #include "Render/Pipeline/Renderer.h"
 #include "Render/Scene/FScene.h"
 #include "Viewport/Viewport.h"
+#include "Profiling/FrameProfiler.h"
 
 FGameClientRenderPipeline::FGameClientRenderPipeline(
 	UGameClientEngine* InEngine,
@@ -19,6 +20,8 @@ FGameClientRenderPipeline::FGameClientRenderPipeline(
 
 void FGameClientRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 {
+	FFrameProfiler::BeginRenderFrame();
+
 	RenderGameViewport(Renderer);
 
 	Renderer.BeginFrame();
@@ -26,6 +29,7 @@ void FGameClientRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 	{
 		Engine->RenderOverlay(DeltaTime);
 	}
+	FFrameProfiler::EndRenderFrame();
 	Renderer.EndFrame();
 }
 
