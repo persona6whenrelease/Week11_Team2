@@ -309,7 +309,13 @@ void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &O
     SkeletalMeshProp.SyntheticTypeDesc = &SkeletalMeshObjectRefType;
     SkeletalMeshProp.DynamicName = "Skeletal Mesh";
     OutProps.push_back(std::move(SkeletalMeshProp));
-	OutProps.push_back({"Use GPU Skinning", EPropertyType::Bool, &bUseGPUSkinning});
+
+    FPropertyDescriptor GPUSkinningProp;
+    GPUSkinningProp.ValuePtr = &bUseGPUSkinning;
+    GPUSkinningProp.SyntheticTypeDesc = GetBuiltinPropertyType(EPropertyType::Bool);
+    GPUSkinningProp.DynamicName = "Use GPU Skinning";
+    OutProps.push_back(std::move(GPUSkinningProp));
+
     AppendMaterialSlotProperties(OutProps);
 }
 
