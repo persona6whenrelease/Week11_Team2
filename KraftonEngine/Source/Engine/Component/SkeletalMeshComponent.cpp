@@ -33,6 +33,38 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
     }
 }
 
+void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InAnimationMode)
+{
+    if (AnimationMode == InAnimationMode)
+    {
+        return;
+    }
+
+    AnimationMode = InAnimationMode;
+
+    if (AnimInstance)
+    {
+        UObjectManager::Get().DestroyObject(AnimInstance);
+        AnimInstance = nullptr;
+    }
+
+    EnsureAnimInstance();
+
+    if (AnimToPlay)
+    {
+        SetAnimation(AnimToPlay);
+    }
+
+    if (AnimInstance)
+    {
+        AnimInstance->SetLooping(bBakedAnimLooping);
+        AnimInstance->SetPlaybackSpeed(BakedAnimPlaybackSpeed);
+        AnimInstance->SetPaused(bBakedAnimPaused);
+        AnimInstance->SetEvaluationTime(BakedAnimTime);
+        RefreshAnimationPose();
+    }
+}
+
 void USkeletalMeshComponent::EnsureAnimInstance()
 {
     if (AnimInstance) return;
