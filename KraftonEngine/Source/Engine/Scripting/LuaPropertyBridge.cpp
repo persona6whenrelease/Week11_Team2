@@ -66,9 +66,7 @@ namespace
 
 	bool IsLuaPathProperty(EPropertyType Type)
 	{
-		return Type == EPropertyType::StaticMeshRef ||
-			Type == EPropertyType::SkeletalMeshRef ||
-			Type == EPropertyType::SceneComponentRef ||
+		return Type == EPropertyType::ObjectRef ||
 			Type == EPropertyType::MaterialSlot;
 	}
 
@@ -188,9 +186,7 @@ namespace
 			return sol::make_object(Lua, *static_cast<FRotator*>(Desc.ValuePtr));
 
 		case EPropertyType::String:
-		case EPropertyType::StaticMeshRef:
-		case EPropertyType::SkeletalMeshRef:
-		case EPropertyType::SceneComponentRef:
+		case EPropertyType::ObjectRef:
 			return sol::make_object(Lua, *static_cast<FString*>(Desc.ValuePtr));
 
 		case EPropertyType::Name:
@@ -277,9 +273,7 @@ namespace
 			*static_cast<FString*>(Desc.ValuePtr) = Value.as<FString>();
 			return true;
 
-		case EPropertyType::StaticMeshRef:
-		case EPropertyType::SkeletalMeshRef:
-		case EPropertyType::SceneComponentRef:
+		case EPropertyType::ObjectRef:
 		{
 			const FString NewValue = Value.as<FString>();
 			if (IsLuaPathProperty(Desc.GetKind()) && !IsSafeLuaAssetPath(NewValue))
@@ -473,9 +467,7 @@ const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 
 	case EPropertyType::String:
 	case EPropertyType::Name:
-	case EPropertyType::SceneComponentRef:
-	case EPropertyType::StaticMeshRef:
-	case EPropertyType::SkeletalMeshRef:
+	case EPropertyType::ObjectRef:
 	case EPropertyType::MaterialSlot:
 		return "string";
 
@@ -505,6 +497,7 @@ const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 			return "FRotator[]";
 		case EPropertyType::String:
 		case EPropertyType::Name:
+		case EPropertyType::ObjectRef:
 			return "string[]";
 		case EPropertyType::Struct:
 			return "table[]";

@@ -12,6 +12,9 @@ public:
 	virtual void Render(float DeltaTime) override;
 	void SetShowEditorOnlyComponents(bool bEnable) { bShowEditorOnlyComponents = bEnable; }
 	bool IsShowingEditorOnlyComponents() const { return bShowEditorOnlyComponents; }
+	static FString OpenObjFileDialog();
+	static FString OpenFbxFileDialog();
+	static FString OpenLuaScriptFileDialog();
 
 private:
 	void RenderComponentTree(AActor* Actor);
@@ -22,10 +25,6 @@ private:
 	bool RenderPropertyWidget(TArray<struct FPropertyDescriptor>& Props, int32& Index, const char* PostEditPropertyName = nullptr);
 
 	void PropagatePropertyChange(const FString& PropName, const TArray<AActor*>& SelectedActors);
-
-	static FString OpenObjFileDialog();
-	static FString OpenFbxFileDialog();
-	static FString OpenLuaScriptFileDialog();
 
 	UActorComponent* SelectedComponent = nullptr;
 	AActor* LastSelectedActor = nullptr;

@@ -24,10 +24,8 @@ enum class EPropertyType : uint8_t
 	Rotator,	// FRotator (Pitch, Yaw, Roll)
 	String,
 	Name,		  // FName — 문자열 풀 기반 이름 (리소스 키 등)
-	SceneComponentRef, // Owner actor 내부 USceneComponent 참조
 	Color4,	   // FVector4 RGBA — ImGui::ColorEdit4 위젯
-	StaticMeshRef, // UStaticMesh* 에셋 레퍼런스 (드롭다운 선택)
-	SkeletalMeshRef, // USkeletalMesh* 에셋 레퍼런스
+	ObjectRef,  // UCLASS 기반 참조/에셋 경로. 세부 타입은 ObjectClass 메타로 구분
 	MaterialSlot,  // FMaterialSlot — 머티리얼 경로
 	Enum,
 	Array,
@@ -57,6 +55,9 @@ struct FPropertyTypeDesc
 	// Kind == Enum
 	const char** EnumNames = nullptr;
 	uint32 EnumCount = 0;
+
+	// Kind == ObjectRef
+	const UClass* ObjectClass = nullptr;
 
 	// Kind == Array
 	FArraySizeGetter ArraySizeGetter = nullptr;
@@ -107,6 +108,11 @@ struct FPropertyDescriptor
 	uint32 GetEnumCount() const
 	{
 		return TypeDesc ? TypeDesc->EnumCount : 0;
+	}
+
+	const UClass* GetObjectClass() const
+	{
+		return TypeDesc ? TypeDesc->ObjectClass : nullptr;
 	}
 
 	const FPropertyTypeDesc* GetElementType() const
@@ -184,24 +190,14 @@ inline const FPropertyTypeDesc* GetBuiltinPropertyType(EPropertyType Kind)
 		static const FPropertyTypeDesc Type{ EPropertyType::Name };
 		return &Type;
 	}
-	case EPropertyType::SceneComponentRef:
-	{
-		static const FPropertyTypeDesc Type{ EPropertyType::SceneComponentRef };
-		return &Type;
-	}
 	case EPropertyType::Color4:
 	{
 		static const FPropertyTypeDesc Type{ EPropertyType::Color4 };
 		return &Type;
 	}
-	case EPropertyType::StaticMeshRef:
+	case EPropertyType::ObjectRef:
 	{
-		static const FPropertyTypeDesc Type{ EPropertyType::StaticMeshRef };
-		return &Type;
-	}
-	case EPropertyType::SkeletalMeshRef:
-	{
-		static const FPropertyTypeDesc Type{ EPropertyType::SkeletalMeshRef };
+		static const FPropertyTypeDesc Type{ EPropertyType::ObjectRef };
 		return &Type;
 	}
 	case EPropertyType::MaterialSlot:

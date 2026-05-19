@@ -1,4 +1,4 @@
-#include "Editor/UI/EditorPropertyWidget.h"
+﻿#include "Editor/UI/EditorPropertyWidget.h"
 
 #include "Editor/EditorEngine.h"
 #include "Editor/UI/EditorFileUtils.h"
@@ -52,6 +52,8 @@
 
 namespace
 {
+	static FString GetStemFromPath(const FString& Path);
+
 	bool ShouldHideInComponentTree(const UActorComponent* Component, bool bShowEditorOnlyComponents)
 	{
 		if (!Component)
@@ -85,7 +87,7 @@ namespace
 			return nullptr;
 		}
 
-		// UTextRenderComponent는 C++ 상속은 Billboard지만 RTTI 등록 부모가 Primitive라서 명시적으로 묶는다.
+		// UTextRenderComponent??C++ ?곸냽? Billboard吏留?RTTI ?깅줉 遺紐④? Primitive?쇱꽌 紐낆떆?곸쑝濡?臾띕뒗??
 		if (ComponentClass == UTextRenderComponent::StaticClass())
 		{
 			return UBillboardComponent::StaticClass();
@@ -191,17 +193,218 @@ namespace
 		{
 			return true;
 		}
-		if (!A || !B || A->Kind != B->Kind)
+		if (!A || !B)
 		{
 			return false;
 		}
-		if (A->StructType != B->StructType || A->EnumCount != B->EnumCount)
+		if (A->Kind != B->Kind)
+		{
+			return false;
+		}
+		if (A->StructType != B->StructType
+			|| A->EnumCount != B->EnumCount
+			|| ((A->ObjectClass || B->ObjectClass) && A->ObjectClass != B->ObjectClass))
 		{
 			return false;
 		}
 		return ArePropertyTypesCompatible(A->ElementType, B->ElementType)
 			&& ArePropertyTypesCompatible(A->KeyType, B->KeyType)
 			&& ArePropertyTypesCompatible(A->ValueType, B->ValueType);
+	}
+
+	bool IsObjectRefType(const FPropertyDescriptor& Prop, const UClass* ExpectedClass)
+	{
+		const UClass* ObjectClass = Prop.GetObjectClass();
+		return ObjectClass
+			&& ExpectedClass
+			&& ObjectClass->IsA(ExpectedClass);
+	}
+
+	bool RenderSceneComponentObjectRefWidget(
+		const FPropertyDescriptor& Prop,
+		UActorComponent* SelectedComponent,
+		bool& bChanged)
+	{
+		FString* Val = static_cast<FString*>(Prop.ValuePtr);
+		UMovementComponent* MovementComp = SelectedComponent ? Cast<UMovementComponent>(SelectedComponent) : nullptr;
+		FString Preview = MovementComp ? MovementComp->GetUpdatedComponentDisplayName() : FString("None");
+
+		if (!ImGui::BeginCombo(Prop.Name.c_str(), Preview.c_str()))
+		{
+			return bChanged;
+		}
+
+		const bool bSelectedAuto = Val->empty();
+		if (ImGui::Selectable("Auto (Root)", bSelectedAuto))
+		{
+			Val->clear();
+			bChanged = true;
+		}
+		if (bSelectedAuto)
+		{
+			ImGui::SetItemDefaultFocus();
+		}
+
+		if (MovementComp)
+		{
+			for (USceneComponent* Candidate : MovementComp->GetOwnerSceneComponents())
+			{
+				if (!Candidate)
+				{
+					continue;
+				}
+
+				FString CandidatePath = MovementComp->BuildUpdatedComponentPath(Candidate);
+				FString CandidateName = Candidate->GetFName().ToString();
+				if (CandidateName.empty())
+				{
+					CandidateName = Candidate->GetClass()->GetName();
+				}
+				if (!CandidatePath.empty())
+				{
+					CandidateName += " (" + CandidatePath + ")";
+				}
+
+				const bool bSelected = (*Val == CandidatePath);
+				if (ImGui::Selectable(CandidateName.c_str(), bSelected))
+				{
+					*Val = CandidatePath;
+					bChanged = true;
+				}
+				if (bSelected)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+		}
+
+		ImGui::EndCombo();
+		return bChanged;
+	}
+
+	bool RenderStaticMeshObjectRefWidget(
+		const FPropertyDescriptor& Prop,
+		bool& bChanged,
+		FString (*OpenObjFileDialogFunc)())
+	{
+		FString* Val = static_cast<FString*>(Prop.ValuePtr);
+		FString Preview = Val->empty() ? "None" : GetStemFromPath(*Val);
+		if (*Val == "None")
+		{
+			Preview = "None";
+		}
+
+		ImGui::Text("%s", Prop.Name.c_str());
+		ImGui::SameLine(120);
+
+		const float ButtonWidth = ImGui::CalcTextSize("Import OBJ").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+		const float Spacing = ImGui::GetStyle().ItemSpacing.x;
+		ImGui::SetNextItemWidth(-(ButtonWidth + Spacing));
+
+		if (ImGui::BeginCombo("##Mesh", Preview.c_str()))
+		{
+			const bool bSelectedNone = (*Val == "None");
+			if (ImGui::Selectable("None", bSelectedNone))
+			{
+				*Val = "None";
+				bChanged = true;
+			}
+			if (bSelectedNone)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+
+			const TArray<FMeshAssetListItem>& MeshFiles = FMeshManager::GetAvailableStaticMeshFiles();
+			for (const FMeshAssetListItem& Item : MeshFiles)
+			{
+				const bool bSelected = (*Val == Item.FullPath);
+				if (ImGui::Selectable(Item.DisplayName.c_str(), bSelected))
+				{
+					*Val = Item.FullPath;
+					bChanged = true;
+				}
+				if (bSelected)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - ButtonWidth);
+		if (ImGui::Button("Import OBJ"))
+		{
+			FString ObjPath = OpenObjFileDialogFunc ? OpenObjFileDialogFunc() : FString();
+			if (!ObjPath.empty())
+			{
+				ID3D11Device* Device = GEngine->GetRenderer().GetFD3DDevice().GetDevice();
+				UStaticMesh* Loaded = FMeshManager::LoadStaticMesh(ObjPath, Device);
+				if (Loaded)
+				{
+					*Val = FMeshManager::GetObjBinaryFilePath(ObjPath);
+					bChanged = true;
+				}
+			}
+		}
+
+		return bChanged;
+	}
+
+	bool RenderSkeletalMeshObjectRefWidget(const FPropertyDescriptor& Prop, bool& bChanged)
+	{
+		FString* Val = static_cast<FString*>(Prop.ValuePtr);
+		FString Preview = Val->empty() ? "None" : GetStemFromPath(*Val);
+		if (*Val == "None")
+		{
+			Preview = "None";
+		}
+
+		ImGui::Text("%s", Prop.Name.c_str());
+		ImGui::SameLine(120);
+		ImGui::SetNextItemWidth(-1.0f);
+
+		if (ImGui::BeginCombo("##SkeletalMesh", Preview.c_str()))
+		{
+			const bool bSelectedNone = (*Val == "None");
+			if (ImGui::Selectable("None", bSelectedNone))
+			{
+				*Val = "None";
+				bChanged = true;
+			}
+			if (bSelectedNone)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+
+			if (!Val->empty() && *Val != "None")
+			{
+				const bool bSelectedCurrent = true;
+				if (ImGui::Selectable(Preview.c_str(), bSelectedCurrent))
+				{
+				}
+				if (bSelectedCurrent)
+				{
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		return bChanged;
+	}
+
+	bool RenderGenericObjectRefWidget(const FPropertyDescriptor& Prop, bool& bChanged)
+	{
+		FString* Val = static_cast<FString*>(Prop.ValuePtr);
+		char Buf[256];
+		strncpy_s(Buf, sizeof(Buf), Val->c_str(), _TRUNCATE);
+		if (ImGui::InputText(Prop.Name.c_str(), Buf, sizeof(Buf)))
+		{
+			*Val = Buf;
+			bChanged = true;
+		}
+		return bChanged;
 	}
 
 	bool CopyPropertyValueRecursive(const FPropertyDescriptor& SrcProp, FPropertyDescriptor& DstProp)
@@ -243,9 +446,7 @@ namespace
 			return true;
 
 		case EPropertyType::String:
-		case EPropertyType::SceneComponentRef:
-		case EPropertyType::StaticMeshRef:
-		case EPropertyType::SkeletalMeshRef:
+		case EPropertyType::ObjectRef:
 			*static_cast<FString*>(DstProp.ValuePtr) = *static_cast<FString*>(SrcProp.ValuePtr);
 			return true;
 
@@ -335,7 +536,6 @@ static FString GetStemFromPath(const FString& Path)
 {
 	size_t SlashPos = Path.find_last_of("/\\");
 	FString FileName = (SlashPos == FString::npos) ? Path : Path.substr(SlashPos + 1);
-	//return RemoveExtension(FileName);
 	return FileName;
 }
 
@@ -358,7 +558,7 @@ FString FEditorPropertyWidget::OpenObjFileDialog()
 		std::filesystem::path RootPath = std::filesystem::path(FPaths::RootDir());
 		std::filesystem::path RelPath = AbsPath.lexically_relative(RootPath);
 
-		// 상대 경로 변환 실패 시 (드라이브가 다른 경우 등) 절대 경로를 그대로 반환
+		// ?곷? 寃쎈줈 蹂???ㅽ뙣 ??(?쒕씪?대툕媛 ?ㅻⅨ 寃쎌슦 ?? ?덈? 寃쎈줈瑜?洹몃?濡?諛섑솚
 		if (RelPath.empty() || RelPath.wstring().starts_with(L".."))
 		{
 			return FPaths::ToUtf8(AbsPath.generic_wstring());
@@ -446,7 +646,7 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 		return;
 	}
 
-	// Actor 선택이 바뀌면 초기화
+	// Actor ?좏깮??諛붾뚮㈃ 珥덇린??
 	if (PrimaryActor != LastSelectedActor)
 	{
 		SelectedComponent = nullptr;
@@ -457,7 +657,7 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 	const TArray<AActor*>& SelectedActors = Selection.GetSelectedActors();
 	const int32 SelectionCount = static_cast<int32>(SelectedActors.size());
 
-	// ========== 고정 영역: Actor Info (clickable) ==========
+	// ========== 怨좎젙 ?곸뿭: Actor Info (clickable) ==========
 	if (SelectionCount > 1)
 	{
 		ImGui::Text("Class: %s", PrimaryActor->GetClass()->GetName());
@@ -479,7 +679,7 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 		snprintf(RemoveLabel, sizeof(RemoveLabel), "Remove %d Objects", SelectionCount);
 		if (ImGui::Button(RemoveLabel))
 		{
-			// 선택 해제를 먼저 수행 (dangling pointer로 Proxy 접근 방지)
+			// ?좏깮 ?댁젣瑜?癒쇱? ?섑뻾 (dangling pointer濡?Proxy ?묎렐 諛⑹?)
 			TArray<AActor*> ToDelete(SelectedActors.begin(), SelectedActors.end());
 			Selection.ClearSelection();
 			for (AActor* Actor : ToDelete)
@@ -489,7 +689,7 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 					Actor->GetWorld()->DestroyActor(Actor);
 				}
 			}
-			// GPU Occlusion staging에 남은 dangling proxy 포인터 무효화
+			// GPU Occlusion staging???⑥? dangling proxy ?ъ씤??臾댄슚??
 			EditorEngine->InvalidateOcclusionResults();
 			SelectedComponent = nullptr;
 			LastSelectedActor = nullptr;
@@ -501,7 +701,7 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 	{
 		ImGui::Text("Class: %s", PrimaryActor->GetClass()->GetName());
 
-		// Actor 이름: 클릭 가능, 선택 시 하이라이트
+		// Actor ?대쫫: ?대┃ 媛?? ?좏깮 ???섏씠?쇱씠??
 		bool bHighlight = bActorSelected;
 		if (bHighlight) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
 		ImGui::Text("Name: %s", PrimaryActor->GetFName().ToString().c_str());
@@ -514,14 +714,14 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 		ImGui::SameLine();
 		if (ImGui::Button("Remove"))
 		{
-			// 선택 해제를 먼저 수행 (dangling pointer로 Proxy 접근 방지)
+			// ?좏깮 ?댁젣瑜?癒쇱? ?섑뻾 (dangling pointer濡?Proxy ?묎렐 諛⑹?)
 			AActor* ToDelete = PrimaryActor;
 			Selection.ClearSelection();
 			if (ToDelete && ToDelete->GetWorld())
 			{
 				ToDelete->GetWorld()->DestroyActor(ToDelete);
 			}
-			// GPU Occlusion staging에 남은 dangling proxy 포인터 무효화
+			// GPU Occlusion staging???⑥? dangling proxy ?ъ씤??臾댄슚??
 			EditorEngine->InvalidateOcclusionResults();
 			SelectedComponent = nullptr;
 			LastSelectedActor = nullptr;
@@ -562,10 +762,10 @@ void FEditorPropertyWidget::Render(float DeltaTime)
 		}
 	}
 
-	// ========== 고정 영역: Component Tree ==========
+	// ========== 怨좎젙 ?곸뿭: Component Tree ==========
 	RenderComponentTree(PrimaryActor);
 
-	// ========== 스크롤 영역: Details ==========
+	// ========== ?ㅽ겕濡??곸뿭: Details ==========
 	SEPARATOR();
 	ImGui::Text("Details");
 	ImGui::Separator();
@@ -590,7 +790,7 @@ void FEditorPropertyWidget::RenderDetails(AActor* PrimaryActor, const TArray<AAc
 	}
 	else if (SelectedComponent && SelectedActors.size() >= 2)
 	{
-		// 다중 선택 시 모든 액터의 타입이 동일한지 검증
+		// ?ㅼ쨷 ?좏깮 ??紐⑤뱺 ?≫꽣????낆씠 ?숈씪?쒖? 寃利?
 		UClass* PrimaryClass = PrimaryActor->GetClass();
 		bool bAllSameType = true;
 		for (const AActor* Actor : SelectedActors)
@@ -665,7 +865,7 @@ void FEditorPropertyWidget::RenderActorProperties(AActor* PrimaryActor, const TA
 			EditorEngine->GetGizmo()->UpdateGizmoTransform();
 		}
 		{
-			// Rotation: CachedEditRotator를 X=Roll(X축), Y=Pitch(Y축), Z=Yaw(Z축)로 노출
+			// Rotation: CachedEditRotator瑜?X=Roll(X異?, Y=Pitch(Y異?, Z=Yaw(Z異?濡??몄텧
 			FRotator& CachedRot = RootComp->GetCachedEditRotator();
 			FRotator PrevRot = CachedRot;
 			float RotXYZ[3] = { CachedRot.Roll, CachedRot.Pitch, CachedRot.Yaw };
@@ -713,7 +913,7 @@ void FEditorPropertyWidget::RenderActorProperties(AActor* PrimaryActor, const TA
 		PrimaryActor->SetVisible(bVisible);
 	}
 
-	// PlayerController — Pawn Possess / Active Camera 연결
+	// PlayerController ??Pawn Possess / Active Camera ?곌껐
 	if (APlayerController* PC = Cast<APlayerController>(PrimaryActor))
 	{
 		SEPARATOR();
@@ -848,7 +1048,7 @@ void FEditorPropertyWidget::RenderActorProperties(AActor* PrimaryActor, const TA
 		}
 	}
 
-	// Pawn — 현재 Controller 표시
+	// Pawn ???꾩옱 Controller ?쒖떆
 	else if (APawn* Pawn = Cast<APawn>(PrimaryActor))
 	{
 		SEPARATOR();
@@ -948,7 +1148,7 @@ void FEditorPropertyWidget::RenderComponentTree(AActor* Actor)
 			return strcmp(A->GetName(), B->GetName()) < 0;
 		});
 
-	//아래 클래스들로 컴포넌트 리스트를 분류합니다.
+	//?꾨옒 ?대옒?ㅻ뱾濡?而댄룷?뚰듃 由ъ뒪?몃? 遺꾨쪟?⑸땲??
 	TArray<FComponentClassGroup> ComponentGroups;
 	AddComponentClassGroup(ComponentGroups, "Light", ULightComponentBase::StaticClass());
 	AddComponentClassGroup(ComponentGroups, "Movement", UMovementComponent::StaticClass());
@@ -1128,7 +1328,7 @@ void FEditorPropertyWidget::RenderComponentTree(AActor* Actor)
 					SceneComp->AttachToComponent(Root);
 			}
 
-			// 빌보드가 필요한 컴포넌트들에 대해 빌보드 생성 보장
+			// 鍮뚮낫?쒓? ?꾩슂??而댄룷?뚰듃?ㅼ뿉 ???鍮뚮낫???앹꽦 蹂댁옣
 			if (Comp->IsA<ULightComponentBase>())
 			{
 				Cast<ULightComponentBase>(Comp)->EnsureEditorBillboard();
@@ -1222,7 +1422,7 @@ void FEditorPropertyWidget::RenderSceneComponentNode(USceneComponent* Comp)
 		EditorEngine->GetSelectionManager().SelectComponent(Comp);
 	}
 
-	// 컴포넌트 트리에서 간단하게 드래그 앤 드랍으로 부모-자식 관계 변경 가능하도록 지원
+	// 而댄룷?뚰듃 ?몃━?먯꽌 媛꾨떒?섍쾶 ?쒕옒洹????쒕엻?쇰줈 遺紐??먯떇 愿怨?蹂寃?媛?ν븯?꾨줉 吏??
 	if (ImGui::BeginDragDropSource())
 	{
 		ImGui::SetDragDropPayload("SCENE_COMPONENT_REPARENT", &Comp, sizeof(USceneComponent*));
@@ -1293,7 +1493,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 
 	ImGui::Separator();
 
-	// CameraComponent — player view selection is explicit; follow target is handled by the camera settings below.
+	// CameraComponent ??player view selection is explicit; follow target is handled by the camera settings below.
 	if (UCameraComponent* Cam = Cast<UCameraComponent>(SelectedComponent))
 	{
 		UWorld* World = EditorEngine->GetWorld();
@@ -1320,7 +1520,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 		ImGui::Separator();
 	}
 
-	// PropertyDescriptor 기반 자동 위젯 렌더링
+	// PropertyDescriptor 湲곕컲 ?먮룞 ?꾩젽 ?뚮뜑留?
 	TArray<FPropertyDescriptor> Props;
 	SelectedComponent->GetEditableProperties(Props);
 
@@ -1331,7 +1531,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 		bIsRoot = (SceneComp->GetParent() == nullptr);
 	}
 
-	// Transform 프로퍼티 이름 목록
+	// Transform ?꾨줈?쇳떚 ?대쫫 紐⑸줉
 	auto IsTransformProp = [](const FString& Name) {
 		return Name == "Location"
 			|| Name == "Rotation"
@@ -1340,7 +1540,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 
 	bool bAnyChanged = false;
 
-	// Pass 1: Transform 프로퍼티 먼저 (Root가 아닐 때만)
+	// Pass 1: Transform ?꾨줈?쇳떚 癒쇱? (Root媛 ?꾨땺 ?뚮쭔)
 	if (!bIsRoot)
 	{
 		for (int32 i = 0; i < (int32)Props.size(); ++i)
@@ -1357,7 +1557,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 		ImGui::Separator();
 	}
 
-	// Pass 2: 나머지 프로퍼티
+	// Pass 2: ?섎㉧吏 ?꾨줈?쇳떚
 	for (int32 i = 0; i < (int32)Props.size(); ++i)
 	{
 		if (IsTransformProp(Props[i].Name))
@@ -1369,12 +1569,12 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 			bAnyChanged = true;
 			PropagatePropertyChange(Props[i].Name, SelectedActors);
 
-			if (Props[i].GetKind() == EPropertyType::StaticMeshRef || Props[i].GetKind() == EPropertyType::SkeletalMeshRef)
+			if (IsObjectRefType(Props[i], UStaticMesh::StaticClass()) || IsObjectRefType(Props[i], USkeletalMesh::StaticClass()))
 				break;
 		}
 	}
 
-	// 실제 변경이 있었을 때만 Transform dirty 마킹
+	// ?ㅼ젣 蹂寃쎌씠 ?덉뿀???뚮쭔 Transform dirty 留덊궧
 	if (bAnyChanged && SelectedComponent->IsA<USceneComponent>())
 	{
 		static_cast<USceneComponent*>(SelectedComponent)->MarkTransformDirty();
@@ -1388,7 +1588,7 @@ void FEditorPropertyWidget::PropagatePropertyChange(const FString& PropName, con
 	UClass* CompClass = SelectedComponent->GetClass();
 	AActor* PrimaryActor = SelectedActors[0];
 
-	// Primary 컴포넌트에서 변경된 프로퍼티의 값 포인터 찾기
+	// Primary 而댄룷?뚰듃?먯꽌 蹂寃쎈맂 ?꾨줈?쇳떚??媛??ъ씤??李얘린
 	TArray<FPropertyDescriptor> SrcProps;
 	SelectedComponent->GetEditableProperties(SrcProps);
 
@@ -1422,7 +1622,7 @@ void FEditorPropertyWidget::PropagatePropertyChange(const FString& PropName, con
 				Comp->PostEditProperty(PropName.c_str());
 				break;
 			}
-			break; // 같은 타입의 첫 번째 컴포넌트에만 전파
+			break; // 媛숈? ??낆쓽 泥?踰덉㎏ 而댄룷?뚰듃?먮쭔 ?꾪뙆
 		}
 	}
 }
@@ -1479,7 +1679,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 	}
 	case EPropertyType::Rotator:
 	{
-		// FRotator 메모리 레이아웃 [Pitch,Yaw,Roll] → UI X=Roll(X축), Y=Pitch(Y축), Z=Yaw(Z축)
+		// FRotator 硫붾え由??덉씠?꾩썐 [Pitch,Yaw,Roll] ??UI X=Roll(X異?, Y=Pitch(Y異?, Z=Yaw(Z異?
 		FRotator* Rot = static_cast<FRotator*>(Prop.ValuePtr);
 		float RotXYZ[3] = { Rot->Roll, Rot->Pitch, Rot->Yaw };
 		bChanged = ImGui::DragFloat3(Prop.Name.c_str(), RotXYZ, Prop.Speed);
@@ -1572,155 +1772,23 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		}
 		break;
 	}
-	case EPropertyType::SceneComponentRef:
+	case EPropertyType::ObjectRef:
 	{
-		FString* Val = static_cast<FString*>(Prop.ValuePtr);
-		UMovementComponent* MovementComp = SelectedComponent ? Cast<UMovementComponent>(SelectedComponent) : nullptr;
-		FString Preview = MovementComp ? MovementComp->GetUpdatedComponentDisplayName() : FString("None");
-
-		if (ImGui::BeginCombo(Prop.Name.c_str(), Preview.c_str()))
+		if (IsObjectRefType(Prop, UStaticMesh::StaticClass()))
 		{
-			bool bSelectedAuto = Val->empty();
-			if (ImGui::Selectable("Auto (Root)", bSelectedAuto))
-			{
-				Val->clear();
-				bChanged = true;
-			}
-			if (bSelectedAuto)
-			{
-				ImGui::SetItemDefaultFocus();
-			}
-
-			if (MovementComp)
-			{
-				for (USceneComponent* Candidate : MovementComp->GetOwnerSceneComponents())
-				{
-					if (!Candidate)
-					{
-						continue;
-					}
-
-					FString CandidatePath = MovementComp->BuildUpdatedComponentPath(Candidate);
-					FString CandidateName = Candidate->GetFName().ToString();
-					if (CandidateName.empty())
-					{
-						CandidateName = Candidate->GetClass()->GetName();
-					}
-					if (!CandidatePath.empty())
-					{
-						CandidateName += " (" + CandidatePath + ")";
-					}
-
-					bool bSelected = (*Val == CandidatePath);
-					if (ImGui::Selectable(CandidateName.c_str(), bSelected))
-					{
-						*Val = CandidatePath;
-						bChanged = true;
-					}
-					if (bSelected)
-					{
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-			}
-
-			ImGui::EndCombo();
+			bChanged = RenderStaticMeshObjectRefWidget(Prop, bChanged, &FEditorPropertyWidget::OpenObjFileDialog);
 		}
-		break;
-	}
-	case EPropertyType::StaticMeshRef:
-	{
-		FString* Val = static_cast<FString*>(Prop.ValuePtr);
-
-		FString Preview = Val->empty() ? "None" : GetStemFromPath(*Val);
-		if (*Val == "None") Preview = "None";
-
-		ImGui::Text("%s", Prop.Name.c_str());
-		ImGui::SameLine(120);
-
-		float ButtonWidth = ImGui::CalcTextSize("Import OBJ").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-		float Spacing = ImGui::GetStyle().ItemSpacing.x;
-		ImGui::SetNextItemWidth(-(ButtonWidth + Spacing));
-
-		if (ImGui::BeginCombo("##Mesh", Preview.c_str()))
+		else if (IsObjectRefType(Prop, USkeletalMesh::StaticClass()))
 		{
-			bool bSelectedNone = (*Val == "None");
-			if (ImGui::Selectable("None", bSelectedNone))
-			{
-				*Val = "None";
-				bChanged = true;
-			}
-			if (bSelectedNone)
-				ImGui::SetItemDefaultFocus();
-
-			const TArray<FMeshAssetListItem>& MeshFiles = FMeshManager::GetAvailableStaticMeshFiles();
-			for (const FMeshAssetListItem& Item : MeshFiles)
-			{
-				bool bSelected = (*Val == Item.FullPath);
-				if (ImGui::Selectable(Item.DisplayName.c_str(), bSelected))
-				{
-					*Val = Item.FullPath;
-					bChanged = true;
-				}
-				if (bSelected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
+			bChanged = RenderSkeletalMeshObjectRefWidget(Prop, bChanged);
 		}
-
-		// .obj 임포트 버튼
-		ImGui::SameLine();
-
-		ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - ButtonWidth);
-		if (ImGui::Button("Import OBJ"))
+		else if (IsObjectRefType(Prop, USceneComponent::StaticClass()))
 		{
-			FString ObjPath = OpenObjFileDialog();
-			if (!ObjPath.empty())
-			{
-				ID3D11Device* Device = GEngine->GetRenderer().GetFD3DDevice().GetDevice();
-				UStaticMesh* Loaded = FMeshManager::LoadStaticMesh(ObjPath, Device);
-				if (Loaded)
-				{
-					*Val = FMeshManager::GetObjBinaryFilePath(ObjPath);
-					bChanged = true;
-				}
-			}
+			bChanged = RenderSceneComponentObjectRefWidget(Prop, SelectedComponent, bChanged);
 		}
-		break;
-	}
-	case EPropertyType::SkeletalMeshRef:
-	{
-		FString* Val = static_cast<FString*>(Prop.ValuePtr);
-		FString Preview = Val->empty() ? "None" : GetStemFromPath(*Val);
-		if (*Val == "None") Preview = "None";
-
-		ImGui::Text("%s", Prop.Name.c_str());
-		ImGui::SameLine(120);
-
-		ImGui::SetNextItemWidth(-1.0f);
-
-		if (ImGui::BeginCombo("##SkeletalMesh", Preview.c_str()))
+		else
 		{
-			bool bSelectedNone = (*Val == "None");
-			if (ImGui::Selectable("None", bSelectedNone))
-			{
-				*Val = "None";
-				bChanged = true;
-			}
-			if (bSelectedNone)
-				ImGui::SetItemDefaultFocus();
-
-			if (!Val->empty() && *Val != "None")
-			{
-				const bool bSelectedCurrent = true;
-				if (ImGui::Selectable(Preview.c_str(), bSelectedCurrent))
-				{
-					// Current value is kept until a dedicated FBX sub-asset picker is added.
-				}
-				if (bSelectedCurrent)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
+			bChanged = RenderGenericObjectRefWidget(Prop, bChanged);
 		}
 		break;
 	}
@@ -1736,7 +1804,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 			SlotName = MeshComp->GetMaterialSlotName(ElemIdx);
 		}
 
-		// 좌측: Element 인덱스 + 슬롯 이름
+		// 醫뚯륫: Element ?몃뜳??+ ?щ’ ?대쫫
 		ImGui::BeginGroup();
 		ImGui::Text("Element %d", ElemIdx);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
@@ -1747,14 +1815,14 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 
 		ImGui::SameLine(120);
 
-		// 우측: Material 콤보
+		// ?곗륫: Material 肄ㅻ낫
 		ImGui::BeginGroup();
 		ImGui::SetNextItemWidth(-1);
 
 		FString Preview = (Slot->Path.empty() || Slot->Path == "None") ? "None" : Slot->Path;
 		if (ImGui::BeginCombo("##Mat", Preview.c_str()))
 		{
-			// "None" 선택지 기본 제공
+			// "None" ?좏깮吏 湲곕낯 ?쒓났
 			bool bSelectedNone = (Slot->Path == "None" || Slot->Path.empty());
 			if (ImGui::Selectable("None", bSelectedNone))
 			{
@@ -1763,14 +1831,14 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 			}
 			if (bSelectedNone) ImGui::SetItemDefaultFocus();
 
-			// TObjectIterator 대신 FMaterialManager 파일 목록 스캔 데이터 사용
+			// TObjectIterator ???FMaterialManager ?뚯씪 紐⑸줉 ?ㅼ틪 ?곗씠???ъ슜
 			const TArray<FMaterialAssetListItem>& MatFiles = FMaterialManager::Get().GetAvailableMaterialFiles();
 			for (const FMaterialAssetListItem& Item : MatFiles)
 			{
 				bool bSelected = (Slot->Path == Item.FullPath);
 				if (ImGui::Selectable(Item.DisplayName.c_str(), bSelected))
 				{
-					Slot->Path = Item.FullPath; // 데이터는 전체 경로로 저장
+					Slot->Path = Item.FullPath; // ?곗씠?곕뒗 ?꾩껜 寃쎈줈濡????
 					bChanged = true;
 				}
 				if (bSelected) ImGui::SetItemDefaultFocus();
@@ -1799,7 +1867,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		FName* Val = static_cast<FName*>(Prop.ValuePtr);
 		FString Current = Val->ToString();
 
-		// 리소스 키와 매칭되는 프로퍼티면 콤보 박스로 렌더링
+		// 由ъ냼???ㅼ? 留ㅼ묶?섎뒗 ?꾨줈?쇳떚硫?肄ㅻ낫 諛뺤뒪濡??뚮뜑留?
 		TArray<FString> Names;
 		if (strcmp(Prop.Name.c_str(), "Font") == 0)
 			Names = FResourceManager::Get().GetFontNames();
@@ -1999,3 +2067,4 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 	ImGui::PopID();
 	return bChanged;
 }
+

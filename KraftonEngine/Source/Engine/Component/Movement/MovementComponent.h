@@ -37,7 +37,6 @@ public:
 
 	void BeginPlay() override;
 	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction) override;
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void Serialize(FArchive& Ar) override;
 	void PostEditProperty(const char* PropertyName) override;
 
@@ -82,7 +81,7 @@ protected:
 	USceneComponent* UpdatedComponent = nullptr; // 움직일 대상
 	FPROPERTY(DisplayName="Auto Register Updated", Type=Bool)
 	bool bAutoRegisterUpdatedComponent = true;
-	FPROPERTY(DisplayName="Updated Component", Type=SceneComponentRef)
+	FPROPERTY(DisplayName="Updated Component", Type=ObjectRef, Class=USceneComponent)
 	FString UpdatedComponentPath;
 	FPROPERTY(DisplayName="Receive Controller Input", Type=Bool)
 	bool bReceiveControllerInput = false;

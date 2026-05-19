@@ -24,7 +24,6 @@ public:
 	UCameraComponent() = default;
 
 	void Serialize(FArchive& Ar) override;
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
 	void RemapActorReferences(const TMap<uint32, uint32>& ActorUUIDRemap) override;
 

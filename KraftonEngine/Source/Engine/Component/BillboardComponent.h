@@ -19,7 +19,6 @@ public:
 	void Serialize(FArchive& Ar) override;
 	void PostDuplicate() override;
 
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
 
 	void SetBillboardEnabled(bool bEnable) { bIsBillboard = bEnable; }

@@ -37,7 +37,6 @@ public:
 	void PostDuplicate() override;
 
 	// Property Editor 지원
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
 	const FString& GetStaticMeshPath() const { return StaticMeshPath; }
 	/*FDelegateSubscriptionBox DelegateSubscriptionBox; 
@@ -47,7 +46,7 @@ private:
 	void CacheLocalBounds();
 
 	UStaticMesh* StaticMesh = nullptr;
-	FPROPERTY(DisplayName="Static Mesh", Type=StaticMeshRef)
+	FPROPERTY(DisplayName="Static Mesh", Type=ObjectRef, Class=UStaticMesh)
 	FString StaticMeshPath = "None";
 
 	FVector CachedLocalCenter = { 0, 0, 0 };

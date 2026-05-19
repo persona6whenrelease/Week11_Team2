@@ -23,7 +23,6 @@ public:
 	GENERATED_BODY()
 	~UPrimitiveComponent() override;
 
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
 
 	void Serialize(FArchive& Ar) override;

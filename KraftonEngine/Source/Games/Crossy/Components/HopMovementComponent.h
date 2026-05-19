@@ -137,7 +137,7 @@ protected:
 	bool bHasLockedGameplayPlaneZ = false;
 	USceneComponent* PlaneLockedComponent = nullptr;
 
-	FPROPERTY(DisplayName="Visual Hop Component", Type=SceneComponentRef)
+	FPROPERTY(DisplayName="Visual Hop Component", Type=ObjectRef, Class=USceneComponent)
 	FString VisualHopComponentPath;
 	USceneComponent* VisualHopComponent = nullptr;
 	FVector VisualHopBaseRelativeLocation = FVector::ZeroVector;
