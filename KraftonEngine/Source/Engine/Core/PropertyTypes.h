@@ -111,6 +111,15 @@ struct FPropertyTypeDesc
 	FMapValueSizeFunc     MapValueSizeFunc     = nullptr;
 };
 
+// 프로퍼티 비트 플래그 (FPROPERTY 스펙시파이어로 제어)
+enum EPropertyFlags : uint32
+{
+	EPF_None      = 0,
+	EPF_ReadOnly  = 1 << 0,  // 에디터에 표시하되 편집 불가
+	EPF_Hidden    = 1 << 1,  // 에디터에 숨김 (직렬화는 유지)
+	EPF_Transient = 1 << 2,  // 직렬화 제외 (에디터 표시는 유지)
+};
+
 // 컴포넌트가 노출하는 편집 가능한 프로퍼티 디스크립터
 struct FPropertyDescriptor
 {
@@ -126,7 +135,7 @@ struct FPropertyDescriptor
 	// Optional editor metadata. Existing property initializers can ignore these.
 	std::string Category = "Default";
 	std::string Tooltip;
-	uint32 Flags = 0;
+	uint32 Flags = EPF_None;
 
 	const FPropertyTypeDesc* TypeDesc = nullptr;
 

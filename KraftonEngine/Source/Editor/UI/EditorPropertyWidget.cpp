@@ -1617,10 +1617,22 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 	}
 
 	// Pass 2: ?섎㉧吏 ?꾨줈?쇳떚
+	// Pass 2: 나머지 프로퍼티 (Category별 그룹핑)
+	std::string LastCategory;
 	for (int32 i = 0; i < (int32)Props.size(); ++i)
 	{
 		if (IsTransformProp(Props[i].Name))
 			continue;
+		if (Props[i].Flags & EPF_Hidden)
+			continue;
+
+		// 카테고리가 바뀌면 구분선 + 레이블 출력
+		const std::string& Cat = Props[i].Category;
+		if (Cat != LastCategory)
+		{
+			ImGui::SeparatorText(Cat.c_str());
+			LastCategory = Cat;
+		}
 
 		bool bChanged = RenderPropertyWidget(Props, i);
 		if (bChanged)
@@ -1690,8 +1702,19 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 {
 	ImGui::PushID(Index);
 	FPropertyDescriptor& Prop = Props[Index];
+
+	// Hidden 프로퍼티는 렌더링 자체를 건너뜀
+	if (Prop.Flags & EPF_Hidden)
+	{
+		ImGui::PopID();
+		return false;
+	}
+
 	const char* EffectivePostEditPropertyName = PostEditPropertyName ? PostEditPropertyName : Prop.Name.c_str();
 	bool bChanged = false;
+
+	const bool bReadOnly = (Prop.Flags & EPF_ReadOnly) != 0;
+	if (bReadOnly) ImGui::BeginDisabled(true);
 
 	switch (Prop.GetKind())
 	{
@@ -2249,6 +2272,12 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		break;
 	}
 	}
+
+	if (bReadOnly) ImGui::EndDisabled();
+
+	// Tooltip: 마우스 호버 시 표시
+	if (!Prop.Tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+		ImGui::SetTooltip("%s", Prop.Tooltip.c_str());
 
 	if (bChanged && SelectedComponent)
 	{

@@ -574,6 +574,7 @@ json::JSON FSceneSaveManager::SerializeProperties(UActorComponent* Comp)
 
 	for (const auto& Prop : Descriptors) {
 		//if (Prop.Name == "Static Mesh") continue; // Primitives 블록에 이미 저장됨
+		if (Prop.Flags & EPF_Transient) continue;
 		props[Prop.Name] = SerializePropertyValue(Prop);
 	}
 	return props;
@@ -1159,6 +1160,7 @@ void FSceneSaveManager::DeserializeProperties(UActorComponent* Comp, json::JSON&
 	Comp->GetEditableProperties(Descriptors);
 
 	for (auto& Prop : Descriptors) {
+		if (Prop.Flags & EPF_Transient) continue;
 		if (!PropsJSON.hasKey(Prop.Name.c_str())) continue;
 		json::JSON& Value = PropsJSON[Prop.Name.c_str()];
 		DeserializePropertyValue(Prop, Value);

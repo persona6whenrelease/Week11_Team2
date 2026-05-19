@@ -228,20 +228,36 @@ class HeaderParser:
 
     @staticmethod
     def _parse_specifiers(spec_str: str) -> dict:
-        """Parse 'min=0.0, max=50.0, DisplayName="Cast Shadows"' into a dict."""
+        """Parse 'min=0.0, max=50.0, DisplayName="Cast Shadows"' into a dict.
+        Standalone keywords like 'ReadOnly', 'Hidden', 'Transient' are stored as True."""
         meta: dict = {}
         if not spec_str.strip():
             return meta
-        for part in re.split(r',(?![^"]*")', spec_str):
-            part = part.strip()
+        # Quote-aware split: don't break on commas inside "..."
+        parts, cur, in_q = [], [], False
+        for ch in spec_str:
+            if ch == '"':
+                in_q = not in_q
+                cur.append(ch)
+            elif ch == ',' and not in_q:
+                parts.append(''.join(cur).strip())
+                cur = []
+            else:
+                cur.append(ch)
+        if cur:
+            parts.append(''.join(cur).strip())
+        for part in parts:
             kv = re.match(r'(\w+)\s*=\s*(.+)', part)
             if kv:
                 key = kv.group(1).strip()
                 val = kv.group(2).strip()
-                # Wrap numeric values with 'f' suffix for C++ float literals
+                # Wrap bare numeric values with 'f' suffix for C++ float literals
                 if re.match(r'^-?\d+\.?\d*$', val):
                     val = val + 'f'
                 meta[key] = val
+            elif re.match(r'^\w+$', part):
+                # Standalone keyword: FPROPERTY(ReadOnly) → meta['ReadOnly'] = True
+                meta[part] = True
         return meta
 
     def _try_parse_property(self, stripped: str, specifiers: str) -> Optional[PropertyInfo]:
@@ -757,9 +773,15 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             speed_val = prop.meta.get('speed', '0.1f')
             cat_val   = prop.meta.get('Category', '"Default"')
             disp_name = prop.meta.get('DisplayName', f'"{prop.name}"')
+            tooltip_val = prop.meta.get('Tooltip', '""')
+            flag_parts = []
+            if 'ReadOnly'  in prop.meta: flag_parts.append('EPF_ReadOnly')
+            if 'Hidden'    in prop.meta: flag_parts.append('EPF_Hidden')
+            if 'Transient' in prop.meta: flag_parts.append('EPF_Transient')
+            flags_val = ' | '.join(flag_parts) if flag_parts else 'EPF_None'
             out.append(
                 f'        FPropertyDescriptor{{ {disp_name}, {offset},'
-                f' {min_val}, {max_val}, {speed_val}, {cat_val}, "", 0, {type_desc_ref} }},'
+                f' {min_val}, {max_val}, {speed_val}, {cat_val}, {tooltip_val}, {flags_val}, {type_desc_ref} }},'
             )
         out += [
             "    };",
