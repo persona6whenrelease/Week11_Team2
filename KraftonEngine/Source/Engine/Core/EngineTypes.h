@@ -30,6 +30,16 @@ struct FColor
 	static FColor Gray() { return FColor(139, 139, 139); }
 };
 
+inline size_t GetTypeHash(const FColor& C)
+{
+    size_t seed = 0;
+    seed = HashCombine(seed, GetTypeHash(C.R));
+    seed = HashCombine(seed, GetTypeHash(C.G));
+    seed = HashCombine(seed, GetTypeHash(C.B));
+    seed = HashCombine(seed, GetTypeHash(C.A));
+    return seed;
+}
+
 // ============================================================
 // FBoundingBox — AABB (Axis-Aligned Bounding Box)
 // ============================================================

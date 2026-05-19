@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <cmath>
 #include <DirectXMath.h>
+#include "Core/CoreTypes.h"
 
 #if defined(_MSC_VER)
 	#include <intrin.h>     // MSVC
@@ -258,3 +259,30 @@ struct FVector2
 	FVector2& operator*=(float Scalar);
 	FVector2& operator/=(float Scalar);
 };
+
+inline size_t GetTypeHash(const FVector& V)
+{
+    size_t seed = 0;
+    seed = HashCombine(seed, GetTypeHash(V.X));
+    seed = HashCombine(seed, GetTypeHash(V.Y));
+    seed = HashCombine(seed, GetTypeHash(V.Z));
+    return seed;
+}
+
+inline size_t GetTypeHash(const FVector4& V)
+{
+    size_t seed = 0;
+    seed = HashCombine(seed, GetTypeHash(V.X));
+    seed = HashCombine(seed, GetTypeHash(V.Y));
+    seed = HashCombine(seed, GetTypeHash(V.Z));
+    seed = HashCombine(seed, GetTypeHash(V.W));
+    return seed;
+}
+
+inline size_t GetTypeHash(const FVector2& V)
+{
+    size_t seed = 0;
+    seed = HashCombine(seed, GetTypeHash(V.X));
+    seed = HashCombine(seed, GetTypeHash(V.Y));
+    return seed;
+}
