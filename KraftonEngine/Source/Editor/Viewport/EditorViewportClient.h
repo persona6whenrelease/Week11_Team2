@@ -52,7 +52,7 @@ public:
 	void Tick(float DeltaTime);
 
 	// 활성 상태 — 활성 뷰포트만 입력 처리
-	void SetActive(bool bInActive) { bIsActive = bInActive; }
+	void SetActive(bool bInActive);
 	bool IsActive() const { return bIsActive; }
 
 	// FViewport 소유
@@ -110,6 +110,7 @@ private:
 	float WindowHeight = 1080.f;
 
 	bool bIsActive = false;
+	bool bCameraInputCaptured = false;
 	// 뷰포트 슬롯의 스크린 좌표 (ImGui screen space = 윈도우 클라이언트 좌표)
 	FRect ViewportScreenRect;
 

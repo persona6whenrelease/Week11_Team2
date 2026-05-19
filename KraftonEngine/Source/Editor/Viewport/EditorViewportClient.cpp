@@ -39,6 +39,16 @@ void FEditorViewportClient::Initialize(FWindowsWindow* InWindow)
 	Window = InWindow;
 }
 
+void FEditorViewportClient::SetActive(bool bInActive)
+{
+	bIsActive = bInActive;
+	if (!bIsActive && bCameraInputCaptured)
+	{
+		bCameraInputCaptured = false;
+		InputSystem::Get().SetUseRawMouse(false);
+	}
+}
+
 void FEditorViewportClient::CreateCamera()
 {
 	DestroyCamera();
@@ -218,12 +228,39 @@ void FEditorViewportClient::Tick(float DeltaTime)
         }
 	}
 
-	const bool bEditorMouseCaptureActive = (Gizmo && Gizmo->IsHolding()) || bIsMarqueeSelecting;
+	const FInputSystemSnapshot& RawInput = InputFrame.GetRawSnapshotForGlobalShortcuts();
+	const POINT RawMousePos = RawInput.MousePos;
+	const bool bMouseInsideViewport =
+		RawMousePos.x >= ViewportScreenRect.X &&
+		RawMousePos.x <= ViewportScreenRect.X + ViewportScreenRect.Width &&
+		RawMousePos.y >= ViewportScreenRect.Y &&
+		RawMousePos.y <= ViewportScreenRect.Y + ViewportScreenRect.Height;
+	const bool bCameraCapturePressedInside =
+		bMouseInsideViewport &&
+		(RawInput.KeyPressed[VK_RBUTTON] || RawInput.KeyPressed[VK_MBUTTON]);
+	const bool bCameraCaptureButtonDown =
+		RawInput.KeyDown[VK_RBUTTON] || RawInput.KeyDown[VK_MBUTTON];
+
+	if (bCameraCapturePressedInside)
+	{
+		bCameraInputCaptured = true;
+	}
+	else if (!bCameraCaptureButtonDown)
+	{
+		bCameraInputCaptured = false;
+	}
+
+	Input.SetUseRawMouse(bCameraInputCaptured && bCameraCaptureButtonDown);
+
+	const bool bEditorMouseCaptureActive =
+		(Gizmo && Gizmo->IsHolding()) ||
+		bIsMarqueeSelecting ||
+		bCameraInputCaptured;
 	if (InputFrame.IsGuiUsingTextInput())
 	{
 		InputFrame.ConsumeTextInput("EditorGuiCapture", "GUI text input capture");
 	}
-	else if (InputFrame.IsGuiUsingKeyboard())
+	else if (InputFrame.IsGuiUsingKeyboard() && !bCameraInputCaptured)
 	{
 		InputFrame.ConsumeKeyboard("EditorGuiCapture", "GUI keyboard capture");
 	}
