@@ -53,6 +53,17 @@ class FMeshManager
      * SkeletonAssetPath가 비어 있어도 저장은 그대로 진행되며, 다시 로드했을 때 PreviewMesh 매칭이 실패할 수 있다.
      */
     static bool SaveAnimSequenceToFile(const UAnimSequence *Sequence, const FString &PathFileName);
+    static bool SaveSkeletalMeshToFile(const USkeletalMesh *Mesh, const FString &PathFileName);
+    static USkeletalMesh *LoadSkeletalMeshFromFile(const FString &PathFileName);
+
+    /**
+     * 애니메이션과 스켈레탈 메시의 리그 호환성을 검사한다.
+     * 판단 기준: 애니메이션의 첫 번째 트랙 이름(루트 본)이 메시 본 목록에 존재해야 한다.
+     * 루트 본이 다르면 전신 모션의 기준점이 달라져 적용 결과가 완전히 깨지므로 차단한다.
+     * 나머지 트랙은 이름이 매칭되는 본에만 적용되고, 매칭 안 되는 본은 bind pose를 유지한다.
+     */
+    static bool IsAnimSequenceCompatibleWithMesh(const UAnimSequence *Sequence,
+                                                 const USkeletalMesh *Mesh);
     /**
      * `.asset` 단일 파일에서 UAnimSequence를 로드한다. 같은 경로로 반복 호출하면 메모리 캐시 적중분을 반환한다.
      * 캐시는 프로세스 종료 전까지 비우지 않는다 (FBX scene cache와 동일한 영구 보관 패턴).

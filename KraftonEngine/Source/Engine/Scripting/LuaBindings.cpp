@@ -24,6 +24,7 @@ void RegisterLuaBindings(sol::state& Lua)
 	RegisterCapsuleComponentBinding(Lua);
 
 	RegisterStaticMeshComponentBinding(Lua);
+	RegisterSkeletalMeshComponentBinding(Lua);
 	RegisterCameraComponentBinding(Lua);
 	RegisterSpringArmComponentBinding(Lua);
 	RegisterPawnOrientationComponentBinding(Lua);

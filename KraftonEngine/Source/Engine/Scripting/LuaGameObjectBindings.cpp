@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerController.h"
 
 #include "Component/StaticMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/ActorComponent.h"
 #include "Component/CameraComponent.h"
 #include "Component/SpringArmComponent.h"
@@ -341,6 +342,23 @@ void RegisterGameObjectBinding(sol::state& Lua)
 		),
 
 		LUA_GAMEOBJECT_COMPONENT_PROPERTY(
+			"SkeletalMesh",
+			FLuaSkeletalMeshComponentHandle,
+			USkeletalMeshComponent
+		),
+
+		LUA_GAMEOBJECT_GET_OR_ADD_COMPONENT_METHOD(
+			"GetOrAddSkeletalMesh",
+			FLuaSkeletalMeshComponentHandle,
+			USkeletalMeshComponent
+		),
+
+		LUA_GAMEOBJECT_REMOVE_COMPONENT_METHOD(
+			"RemoveSkeletalMesh",
+			USkeletalMeshComponent
+		),
+
+		LUA_GAMEOBJECT_COMPONENT_PROPERTY(
 			"PawnOrientation",
 			FLuaPawnOrientationComponentHandle,
 			UPawnOrientationComponent
@@ -494,6 +512,23 @@ void RegisterGameObjectBinding(sol::state& Lua)
 			FLuaWorldLibrary::GetOrAddStaticMeshComponent(Actor);
 
 			return FLuaWorldLibrary::SetStaticMesh(Mesh, ObjPath);
+		},
+
+		"SetSkeletalMesh",
+		[](const FLuaGameObjectHandle& Self, const FString& ObjPath)
+		{
+			AActor* Actor = Self.Resolve();
+
+			if (!Actor)
+			{
+				UE_LOG("[Lua] Invalid GameObject.SetSkeletalMesh Call.");
+				return false;
+			}
+
+			USkeletalMeshComponent* Mesh =
+			FLuaWorldLibrary::GetOrAddSkeletalMeshComponent(Actor);
+
+			return FLuaWorldLibrary::SetSkeletalMesh(Mesh, ObjPath);
 		},
 
 

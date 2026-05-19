@@ -1176,6 +1176,9 @@
     <ClCompile Include="Source\Engine\Scripting\LuaShapeBindings.cpp">
       <Filter>Source\Engine\Scripting</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Scripting\LuaSkeletalMeshBindings.cpp">
+      <Filter>Source\Engine\Scripting</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Scripting\LuaSoundLibrary.cpp">
       <Filter>Source\Engine\Scripting</Filter>
     </ClCompile>

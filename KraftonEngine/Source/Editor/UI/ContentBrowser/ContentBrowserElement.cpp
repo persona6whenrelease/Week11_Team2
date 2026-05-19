@@ -499,6 +499,12 @@ void ContentBrowserElement::OnRightClicked(ContentBrowserContext& Context)
 		Context.SelectedElement = shared_from_this();
 		StartRename(Context);
 	}
+	if (ImGui::MenuItem("Delete"))
+	{
+		Context.PendingDeleteElement = shared_from_this();
+		Context.bPendingDeleteConfirm = true;
+		ImGui::CloseCurrentPopup();
+	}
 }
 
 void DirectoryElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
