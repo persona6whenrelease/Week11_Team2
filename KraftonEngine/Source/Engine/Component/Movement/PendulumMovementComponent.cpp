@@ -63,3 +63,8 @@ void UPendulumMovementComponent::Serialize(FArchive& Ar)
 	Ar << Phase;
 	Ar << AngleOffset;
 }
+
+void UPendulumMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
+}

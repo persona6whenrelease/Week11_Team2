@@ -54,6 +54,29 @@ namespace
 {
 	static FString GetStemFromPath(const FString& Path);
 
+	FString GetStemFromPath(const FString& Path)
+	{
+		if (Path.empty() || Path == "None")
+		{
+			return Path;
+		}
+
+		const std::filesystem::path FsPath = std::filesystem::path(FPaths::ToWide(Path));
+		const std::wstring Stem = FsPath.stem().wstring();
+		if (!Stem.empty())
+		{
+			return FPaths::ToUtf8(Stem);
+		}
+
+		const std::wstring Filename = FsPath.filename().wstring();
+		if (!Filename.empty())
+		{
+			return FPaths::ToUtf8(Filename);
+		}
+
+		return Path;
+	}
+
 	bool ShouldHideInComponentTree(const UActorComponent* Component, bool bShowEditorOnlyComponents)
 	{
 		if (!Component)

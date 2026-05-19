@@ -102,6 +102,11 @@ void UPawnOrientationComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void UPawnOrientationComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UActorComponent::GetEditableProperties(OutProps);
+}
+
 void UPawnOrientationComponent::PostEditProperty(const char* PropertyName)
 {
 	UActorComponent::PostEditProperty(PropertyName);

@@ -39,6 +39,11 @@ FBoundingBox USphereComponent::GetWorldAABB() const
 	return FBoundingBox(Center - Extent, Center + Extent);
 }
 
+void USphereComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UShapeComponent::GetEditableProperties(OutProps);
+}
+
 void USphereComponent::PostEditProperty(const char* PropertyName)
 {
 	UShapeComponent::PostEditProperty(PropertyName);

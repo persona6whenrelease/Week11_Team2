@@ -127,6 +127,11 @@ void UControllerInputComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void UControllerInputComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UActorComponent::GetEditableProperties(OutProps);
+}
+
 void UControllerInputComponent::PostEditProperty(const char* PropertyName)
 {
 	UActorComponent::PostEditProperty(PropertyName);

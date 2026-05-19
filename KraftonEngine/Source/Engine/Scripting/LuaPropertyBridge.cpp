@@ -718,9 +718,9 @@ bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& 
 		return false;
 	}
 
-	if (IsBlockedLuaPropertyName(Desc->Name))
+	if (IsBlockedLuaPropertyName(Desc->GetName()))
 	{
-		UE_LOG("[LuaSecurity] SetProperty blocked: protected property = %s", Desc->Name.c_str());
+		UE_LOG("[LuaSecurity] SetProperty blocked: protected property = %s", Desc->GetName());
 		return false;
 	}
 
@@ -738,6 +738,6 @@ bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& 
 		return false;
 	}
 
-	Component->PostEditProperty(Desc->Name.c_str());
+	Component->PostEditProperty(Desc->GetName());
 	return true;
 }

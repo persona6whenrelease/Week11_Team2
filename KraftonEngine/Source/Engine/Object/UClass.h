@@ -2,6 +2,7 @@
 
 #include "Core/CoreTypes.h"
 #include "Core/PropertyTypes.h"
+#include <cstring>
 
 class UObject;
 
@@ -61,6 +62,24 @@ public:
 		return Registry;
 	}
 
+	static UClass* FindClassByName(const char* InName)
+	{
+		if (InName == nullptr)
+		{
+			return nullptr;
+		}
+
+		for (UClass* RegisteredClass : GetAllClasses())
+		{
+			if (RegisteredClass && RegisteredClass->GetName() && strcmp(RegisteredClass->GetName(), InName) == 0)
+			{
+				return RegisteredClass;
+			}
+		}
+
+		return nullptr;
+	}
+
 private:
 	const char*      Name            = nullptr;
 	UClass*          SuperClass      = nullptr;
@@ -77,3 +96,8 @@ struct FClassRegistrar
 		UClass::GetAllClasses().push_back(InClass);
 	}
 };
+
+inline UClass* FindRegisteredClassByName(const char* InName)
+{
+	return UClass::FindClassByName(InName);
+}

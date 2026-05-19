@@ -48,6 +48,11 @@ FBoundingBox UBoxComponent::GetWorldAABB() const
 		Center + FVector(Ex, Ey, Ez));
 }
 
+void UBoxComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UShapeComponent::GetEditableProperties(OutProps);
+}
+
 void UBoxComponent::PostEditProperty(const char* PropertyName)
 {
 	UShapeComponent::PostEditProperty(PropertyName);

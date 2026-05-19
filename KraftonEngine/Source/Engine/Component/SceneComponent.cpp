@@ -52,6 +52,11 @@ void USceneComponent::AttachToComponent(USceneComponent* InParent)
 	SetParent(InParent);
 }
 
+void USceneComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UActorComponent::GetEditableProperties(OutProps);
+}
+
 void USceneComponent::PostEditProperty(const char* PropertyName)
 {
 	bool bApplyChangeToPartition = (strcmp(PropertyName, "Location") == 0

@@ -19,6 +19,11 @@ FPrimitiveSceneProxy* USubUVComponent::CreateSceneProxy()
 	return new FSubUVSceneProxy(this);
 }
 
+void USubUVComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UPrimitiveComponent::GetEditableProperties(OutProps);
+}
+
 void USubUVComponent::Serialize(FArchive& Ar)
 {
 	// UBillboardComponent::Serialize가 TextureName/Width/Height를 처리한다.

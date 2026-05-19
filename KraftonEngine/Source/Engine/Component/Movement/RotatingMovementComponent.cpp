@@ -81,3 +81,7 @@ void URotatingMovementComponent::Serialize(FArchive& Ar)
 	Ar << PivotTranslation;
 }
 
+void URotatingMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
+}

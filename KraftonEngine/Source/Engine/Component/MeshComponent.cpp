@@ -71,6 +71,12 @@ const FString& UMeshComponent::GetMaterialSlotName(int32 ElementIndex) const
 	return EmptyMaterialSlotName;
 }
 
+void UMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UPrimitiveComponent::GetEditableProperties(OutProps);
+	AppendMaterialSlotProperties(OutProps);
+}
+
 void UMeshComponent::AppendMaterialSlotProperties(TArray<FPropertyDescriptor>& OutProps)
 {
 	for (int32 i = 0; i < static_cast<int32>(MaterialSlots.size()); ++i)

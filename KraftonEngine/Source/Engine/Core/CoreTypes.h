@@ -9,6 +9,7 @@
 #include <queue>
 #include <array>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 using int8 = __int8;
@@ -57,6 +58,13 @@ inline size_t GetTypeHash(uint64   V) { return std::hash<uint64>{}(V); }
 inline size_t GetTypeHash(float    V) { return std::hash<float>{}(V); }
 inline size_t GetTypeHash(double   V) { return std::hash<double>{}(V); }
 inline size_t GetTypeHash(const std::string& V) { return std::hash<std::string>{}(V); }
+
+template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+inline size_t GetTypeHash(T V)
+{
+    using UnderlyingType = std::underlying_type_t<T>;
+    return GetTypeHash(static_cast<UnderlyingType>(V));
+}
 
 // DefaultHasher: GetTypeHash() 자유 함수를 std::unordered_* 의 Hasher로 연결
 struct FDefaultHasher

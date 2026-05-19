@@ -42,6 +42,13 @@ struct FPoolKey
 	}
 };
 
+inline size_t GetTypeHash(const FPoolKey& Key)
+{
+	size_t Seed = std::hash<UClass*>{}(Key.ClassKey);
+	Seed = HashCombine(Seed, GetTypeHash(Key.PrefabKey));
+	return Seed;
+}
+
 namespace std
 {
 	template<>
@@ -49,9 +56,7 @@ namespace std
 	{
 		size_t operator()(const FPoolKey& Key) const noexcept
 		{
-			const size_t ClassHash = std::hash<UClass*>{}(Key.ClassKey);
-			const size_t PrefabHash = std::hash<FString>{}(Key.PrefabKey);
-			return ClassHash ^ (PrefabHash + 0x9e3779b97f4a7c15ull + (ClassHash << 6) + (ClassHash >> 2));
+			return GetTypeHash(Key);
 		}
 	};
 }

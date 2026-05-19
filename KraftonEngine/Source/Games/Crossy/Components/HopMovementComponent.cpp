@@ -233,6 +233,11 @@ void UHopMovementComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void UHopMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
+}
+
 void UHopMovementComponent::PostEditProperty(const char* PropertyName)
 {
 	UMovementComponent::PostEditProperty(PropertyName);

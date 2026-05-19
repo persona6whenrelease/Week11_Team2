@@ -23,6 +23,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+def _strip_comments_preserve_lines(content: str) -> str:
+    def _replace_block_comment(match: re.Match) -> str:
+        text = match.group(0)
+        return ''.join('\n' if ch == '\n' else ' ' for ch in text)
+
+    content = re.sub(r'/\*.*?\*/', _replace_block_comment, content, flags=re.DOTALL)
+    content = re.sub(r'//[^\n]*', '', content)
+    return content
+
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -83,9 +93,8 @@ class HeaderParser:
     _GENERATED_BODY_RE  = re.compile(r'^\s*GENERATED_BODY\s*\(\s*\)')
 
     def parse(self, content: str) -> list:
-        # Strip comments for parsing logic; line indices stay 1-to-1 with original
-        stripped = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-        stripped = re.sub(r'//[^\n]*', '', stripped)
+        # Strip comments for parsing logic while preserving original line numbers.
+        stripped = _strip_comments_preserve_lines(content)
         lines = stripped.splitlines()
 
         results: list[ReflectedType] = []
@@ -466,7 +475,7 @@ def _generate_type_node(
         node = node_prefix
         out.append(
             f"    static const FPropertyTypeDesc {node}"
-            f"{{ EPropertyType::Struct, &{clean}::StaticClassInstance, nullptr, 0, nullptr,"
+            f"{{ EPropertyType::Struct, FindRegisteredClassByName(\"{clean}\"), nullptr, 0, nullptr,"
             f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
         )
         return f"&{node}"
@@ -476,7 +485,7 @@ def _generate_type_node(
         node = node_prefix
         out.append(
             f"    static const FPropertyTypeDesc {node}"
-            f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, &{clean}::StaticClassInstance,"
+            f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, FindRegisteredClassByName(\"{clean}\"),"
             f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
         )
         return f"&{node}"
@@ -575,7 +584,7 @@ def _h_class(out: list, t: ReflectedType, file_id: str):
     # If line number not yet known (pre-migration file with UCLASS but no GENERATED_BODY
     # in source yet), fall back to emitting the old #undef approach for compatibility.
     if t.generated_body_line > 0:
-        macro_name = f"{file_id}{t.generated_body_line}"
+        macro_name = f"{file_id}_LINE_{t.generated_body_line}"
     else:
         # Fallback: define as a named macro, not line-number keyed.
         # This happens when the generator is run on a header that still has DECLARE_CLASS
@@ -719,14 +728,14 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                     node_name = f"{t.name}_PropType_{index}"
                     out.append(
                         f"    static const FPropertyTypeDesc {node_name}"
-                        f"{{ {etype}, &{clean_type}::StaticClassInstance, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                        f"{{ {etype}, FindRegisteredClassByName(\"{clean_type}\"), nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
                     )
                     type_desc_ref = f"&{node_name}"
                 elif object_ref_class:
                     node_name = f"{t.name}_PropType_{index}"
                     out.append(
                         f"    static const FPropertyTypeDesc {node_name}"
-                        f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, &{object_ref_class}::StaticClassInstance, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                        f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, FindRegisteredClassByName(\"{object_ref_class}\"), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
                     )
                     type_desc_ref = f"&{node_name}"
                 elif etype == 'EPropertyType::Enum':

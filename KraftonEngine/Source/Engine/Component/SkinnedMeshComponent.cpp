@@ -249,7 +249,11 @@ void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &O
         0,
         &USkeletalMesh::StaticClassInstance
     };
-    OutProps.push_back({"Skeletal Mesh", &SkeletalMeshPath, 0.0f, 0.0f, 0.1f, "Default", "", 0, &SkeletalMeshObjectRefType});
+    FPropertyDescriptor SkeletalMeshProp;
+    SkeletalMeshProp.ValuePtr = &SkeletalMeshPath;
+    SkeletalMeshProp.SyntheticTypeDesc = &SkeletalMeshObjectRefType;
+    SkeletalMeshProp.DynamicName = "Skeletal Mesh";
+    OutProps.push_back(std::move(SkeletalMeshProp));
     AppendMaterialSlotProperties(OutProps);
 }
 

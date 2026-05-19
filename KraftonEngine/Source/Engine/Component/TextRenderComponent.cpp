@@ -17,6 +17,11 @@ FPrimitiveSceneProxy* UTextRenderComponent::CreateSceneProxy()
 	return new FTextRenderSceneProxy(this);
 }
 
+void UTextRenderComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	USceneComponent::GetEditableProperties(OutProps);
+}
+
 void UTextRenderComponent::SetFont(const FName& InFontName)
 {
 	FontName = InFontName;

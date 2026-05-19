@@ -58,6 +58,11 @@ void UInterpToMovementComponent::Serialize(FArchive& Ar)
 	Ar << ControlPoints;
 }
 
+void UInterpToMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
+}
+
 // --- Control Point Management--------------------------------------------
 void UInterpToMovementComponent::AddControlPoint(FVector InControlPoint) {
 	ControlPoints.push_back(InControlPoint);

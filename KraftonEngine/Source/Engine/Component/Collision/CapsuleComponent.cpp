@@ -104,6 +104,11 @@ FBoundingBox UCapsuleComponent::GetWorldAABB() const
 	return FBoundingBox(Min - Expand, Max + Expand);
 }
 
+void UCapsuleComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UShapeComponent::GetEditableProperties(OutProps);
+}
+
 void UCapsuleComponent::PostEditProperty(const char* PropertyName)
 {
 	UShapeComponent::PostEditProperty(PropertyName);

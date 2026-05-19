@@ -19,6 +19,12 @@ USpringArmComponent::USpringArmComponent()
 	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;
 	CurrentArmLength = TargetArmLength;
 }
+
+void USpringArmComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	USceneComponent::GetEditableProperties(OutProps);
+}
+
 void USpringArmComponent::Serialize(FArchive& Ar)
 {
 	USceneComponent::Serialize(Ar);
