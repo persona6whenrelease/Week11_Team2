@@ -171,6 +171,24 @@ namespace
 		}
 	}
 
+	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp)
+	{
+		if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+		{
+			return false;
+		}
+
+		OutElementProp = ArrayProp;
+		OutElementProp.Type = ArrayProp.InnerType;
+		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
+		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.ArraySizeGetter = nullptr;
+		OutElementProp.ArrayResizeFunc = nullptr;
+		OutElementProp.ArrayElementGetter = nullptr;
+		OutElementProp.ArrayElementConstGetter = nullptr;
+		return OutElementProp.ValuePtr != nullptr;
+	}
+
 	bool CopyPropertyValueRecursive(const FPropertyDescriptor& SrcProp, FPropertyDescriptor& DstProp)
 	{
 		if (SrcProp.Type != DstProp.Type || !SrcProp.ValuePtr || !DstProp.ValuePtr)
@@ -231,6 +249,31 @@ namespace
 		case EPropertyType::Vec3Array:
 			*static_cast<TArray<FVector>*>(DstProp.ValuePtr) = *static_cast<TArray<FVector>*>(SrcProp.ValuePtr);
 			return true;
+
+		case EPropertyType::Array:
+		{
+			if (SrcProp.InnerType != DstProp.InnerType
+				|| !SrcProp.ArraySizeGetter || !DstProp.ArraySizeGetter
+				|| !SrcProp.ArrayResizeFunc || !DstProp.ArrayResizeFunc)
+			{
+				return false;
+			}
+
+			const size_t Count = SrcProp.ArraySizeGetter(SrcProp.ValuePtr);
+			DstProp.ArrayResizeFunc(DstProp.ValuePtr, Count);
+			for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
+			{
+				FPropertyDescriptor SrcElement;
+				FPropertyDescriptor DstElement;
+				if (!BuildArrayElementDescriptor(SrcProp, ElementIndex, SrcElement)
+					|| !BuildArrayElementDescriptor(DstProp, ElementIndex, DstElement)
+					|| !CopyPropertyValueRecursive(SrcElement, DstElement))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
 
 		case EPropertyType::Struct:
 		{
@@ -1834,6 +1877,65 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		if (ImGui::Button("+ Add Point"))
 		{
 			Arr->push_back(FVector(0.0f, 0.0f, 0.0f));
+			bChanged = true;
+		}
+		break;
+	}
+	case EPropertyType::Array:
+	{
+		if (!Prop.ArraySizeGetter || !Prop.ArrayResizeFunc || !Prop.ArrayElementGetter)
+		{
+			ImGui::TextDisabled("%s (unsupported array metadata)", Prop.Name.c_str());
+			break;
+		}
+
+		ImGui::TextUnformatted(Prop.Name.c_str());
+
+		const size_t Count = Prop.ArraySizeGetter(Prop.ValuePtr);
+		int32 RemoveIdx = -1;
+		for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
+		{
+			FPropertyDescriptor ElementProp;
+			if (!BuildArrayElementDescriptor(Prop, ElementIndex, ElementProp))
+			{
+				continue;
+			}
+
+			ImGui::PushID(static_cast<int>(ElementIndex));
+			TArray<FPropertyDescriptor> ElementProps = { ElementProp };
+			int32 ElementRenderIndex = 0;
+			if (RenderPropertyWidget(ElementProps, ElementRenderIndex, EffectivePostEditPropertyName))
+			{
+				bChanged = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::SmallButton("x"))
+			{
+				RemoveIdx = static_cast<int32>(ElementIndex);
+			}
+			ImGui::PopID();
+		}
+
+		if (RemoveIdx >= 0)
+		{
+			const size_t NewCount = Count > 0 ? Count - 1 : 0;
+			for (size_t ElementIndex = static_cast<size_t>(RemoveIdx); ElementIndex + 1 < Count; ++ElementIndex)
+			{
+				FPropertyDescriptor SrcElement;
+				FPropertyDescriptor DstElement;
+				if (BuildArrayElementDescriptor(Prop, ElementIndex + 1, SrcElement)
+					&& BuildArrayElementDescriptor(Prop, ElementIndex, DstElement))
+				{
+					CopyPropertyValueRecursive(SrcElement, DstElement);
+				}
+			}
+			Prop.ArrayResizeFunc(Prop.ValuePtr, NewCount);
+			bChanged = true;
+		}
+
+		if (ImGui::Button("+ Add Element"))
+		{
+			Prop.ArrayResizeFunc(Prop.ValuePtr, Count + 1);
 			bChanged = true;
 		}
 		break;

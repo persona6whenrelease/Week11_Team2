@@ -122,6 +122,24 @@ namespace
 		const float ClampedValue = std::clamp(static_cast<float>(Value), Desc.Min, Desc.Max);
 		return static_cast<int32>(ClampedValue);
 	}
+
+	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp)
+	{
+		if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+		{
+			return false;
+		}
+
+		OutElementProp = ArrayProp;
+		OutElementProp.Type = ArrayProp.InnerType;
+		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
+		OutElementProp.ArraySizeGetter = nullptr;
+		OutElementProp.ArrayResizeFunc = nullptr;
+		OutElementProp.ArrayElementGetter = nullptr;
+		OutElementProp.ArrayElementConstGetter = nullptr;
+		return OutElementProp.ValuePtr != nullptr;
+	}
 }
 
 FString FLuaPropertyBridge::NormalizePropertyName(FString Name)
@@ -180,9 +198,9 @@ const FPropertyDescriptor* FLuaPropertyBridge::FindDescriptor(const TArray<FProp
 	return nullptr;
 }
 
-const char* FLuaPropertyBridge::ToLuaTypeName(EPropertyType Type)
+const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 {
-	switch (Type)
+	switch (Desc.Type)
 	{
 	case EPropertyType::Bool:
 	case EPropertyType::ByteBool:
@@ -215,6 +233,30 @@ const char* FLuaPropertyBridge::ToLuaTypeName(EPropertyType Type)
 	case EPropertyType::Enum:
 		return "int";
 
+	case EPropertyType::Array:
+		switch (Desc.InnerType)
+		{
+		case EPropertyType::Bool:
+		case EPropertyType::ByteBool:
+			return "bool[]";
+		case EPropertyType::Int:
+			return "int[]";
+		case EPropertyType::Float:
+			return "float[]";
+		case EPropertyType::Vec3:
+			return "FVector[]";
+		case EPropertyType::Vec4:
+		case EPropertyType::Color4:
+			return "FVector4[]";
+		case EPropertyType::Rotator:
+			return "FRotator[]";
+		case EPropertyType::String:
+		case EPropertyType::Name:
+			return "string[]";
+		default:
+			return "unknown[]";
+		}
+
 	case EPropertyType::Vec3Array:
 		return "FVector[]";
 
@@ -241,7 +283,7 @@ sol::table FLuaPropertyBridge::ListProperties(sol::this_state State, UActorCompo
 		sol::table Item = Lua.create_table();
 
 		Item["name"] = Desc.Name;
-		Item["type"] = ToLuaTypeName(Desc.Type);
+		Item["type"] = ToLuaTypeName(Desc);
 		Item["min"] = Desc.Min;
 		Item["max"] = Desc.Max;
 		Item["speed"] = Desc.Speed;
@@ -330,6 +372,60 @@ sol::object FLuaPropertyBridge::GetProperty(sol::this_state State, UActorCompone
 
 	case EPropertyType::Enum:
 		return sol::make_object(Lua, *reinterpret_cast<int32*>(Desc->ValuePtr));
+
+	case EPropertyType::Array:
+	{
+		if (!Desc->ArraySizeGetter)
+		{
+			return sol::nil;
+		}
+
+		sol::table Table = Lua.create_table();
+		const size_t Count = Desc->ArraySizeGetter(Desc->ValuePtr);
+		for (size_t Index = 0; Index < Count; ++Index)
+		{
+			FPropertyDescriptor ElementDesc;
+			if (!BuildArrayElementDescriptor(*Desc, Index, ElementDesc))
+			{
+				continue;
+			}
+			switch (ElementDesc.Type)
+			{
+			case EPropertyType::Bool:
+				Table[static_cast<int>(Index + 1)] = *static_cast<bool*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::ByteBool:
+				Table[static_cast<int>(Index + 1)] = (*static_cast<uint8*>(ElementDesc.ValuePtr) != 0);
+				break;
+			case EPropertyType::Int:
+				Table[static_cast<int>(Index + 1)] = *static_cast<int32*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::Float:
+				Table[static_cast<int>(Index + 1)] = *static_cast<float*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::Vec3:
+				Table[static_cast<int>(Index + 1)] = *static_cast<FVector*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::Vec4:
+			case EPropertyType::Color4:
+				Table[static_cast<int>(Index + 1)] = *static_cast<FVector4*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::Rotator:
+				Table[static_cast<int>(Index + 1)] = *static_cast<FRotator*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::String:
+				Table[static_cast<int>(Index + 1)] = *static_cast<FString*>(ElementDesc.ValuePtr);
+				break;
+			case EPropertyType::Name:
+				Table[static_cast<int>(Index + 1)] = static_cast<FName*>(ElementDesc.ValuePtr)->ToString();
+				break;
+			default:
+				Table[static_cast<int>(Index + 1)] = sol::nil;
+				break;
+			}
+		}
+		return sol::make_object(Lua, Table);
+	}
 
 	case EPropertyType::Vec3Array:
 	{
@@ -464,6 +560,76 @@ bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& 
 			}
 
 			*reinterpret_cast<int32*>(Desc->ValuePtr) = NewValue;
+			break;
+		}
+
+		case EPropertyType::Array:
+		{
+			const std::size_t MaxLuaArraySize = 1024;
+			if (!Desc->ArrayResizeFunc)
+			{
+				return false;
+			}
+
+			sol::table Table = Value.as<sol::table>();
+			const std::size_t Count = Table.size();
+			if (Count > MaxLuaArraySize)
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: array too large. property = %s, count = %zu", Desc->Name.c_str(), Count);
+				return false;
+			}
+
+			Desc->ArrayResizeFunc(Desc->ValuePtr, Count);
+			for (std::size_t Index = 1; Index <= Count; ++Index)
+			{
+				sol::object Item = Table[static_cast<int>(Index)];
+				if (!Item.valid() || Item.get_type() == sol::type::nil)
+				{
+					UE_LOG("[Lua] SetProperty failed: array contains nil. property = %s, index = %zu", Desc->Name.c_str(), Index);
+					return false;
+				}
+
+				FPropertyDescriptor ElementDesc;
+				if (!BuildArrayElementDescriptor(*Desc, Index - 1, ElementDesc))
+				{
+					return false;
+				}
+
+				switch (ElementDesc.Type)
+				{
+				case EPropertyType::Bool:
+					*static_cast<bool*>(ElementDesc.ValuePtr) = Item.as<bool>();
+					break;
+				case EPropertyType::ByteBool:
+					*static_cast<uint8*>(ElementDesc.ValuePtr) = Item.as<bool>() ? 1 : 0;
+					break;
+				case EPropertyType::Int:
+					*static_cast<int32*>(ElementDesc.ValuePtr) = ClampIntForDescriptor(ElementDesc, Item.as<int32>());
+					break;
+				case EPropertyType::Float:
+					*static_cast<float*>(ElementDesc.ValuePtr) = ClampFloatForDescriptor(ElementDesc, Item.as<float>());
+					break;
+				case EPropertyType::Vec3:
+					*static_cast<FVector*>(ElementDesc.ValuePtr) = Item.as<FVector>();
+					break;
+				case EPropertyType::Vec4:
+				case EPropertyType::Color4:
+					*static_cast<FVector4*>(ElementDesc.ValuePtr) = Item.as<FVector4>();
+					break;
+				case EPropertyType::Rotator:
+					*static_cast<FRotator*>(ElementDesc.ValuePtr) = Item.as<FRotator>();
+					break;
+				case EPropertyType::String:
+					*static_cast<FString*>(ElementDesc.ValuePtr) = Item.as<FString>();
+					break;
+				case EPropertyType::Name:
+					*static_cast<FName*>(ElementDesc.ValuePtr) = FName(Item.as<FString>());
+					break;
+				default:
+					UE_LOG("[Lua] SetProperty failed: unsupported array element type = %s", Desc->Name.c_str());
+					return false;
+				}
+			}
 			break;
 		}
 

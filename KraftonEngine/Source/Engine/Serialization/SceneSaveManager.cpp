@@ -67,6 +67,36 @@ namespace
 			}
 		}
 	}
+
+	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp, bool bMutable)
+	{
+		if (bMutable)
+		{
+			if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if (!ArrayProp.ArrayElementConstGetter || !ArrayProp.ValuePtr)
+			{
+				return false;
+			}
+		}
+
+		OutElementProp = ArrayProp;
+		OutElementProp.Type = ArrayProp.InnerType;
+		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.ValuePtr = bMutable
+			? ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex)
+			: const_cast<void*>(ArrayProp.ArrayElementConstGetter(ArrayProp.ValuePtr, ElementIndex));
+		OutElementProp.ArraySizeGetter = nullptr;
+		OutElementProp.ArrayResizeFunc = nullptr;
+		OutElementProp.ArrayElementGetter = nullptr;
+		OutElementProp.ArrayElementConstGetter = nullptr;
+		return OutElementProp.ValuePtr != nullptr;
+	}
 }
 
 // ---- JSON vector helpers ---------------------------------------------------
@@ -624,6 +654,26 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 			inner.append(static_cast<double>(v.Y));
 			inner.append(static_cast<double>(v.Z));
 			outer.append(inner);
+		}
+		return outer;
+	}
+
+	case EPropertyType::Array: {
+		JSON outer = json::Array();
+		if (!Prop.ArraySizeGetter)
+		{
+			return outer;
+		}
+
+		const size_t Count = Prop.ArraySizeGetter(Prop.ValuePtr);
+		for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
+		{
+			FPropertyDescriptor ElementProp;
+			if (!BuildArrayElementDescriptor(Prop, ElementIndex, ElementProp, false))
+			{
+				continue;
+			}
+			outer.append(SerializePropertyValue(ElementProp));
 		}
 		return outer;
 	}
@@ -1190,6 +1240,33 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 				++i;
 			}
 			Arr->push_back(v);
+		}
+		break;
+	}
+
+	case EPropertyType::Array: {
+		if (!Prop.ArrayResizeFunc || !Prop.ArraySizeGetter)
+		{
+			break;
+		}
+
+		size_t Count = 0;
+		for (auto& _ : Value.ArrayRange())
+		{
+			(void)_;
+			++Count;
+		}
+
+		Prop.ArrayResizeFunc(Prop.ValuePtr, Count);
+		size_t ElementIndex = 0;
+		for (auto& ElementValue : Value.ArrayRange())
+		{
+			FPropertyDescriptor ElementProp;
+			if (BuildArrayElementDescriptor(Prop, ElementIndex, ElementProp, true))
+			{
+				DeserializePropertyValue(ElementProp, ElementValue);
+			}
+			++ElementIndex;
 		}
 		break;
 	}

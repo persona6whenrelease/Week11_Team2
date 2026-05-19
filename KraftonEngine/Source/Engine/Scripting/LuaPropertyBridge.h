@@ -26,5 +26,5 @@ private:
 
 	static const FPropertyDescriptor* FindDescriptor(const TArray<FPropertyDescriptor>& Props, const FString& PropertyName);
 
-	static const char* ToLuaTypeName(EPropertyType Type);
+	static const char* ToLuaTypeName(const FPropertyDescriptor& Desc);
 };

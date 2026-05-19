@@ -319,6 +319,14 @@ def _cpp_type_to_eproperty(cpp_type: str, reflected_types: Optional[dict[str, st
     return _CPP_TO_EPROPERTY.get(clean, 'EPropertyType::Int')
 
 
+def _parse_tarray_inner_type(cpp_type: str) -> Optional[str]:
+    clean = cpp_type.replace('const', '').replace('&', '').strip()
+    m = re.match(r'^TArray\s*<\s*(.+)\s*>$', clean)
+    if not m:
+        return None
+    return m.group(1).strip()
+
+
 # ---------------------------------------------------------------------------
 # .generated.h writer
 # ---------------------------------------------------------------------------
@@ -482,10 +490,37 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
         ]
         for prop in t.properties:
             # 'Type=X' in meta overrides C++ type inference (e.g. Type=MaterialSlot)
+            inner_type = _parse_tarray_inner_type(prop.cpp_type)
             if 'Type' in prop.meta:
                 etype = f"EPropertyType::{prop.meta['Type']}"
+                inner_etype = 'EPropertyType::Int'
+                array_size_getter = 'nullptr'
+                array_resize_func = 'nullptr'
+                array_element_getter = 'nullptr'
+                array_element_const_getter = 'nullptr'
             else:
-                etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
+                if inner_type:
+                    inner_etype = _cpp_type_to_eproperty(inner_type, reflected_types)
+                    if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum', 'EPropertyType::Struct'):
+                        etype = 'EPropertyType::Int'
+                        inner_etype = 'EPropertyType::Int'
+                        array_size_getter = 'nullptr'
+                        array_resize_func = 'nullptr'
+                        array_element_getter = 'nullptr'
+                        array_element_const_getter = 'nullptr'
+                    else:
+                        etype = 'EPropertyType::Array'
+                        array_size_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetSize'
+                        array_resize_func = f'&TArrayPropertyOps<{prop.cpp_type}>::Resize'
+                        array_element_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetElement'
+                        array_element_const_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetConstElement'
+                else:
+                    etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
+                    inner_etype = 'EPropertyType::Int'
+                    array_size_getter = 'nullptr'
+                    array_resize_func = 'nullptr'
+                    array_element_getter = 'nullptr'
+                    array_element_const_getter = 'nullptr'
             clean_type = prop.cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
             struct_type = f"&{clean_type}::StaticClassInstance" if etype == 'EPropertyType::Struct' else 'nullptr'
             offset    = f"reinterpret_cast<void*>(offsetof({t.name}, {prop.name}))"
@@ -496,7 +531,8 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             disp_name = prop.meta.get('DisplayName', f'"{prop.name}"')
             out.append(
                 f'        FPropertyDescriptor{{ {disp_name}, {etype}, {offset},'
-                f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val}, "", 0, {struct_type} }},'
+                f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val}, "", 0, {struct_type},'
+                f' {inner_etype}, {array_size_getter}, {array_resize_func}, {array_element_getter}, {array_element_const_getter} }},'
             )
         out += [
             "    };",

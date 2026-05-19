@@ -25,6 +25,7 @@ enum class EPropertyType : uint8_t
 	SkeletalMeshRef, // USkeletalMesh* 에셋 레퍼런스
 	MaterialSlot,  // FMaterialSlot — 머티리얼 경로
 	Enum,
+	Array,
 	Vec3Array,
 	Struct,
 	ActorRef,
@@ -45,6 +46,11 @@ inline FArchive& operator<<(FArchive& Ar, FMaterialSlot& Slot)
 // 컴포넌트가 노출하는 편집 가능한 프로퍼티 디스크립터
 struct FPropertyDescriptor
 {
+	using FArraySizeGetter = size_t (*)(const void*);
+	using FArrayResizeFunc = void (*)(void*, size_t);
+	using FArrayElementGetter = void* (*)(void*, size_t);
+	using FArrayElementConstGetter = const void* (*)(const void*, size_t);
+
 	std::string   Name;
 	EPropertyType Type;
 	void*         ValuePtr;
@@ -65,4 +71,35 @@ struct FPropertyDescriptor
 
 	// Reflected USTRUCT metadata for composite value properties.
 	const UClass* StructType = nullptr;
+
+	// Generic array metadata for TArray<primitive>-style reflected properties.
+	EPropertyType InnerType = EPropertyType::Int;
+	FArraySizeGetter ArraySizeGetter = nullptr;
+	FArrayResizeFunc ArrayResizeFunc = nullptr;
+	FArrayElementGetter ArrayElementGetter = nullptr;
+	FArrayElementConstGetter ArrayElementConstGetter = nullptr;
+};
+
+template<typename ArrayT>
+struct TArrayPropertyOps
+{
+	static size_t GetSize(const void* ArrayPtr)
+	{
+		return static_cast<const ArrayT*>(ArrayPtr)->size();
+	}
+
+	static void Resize(void* ArrayPtr, size_t NewSize)
+	{
+		static_cast<ArrayT*>(ArrayPtr)->resize(NewSize);
+	}
+
+	static void* GetElement(void* ArrayPtr, size_t Index)
+	{
+		return &(*static_cast<ArrayT*>(ArrayPtr))[Index];
+	}
+
+	static const void* GetConstElement(const void* ArrayPtr, size_t Index)
+	{
+		return &(*static_cast<const ArrayT*>(ArrayPtr))[Index];
+	}
 };
