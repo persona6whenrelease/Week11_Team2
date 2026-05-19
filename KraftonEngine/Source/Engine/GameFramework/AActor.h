@@ -8,6 +8,7 @@
 class FArchive;
 
 #include <type_traits>
+#include "AActor.generated.h"
 
 enum ELevelTick;
 struct FActorTickFunction;
@@ -15,11 +16,12 @@ class UWorld;
 class ULevel;
 class UPrimitiveComponent;
 
+UCLASS()
 class AActor : public UObject
 {
     friend struct FActorTickFunction;
 public:
-	DECLARE_CLASS(AActor, UObject)
+	GENERATED_BODY()
 	AActor();
 	~AActor() override;
 

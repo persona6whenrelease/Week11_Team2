@@ -3,7 +3,7 @@
 #include "Component/Light/SpotLightComponent.h"
 #include "Asset/Material/MaterialManager.h"
 
-IMPLEMENT_CLASS(ASpotLightActor, AActor)
+REGISTER_FACTORY(ASpotLightActor)
 
 void ASpotLightActor::InitDefaultComponents()
 {

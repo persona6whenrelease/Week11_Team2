@@ -3,22 +3,25 @@
 #include "Component/SkinnedMeshComponent.h"
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
+#include "SkeletalMeshComponent.generated.h"
 
 class UAnimationAsset;
 class UAnimSequence;
 class USkeleton;
 class UAnimInstance;
 
-// Todo Graph 포함한, 개별 instance에 대한 처리... 매번 enum type을 추가해야하나 의문
+// AnimInstance 종류별 분기. 신규 모드 추가 시 USkeletalMeshComponent::EnsureAnimInstance switch에 case도 함께.
 enum class EAnimationMode
 {
-    AnimationSingleNode
+    AnimationSingleNode,
+    AnimationStateMachine
 };
 
+UCLASS()
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
   public:
-    DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
+    GENERATED_BODY()
 
     USkeletalMeshComponent() = default;
     ~USkeletalMeshComponent() override;
@@ -87,6 +90,12 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 
   protected:
     void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction &ThisTickFunction) override;
+
+    /**
+     * AnimationMode에 맞춰 AnimInstance를 lazy 생성한다.
+     * 이미 생성됐으면 no-op. 런타임 모드 변경 후 자동 재생성은 미지원 — 별도 처리 필요.
+     */
+    void EnsureAnimInstance();
 
     float DebugBoneAnimTime = 0.0f;
     float BakedAnimTime = 0.0f;

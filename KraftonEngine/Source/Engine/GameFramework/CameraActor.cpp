@@ -4,7 +4,7 @@
 #include "Component/CameraComponent.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(ACameraActor, AActor)
+REGISTER_FACTORY(ACameraActor)
 
 void ACameraActor::InitDefaultComponents()
 {

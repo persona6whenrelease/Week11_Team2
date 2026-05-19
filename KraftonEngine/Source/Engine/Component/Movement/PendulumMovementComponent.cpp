@@ -8,7 +8,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(UPendulumMovementComponent, UMovementComponent)
+REGISTER_FACTORY(UPendulumMovementComponent)
 
 void UPendulumMovementComponent::BeginPlay()
 {
@@ -52,16 +52,6 @@ void UPendulumMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	Target->SetRelativeRotation(FinalQuat);
 }
 
-void UPendulumMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UMovementComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Swing Axis",      EPropertyType::Vec3,    &Axis });
-	OutProps.push_back({ "Amplitude (deg)", EPropertyType::Float,   &Amplitude,  0.0f, 180.0f, 0.5f });
-	OutProps.push_back({ "Frequency (Hz)",  EPropertyType::Float,   &Frequency,  0.01f, 10.0f, 0.01f });
-	OutProps.push_back({ "Phase (deg)",     EPropertyType::Float,   &Phase,      0.0f, 360.0f, 1.0f });
-	OutProps.push_back({ "Angle Offset (deg)", EPropertyType::Float, &AngleOffset, -180.0f, 180.0f, 0.5f });
-}
-
 void UPendulumMovementComponent::Serialize(FArchive& Ar)
 {
 	UMovementComponent::Serialize(Ar);
@@ -72,4 +62,9 @@ void UPendulumMovementComponent::Serialize(FArchive& Ar)
 	Ar << Frequency;
 	Ar << Phase;
 	Ar << AngleOffset;
+}
+
+void UPendulumMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
 }

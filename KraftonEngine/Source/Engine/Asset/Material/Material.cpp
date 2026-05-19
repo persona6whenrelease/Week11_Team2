@@ -13,7 +13,7 @@
 #include "Render/Pipeline/Renderer.h"
 #include "Render/Types/MaterialTextureSlot.h"
 
-IMPLEMENT_CLASS(UMaterial, UObject)
+REGISTER_FACTORY(UMaterial)
 
 void FMaterialTemplate::Create(FShader* InShader)
 {

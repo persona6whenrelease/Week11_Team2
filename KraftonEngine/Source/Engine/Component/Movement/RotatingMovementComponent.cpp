@@ -6,7 +6,7 @@
 #include "Math/Matrix.h"
 #include "Math/Quat.h"
 
-IMPLEMENT_CLASS(URotatingMovementComponent, UMovementComponent)
+REGISTER_FACTORY(URotatingMovementComponent)
 
 void URotatingMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction)
 {
@@ -84,7 +84,4 @@ void URotatingMovementComponent::Serialize(FArchive& Ar)
 void URotatingMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
 {
 	UMovementComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Rotation Rate", EPropertyType::Rotator, &RotationRate, 0.0f, 0.0f, 0.1f });
-	OutProps.push_back({ "Rotation In Local Space", EPropertyType::Bool, &bRotationInLocalSpace, 0.0f, 0.0f, 0.0f });
-	OutProps.push_back({ "Pivot Translation", EPropertyType::Vec3, &PivotTranslation, 0.0f, 0.0f, 0.1f });
 }

@@ -3,7 +3,7 @@
 #include "Render/Scene/FScene.h"
 #include "Serialization/Archive.h"
 
-IMPLEMENT_CLASS(UCapsuleComponent, UShapeComponent)
+REGISTER_FACTORY(UCapsuleComponent)
 
 namespace
 {
@@ -107,8 +107,6 @@ FBoundingBox UCapsuleComponent::GetWorldAABB() const
 void UCapsuleComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
 {
 	UShapeComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Capsule Radius", EPropertyType::Float, &CapsuleRadius, 0.0f, 10000.0f, 1.0f });
-	OutProps.push_back({ "Capsule Half Height", EPropertyType::Float, &CapsuleHalfHeight, 0.0f, 10000.0f, 1.0f });
 }
 
 void UCapsuleComponent::PostEditProperty(const char* PropertyName)

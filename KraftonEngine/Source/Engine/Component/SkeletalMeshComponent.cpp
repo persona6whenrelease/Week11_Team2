@@ -3,6 +3,7 @@
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/AnimSingleNodeInstance.h"
+#include "Asset/Animation/Core/AnimStateMachineInstance.h"
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Object/Object.h"
@@ -10,7 +11,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
+REGISTER_FACTORY(USkeletalMeshComponent)
 
 namespace
 {
@@ -32,18 +33,27 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
     }
 }
 
-//Todo Graph 확장시 singlenode인지 아닌지 점검하는 logic 필요.
-// Enum VS AnimationInstance가 자신을 소유한 skeletalmeshcomponent를 알고 instance가 skeletalmeshcomponent의 함수를 호출할지말지. 
+void USkeletalMeshComponent::EnsureAnimInstance()
+{
+    if (AnimInstance) return;
+    switch (AnimationMode)
+    {
+    case EAnimationMode::AnimationStateMachine:
+        AnimInstance = UObjectManager::Get().CreateObject<UAnimStateMachineInstance>(this);
+        break;
+    case EAnimationMode::AnimationSingleNode:
+    default:
+        AnimInstance = UObjectManager::Get().CreateObject<UAnimSingleNodeInstance>(this);
+        break;
+    }
+    AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
+}
+
 void USkeletalMeshComponent::PlayAnimation(UAnimationAsset *NewAnimToPlay, bool bLooping)
 {
     AnimToPlay = NewAnimToPlay;
 
-    if (!AnimInstance)
-    {
-        // 현재 enum에는 AnimationSingleNode 한 가지만 존재 — 그대로 SingleNodeInstance 생성.
-        AnimInstance = UObjectManager::Get().CreateObject<UAnimSingleNodeInstance>(this);
-        AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
-    }
+    EnsureAnimInstance();
 
 	SetAnimation(AnimToPlay);
 
@@ -61,11 +71,7 @@ void USkeletalMeshComponent::SetAnimation(UAnimationAsset *NewAnimToPlay)
 {
     AnimToPlay = NewAnimToPlay;
 
-    if (!AnimInstance)
-    {
-        AnimInstance = UObjectManager::Get().CreateObject<UAnimSingleNodeInstance>(this);
-        AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
-    }
+    EnsureAnimInstance();
 
     if (auto *Single = Cast<UAnimSingleNodeInstance>(AnimInstance))
     {
@@ -101,11 +107,7 @@ bool USkeletalMeshComponent::EvaluateAnimationPose(const UAnimSequence *Sequence
         return false;
     }
 
-    if (!AnimInstance)
-    {
-        AnimInstance = UObjectManager::Get().CreateObject<UAnimSingleNodeInstance>(this);
-        AnimInstance->InitializeAnimation(ResolveSkeletonFromMesh(SkeletalMesh));
-    }
+    EnsureAnimInstance();
 
     auto *Single = Cast<UAnimSingleNodeInstance>(AnimInstance);
     if (!Single)

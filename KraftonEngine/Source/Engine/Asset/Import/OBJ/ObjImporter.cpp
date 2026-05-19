@@ -35,13 +35,21 @@ struct FVertexKey
     }
 };
 
+inline size_t GetTypeHash(const FVertexKey& Key)
+{
+    size_t Seed = GetTypeHash(Key.p);
+    Seed = HashCombine(Seed, GetTypeHash(Key.t));
+    Seed = HashCombine(Seed, GetTypeHash(Key.n));
+    return Seed;
+}
+
 namespace std
 {
     template <> struct hash<FVertexKey>
     {
         size_t operator()(const FVertexKey &Key) const noexcept
         {
-            return ((size_t)Key.p) ^ (((size_t)Key.t) << 8) ^ (((size_t)Key.n) << 16);
+            return GetTypeHash(Key);
         }
     };
 } 

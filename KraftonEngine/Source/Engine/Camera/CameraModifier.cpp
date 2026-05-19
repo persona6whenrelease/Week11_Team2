@@ -3,7 +3,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Core/Log.h"
 
-IMPLEMENT_CLASS(UCameraModifier, UObject)
+REGISTER_FACTORY(UCameraModifier)
 
 void UCameraModifier::Initialize(APlayerCameraManager* Owner)
 {

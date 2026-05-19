@@ -1,55 +1,54 @@
 ﻿#include "Asset/Animation/Core/AnimGraph.h"
 
+#include "Asset/Animation/Core/AnimPoseUtils.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/AnimationTypes.h"
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Math/Quat.h"
-#include "Math/Transform.h"
 #include "Math/Vector.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace
-{
-    /**
-     * Skeleton 본 수에 맞춰 OutLocalPose를 bind pose로 초기화한다.
-     * 트랙이 누락된 본도 자연스러운 fallback을 가지도록 평가 시작 전에 항상 호출한다.
-     */
-    void FillBindPose(const USkeleton *Skeleton, TArray<FMatrix> &OutLocalPose)
-    {
-        if (!Skeleton)
-        {
-            OutLocalPose.clear();
-            return;
-        }
-        const TArray<FBoneInfo> &Bones = Skeleton->GetBones();
-        OutLocalPose.resize(Bones.size());
-        for (size_t i = 0; i < Bones.size(); ++i)
-        {
-            OutLocalPose[i] = Bones[i].LocalBindPose;
-        }
-    }
-}
-
-void AnimGraph::Evaluate(const FAnimEvalContext &Ctx, TArray<FMatrix> &OutLocalPose)
+void AnimGraph::Evaluate(const FAnimEvalContext &Ctx, TArray<FTransform> &OutLocalPose)
 {
     if (!Root)
     {
-        FillBindPose(Ctx.Skeleton, OutLocalPose);
+        AnimPoseUtils::FillBindPoseTransforms(Ctx.Skeleton, OutLocalPose);
         return;
     }
     Root->Evaluate(Ctx, OutLocalPose);
 }
 
-void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray<FMatrix> &OutLocalPose)
+void FAnimGraphNode_SequencePlayer::SetSequence(const USkeleton *InSkeleton, const UAnimSequence *InSequence)
 {
-    const UAnimDataModel *Model    = Ctx.DataModel;
+    Sequence  = InSequence;
+    DataModel = InSequence ? InSequence->GetDataModel() : nullptr;
+
+    TrackToBoneIndex.clear();
+
+    if (!InSkeleton || !Sequence || !Sequence->IsValidSequence())
+    {
+        return; // 캐시 빌드 불가 — 평가 시 bind pose.
+    }
+
+    const TArray<FBoneAnimationTrack> &Tracks = DataModel->GetBoneAnimationTracks();
+    TrackToBoneIndex.resize(Tracks.size());
+    for (size_t TIdx = 0; TIdx < Tracks.size(); ++TIdx)
+    {
+        const FString BoneName = Tracks[TIdx].Name.ToString();
+        TrackToBoneIndex[TIdx] = InSkeleton->FindBoneIndexByName(BoneName);
+    }
+}
+
+void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray<FTransform> &OutLocalPose)
+{
+    const UAnimDataModel *Model    = this->DataModel;
     const USkeleton      *Skeleton = Ctx.Skeleton;
 
     if (!Model || !Skeleton)
     {
-        FillBindPose(Skeleton, OutLocalPose);
+        AnimPoseUtils::FillBindPoseTransforms(Skeleton, OutLocalPose);
         return;
     }
 
@@ -57,19 +56,19 @@ void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray
     const float FPS     = Model->GetFrameRate().AsDecimal();
     if (NumKeys <= 0 || FPS <= 0.0f)
     {
-        FillBindPose(Skeleton, OutLocalPose);
+        AnimPoseUtils::FillBindPoseTransforms(Skeleton, OutLocalPose);
         return;
     }
 
     // 1) 누락 트랙 대비 — 먼저 bind pose로 채운다.
-    FillBindPose(Skeleton, OutLocalPose);
+    AnimPoseUtils::FillBindPoseTransforms(Skeleton, OutLocalPose);
     const TArray<FBoneInfo> &Bones = Skeleton->GetBones();
 
-    if (!Ctx.TrackToBoneIndex)
+    if (TrackToBoneIndex.empty())
     {
         return; // 캐시 없음 — bind pose 유지.
     }
-    const TArray<int32> &Track2Bone = *Ctx.TrackToBoneIndex;
+    const TArray<int32> &Track2Bone = this->TrackToBoneIndex;
 
     const TArray<FBoneAnimationTrack> &Tracks = Model->GetBoneAnimationTracks();
     if (Track2Bone.size() != Tracks.size())
@@ -123,6 +122,96 @@ void FAnimGraphNode_SequencePlayer::Evaluate(const FAnimEvalContext &Ctx, TArray
         const FQuat   R = FQuat::Slerp (Raw.RotKeys[FrameA],   Raw.RotKeys[FrameB],   Blend);
         const FVector S = FVector::Lerp(Raw.ScaleKeys[FrameA], Raw.ScaleKeys[FrameB], Blend);
 
-        OutLocalPose[BoneIdx] = FTransform(P, R, S).ToMatrix();
+        OutLocalPose[BoneIdx] = FTransform(P, R, S);
+    }
+}
+
+void FAnimGraphNode_Blend2::Evaluate(const FAnimEvalContext &Ctx, TArray<FTransform> &OutLocalPose)
+{
+    const size_t N = Ctx.Skeleton ? Ctx.Skeleton->GetBones().size() : 0;
+    if (N == 0)
+    {
+        OutLocalPose.clear();
+        return;
+    }
+
+    OutLocalPose.resize(N);
+    ScratchA.resize(N);
+    ScratchB.resize(N);
+
+    if (ChildA) ChildA->Evaluate(Ctx, ScratchA);
+    else        AnimPoseUtils::FillBindPoseTransforms(Ctx.Skeleton, ScratchA);
+
+    if (ChildB) ChildB->Evaluate(Ctx, ScratchB);
+    else        AnimPoseUtils::FillBindPoseTransforms(Ctx.Skeleton, ScratchB);
+
+    float A = Alpha;
+    if (A < 0.0f) A = 0.0f;
+    if (A > 1.0f) A = 1.0f;
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        OutLocalPose[i] = AnimPoseUtils::BlendTransform(ScratchA[i], ScratchB[i], A);
+    }
+}
+
+void FAnimGraphNode_BlendN::Evaluate(const FAnimEvalContext &Ctx, TArray<FTransform> &OutLocalPose)
+{
+    const size_t N           = Ctx.Skeleton ? Ctx.Skeleton->GetBones().size() : 0;
+    const size_t NumChildren = Children.size();
+    if (N == 0 || NumChildren == 0)
+    {
+        AnimPoseUtils::FillBindPoseTransforms(Ctx.Skeleton, OutLocalPose);
+        return;
+    }
+
+    OutLocalPose.resize(N);
+    if (ChildScratches.size() != NumChildren)
+    {
+        ChildScratches.resize(NumChildren);
+    }
+
+    // 1) 자식 평가 (nullptr이면 bind pose 안전망)
+    for (size_t c = 0; c < NumChildren; ++c)
+    {
+        ChildScratches[c].resize(N);
+        if (Children[c]) Children[c]->Evaluate(Ctx, ChildScratches[c]);
+        else             AnimPoseUtils::FillBindPoseTransforms(Ctx.Skeleton, ChildScratches[c]);
+    }
+
+    const TArray<FBoneInfo> &Bones = Ctx.Skeleton->GetBones();
+
+    // 2) 본별 누적
+    for (size_t i = 0; i < N; ++i)
+    {
+        const float W0 = (0 < Weights.size()) ? std::max(Weights[0], 0.0f) : 0.0f;
+
+        float   SumW     = W0;
+        FVector PosAcc   = ChildScratches[0][i].Location * W0;
+        FVector ScaleAcc = ChildScratches[0][i].Scale    * W0;
+        FQuat   RotAcc   = ChildScratches[0][i].Rotation;
+
+        for (size_t c = 1; c < NumChildren; ++c)
+        {
+            const float w = (c < Weights.size()) ? std::max(Weights[c], 0.0f) : 0.0f;
+            if (w <= 0.0f) continue;
+
+            SumW     += w;
+            PosAcc   += ChildScratches[c][i].Location * w;
+            ScaleAcc += ChildScratches[c][i].Scale    * w;
+
+            const float SlerpAlpha = w / SumW;
+            RotAcc = FQuat::Slerp(RotAcc, ChildScratches[c][i].Rotation, SlerpAlpha);
+        }
+
+        if (SumW <= 0.0f)
+        {
+            OutLocalPose[i] = AnimPoseUtils::BindPoseToTransform(Bones[i].LocalBindPose);
+        }
+        else
+        {
+            const float Inv = 1.0f / SumW;
+            OutLocalPose[i] = FTransform(PosAcc * Inv, RotAcc, ScaleAcc * Inv);
+        }
     }
 }

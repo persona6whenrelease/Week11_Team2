@@ -216,7 +216,7 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
 	{
 		// 시퀀스가 실제로 바뀐 경우에만 SetAnimation을 호출. SetAnimation은 내부적으로
-		// ResetTime + RebuildTrackToBoneIndex를 동반하므로 같은 시퀀스에 매번 호출하면
+		// ResetTime + SequencePlayer 캐시 재빌드를 동반하므로 같은 시퀀스에 매번 호출하면
 		// 시간이 0으로 리셋되어 재생이 끊긴다.
 		if (Comp->GetAnimation() != InSequence)
 		{

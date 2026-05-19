@@ -10,6 +10,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include "GameViewportClient.generated.h"
 
 class FViewport;
 class UCameraComponent;
@@ -18,10 +19,11 @@ struct FInputFrame;
 
 // UE의 UGameViewportClient 대응 — UObject + FViewportClient 다중상속
 // 게임 런타임 뷰포트를 담당 (PIE / Standalone)
+UCLASS()
 class UGameViewportClient : public UObject, public FViewportClient
 {
 public:
-	DECLARE_CLASS(UGameViewportClient, UObject)
+	GENERATED_BODY()
 
 	UGameViewportClient() = default;
 	~UGameViewportClient() override = default;

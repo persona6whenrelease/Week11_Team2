@@ -1,20 +1,23 @@
-/**
+﻿/**
  * 단일 UAnimSequence 재생을 담당하는 가장 단순한 UAnimInstance 구체 클래스.
  *
- * Root 노드 슬롯에 FAnimGraphNode_SequencePlayer 한 개를 두고, 시퀀스 set 시점에 트랙 -> 본 인덱스
- * 캐시만 재빌드한다. 블렌딩과 스테이트 머신은 파트 3에서 별도 인스턴스 또는 노드로 추가된다.
+ * Root 노드 슬롯에 FAnimGraphNode_SequencePlayer 한 개를 두고, 시퀀스 set 시점에 노드에 시퀀스를
+ * 직접 setting한다(노드가 자체 트랙 -> 본 캐시 보유). 블렌딩과 스테이트 머신은 파트 3에서 별도
+ * 인스턴스 또는 노드로 추가된다.
  */
 
 #pragma once
 
 #include "Asset/Animation/Core/AnimInstance.h"
+#include "AnimSingleNodeInstance.generated.h"
 
 class UAnimSequence;
 
+UCLASS()
 class UAnimSingleNodeInstance : public UAnimInstance
 {
   public:
-    DECLARE_CLASS(UAnimSingleNodeInstance, UAnimInstance)
+    GENERATED_BODY()
 
     UAnimSingleNodeInstance();
     ~UAnimSingleNodeInstance() override = default;
@@ -26,9 +29,8 @@ class UAnimSingleNodeInstance : public UAnimInstance
     void EvaluateGraph() override;
 
   protected:
-    float                                 GetEffectivePlayLength() const override;
-    const TArray<FAnimNotifyEvent>       *GetActiveNotifies() const override;
-    const UAnimDataModel                 *GetActiveDataModel() const override;
+    float                           GetEffectivePlayLength() const override;
+    const TArray<FAnimNotifyEvent> *GetActiveNotifies() const override;
 
   private:
     UAnimSequence                *CurrentSequence = nullptr; // ref, not owned

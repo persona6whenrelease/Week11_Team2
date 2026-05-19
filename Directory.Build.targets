@@ -1,5 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+  <PropertyGroup>
+    <ReflectionEnabled Condition="'$(MSBuildProjectName)' == 'KraftonEngine' or '$(MSBuildProjectName)' == 'CrossyGame'">true</ReflectionEnabled>
+    <PythonExe Condition="'$(PythonExe)' == ''">py -3</PythonExe>
+    <ReflectionScript>$(MSBuildThisFileDirectory)Scripts\GenerateReflectionHeaders.py</ReflectionScript>
+    <ReflectionStamp>$(MSBuildThisFileDirectory)KraftonEngine\Build\Reflection\reflection_codegen.stamp</ReflectionStamp>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(ReflectionEnabled)' == 'true'">
+    <ReflectionHeaderInputs Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.h"
+                            Exclude="$(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.generated.h" />
+    <ReflectionGeneratedFiles Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.generated.h;
+                                      $(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.generated.cpp" />
+    <ReflectionGeneratedArtifacts Include="$(ReflectionStamp)" />
+  </ItemGroup>
+
+  <!--
+    The .vcxproj files use explicit ClCompile/ClInclude item lists, so generated
+    reflection sources must be injected here or they will never be compiled.
+    CrossyGame owns only its game-specific generated units; KraftonEngine owns
+    the rest to avoid duplicate symbols at link time.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'CrossyGame'">
+    <ClCompile Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\Games\Crossy\**\*.generated.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\Games\Crossy\**\*.generated.h" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'KraftonEngine'">
+    <ClCompile Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.generated.cpp"
+               Exclude="$(MSBuildThisFileDirectory)KraftonEngine\Source\Games\Crossy\**\*.generated.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)KraftonEngine\Source\**\*.generated.h"
+               Exclude="$(MSBuildThisFileDirectory)KraftonEngine\Source\Games\Crossy\**\*.generated.h" />
+  </ItemGroup>
+
+  <Target Name="RunReflectionCodeGen"
+          BeforeTargets="ClCompile"
+          Inputs="@(ReflectionHeaderInputs);$(ReflectionScript)"
+          Outputs="$(ReflectionStamp)"
+          Condition="'$(ReflectionEnabled)' == 'true' and '$(DesignTimeBuild)' != 'true' and Exists('$(ReflectionScript)')">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(ReflectionStamp)'))" />
+    <Message Text="Running reflection code generation..." Importance="high" />
+    <Exec Command='$(PythonExe) "$(ReflectionScript)"'
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+    <Touch Files="$(ReflectionStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <PropertyGroup>
+    <RebuildDependsOn>MarkReflectionRebuild;$(RebuildDependsOn)</RebuildDependsOn>
+  </PropertyGroup>
+
+  <Target Name="MarkReflectionRebuild">
+    <PropertyGroup>
+      <IsReflectionRebuild>true</IsReflectionRebuild>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="CleanReflectionGeneratedFiles"
+          AfterTargets="Clean"
+          Condition="'$(ReflectionEnabled)' == 'true' and '$(IsReflectionRebuild)' != 'true'">
+    <Message Text="Deleting reflection generated files..." Importance="high" />
+    <Delete Files="@(ReflectionGeneratedFiles)" TreatErrorsAsWarnings="true" />
+    <Delete Files="@(ReflectionGeneratedArtifacts)" TreatErrorsAsWarnings="true" />
+  </Target>
+
   <!--
     KraftonEngine PCH wiring — per-file override for pch.cpp.
 

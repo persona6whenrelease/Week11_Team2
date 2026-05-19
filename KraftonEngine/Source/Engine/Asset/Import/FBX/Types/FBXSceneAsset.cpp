@@ -7,4 +7,4 @@
 
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 
-IMPLEMENT_CLASS(UFBXSceneAsset, UObject)
+REGISTER_FACTORY(UFBXSceneAsset)

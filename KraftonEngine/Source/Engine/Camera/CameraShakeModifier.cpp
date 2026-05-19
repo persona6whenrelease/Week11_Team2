@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(UCameraShakeModifier, UCameraModifier)
+REGISTER_FACTORY(UCameraShakeModifier)
 
 void UCameraShakeModifier::StartShake(const FCameraShakeParams& InParams)
 {

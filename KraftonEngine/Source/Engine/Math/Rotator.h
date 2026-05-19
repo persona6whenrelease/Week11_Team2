@@ -99,3 +99,12 @@ private:
 		return Angle - 180.0f;
 	}
 };
+
+inline size_t GetTypeHash(const FRotator& R)
+{
+    size_t seed = 0;
+    seed = HashCombine(seed, GetTypeHash(R.Pitch));
+    seed = HashCombine(seed, GetTypeHash(R.Yaw));
+    seed = HashCombine(seed, GetTypeHash(R.Roll));
+    return seed;
+}

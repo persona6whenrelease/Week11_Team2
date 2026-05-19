@@ -4,6 +4,7 @@
 #include "Object/FName.h"
 #include "Core/Singleton.h"
 #include "Object/UClass.h"
+#include "Object/ReflectionMacros.h"
 
 class FArchive;
 

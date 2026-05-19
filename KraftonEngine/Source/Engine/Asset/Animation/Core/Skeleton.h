@@ -3,6 +3,7 @@
 #include "Asset/Animation/Core/AnimationTypes.h"
 #include "Asset/AssetFileHeader.h"
 #include "Object/Object.h"
+#include "Skeleton.generated.h"
 
 struct FSkeleton
 {
@@ -20,10 +21,11 @@ struct FSkeleton
     }
 };
 
+UCLASS()
 class USkeleton : public UObject
 {
   public:
-    DECLARE_CLASS(USkeleton, UObject)
+    GENERATED_BODY()
 
     static constexpr uint32 AssetVersion = 2;
 

@@ -1,14 +1,16 @@
 #pragma once
 #include "GameFramework/AActor.h"
+#include "Pawn.generated.h"
 
 class APlayerController;
 class UCameraComponent;
 class UPawnMovementComponent;
 
+UCLASS()
 class APawn : public AActor
 {
 public:
-	DECLARE_CLASS(APawn, AActor)
+	GENERATED_BODY()
 
 	APawn() = default;
 	~APawn() override = default;

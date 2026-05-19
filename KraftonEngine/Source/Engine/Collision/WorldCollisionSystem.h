@@ -35,6 +35,13 @@ struct FOverlapPairKey
 	}
 };
 
+inline size_t GetTypeHash(const FOverlapPairKey& Key)
+{
+	const size_t HashA = std::hash<UPrimitiveComponent*>()(Key.ComponentA);
+	const size_t HashB = std::hash<UPrimitiveComponent*>()(Key.ComponentB);
+	return HashCombine(HashA, HashB);
+}
+
 namespace std
 {
 	template <>
@@ -42,9 +49,7 @@ namespace std
 	{
 		size_t operator()(const FOverlapPairKey& Key) const
 		{
-			size_t HashA = std::hash<UPrimitiveComponent*>()(Key.ComponentA);
-			size_t HashB = std::hash<UPrimitiveComponent*>()(Key.ComponentB);
-			return HashA ^ (HashB + 0x9e3779b9 + (HashA << 6) + (HashA >> 2));
+			return GetTypeHash(Key);
 		}
 	};
 }

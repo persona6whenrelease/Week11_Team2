@@ -1,14 +1,12 @@
-#include "Asset/Animation/Core/AnimInstance.h"
+﻿#include "Asset/Animation/Core/AnimInstance.h"
 
-#include "Asset/Animation/Core/AnimSequence.h"
-#include "Asset/Animation/Core/AnimationTypes.h"
+#include "Asset/Animation/Core/AnimPoseUtils.h"
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Object/ObjectFactory.h"
 
-#include <algorithm>
 #include <cmath>
 
-IMPLEMENT_CLASS(UAnimInstance, UObject)
+REGISTER_FACTORY(UAnimInstance)
 
 UAnimInstance::UAnimInstance() = default;
 UAnimInstance::~UAnimInstance() = default;
@@ -20,11 +18,11 @@ void UAnimInstance::InitializeAnimation(USkeleton *InSkeleton)
     TriggeredNotifiesThisFrame.clear();
 
     FillBindPose();
-    RebuildTrackToBoneIndex();
 }
 
 void UAnimInstance::Update(float DeltaTime)
 {
+    LastDeltaTime = bPaused ? 0.0f : DeltaTime;
     TriggeredNotifiesThisFrame.clear();
 
     const float Length = GetEffectivePlayLength();
@@ -101,45 +99,15 @@ void UAnimInstance::EvaluateGraph()
     }
 
     FAnimEvalContext Ctx;
-    Ctx.Skeleton         = Skeleton;
-    Ctx.DataModel        = GetActiveDataModel();
-    Ctx.TrackToBoneIndex = &TrackToBoneIndex;
-    Ctx.TimeSeconds      = CurrentTime;
+    Ctx.Skeleton       = Skeleton;
+    Ctx.TimeSeconds    = CurrentTime;
+    Ctx.DeltaTime      = LastDeltaTime;
+    Ctx.OwningInstance = this;
 
     AnimGraphPtr->Evaluate(Ctx, OutputLocalPose);
 }
 
-void UAnimInstance::RebuildTrackToBoneIndex()
-{
-    TrackToBoneIndex.clear();
-
-    const UAnimDataModel *Model = GetActiveDataModel();
-    if (!Model || !Skeleton)
-    {
-        return;
-    }
-
-    const TArray<FBoneAnimationTrack> &Tracks = Model->GetBoneAnimationTracks();
-    TrackToBoneIndex.resize(Tracks.size());
-    for (size_t TIdx = 0; TIdx < Tracks.size(); ++TIdx)
-    {
-        const FString BoneName = Tracks[TIdx].Name.ToString();
-        TrackToBoneIndex[TIdx] = Skeleton->FindBoneIndexByName(BoneName);
-    }
-}
-
 void UAnimInstance::FillBindPose()
 {
-    if (!Skeleton)
-    {
-        OutputLocalPose.clear();
-        return;
-    }
-
-    const TArray<FBoneInfo> &Bones = Skeleton->GetBones();
-    OutputLocalPose.resize(Bones.size());
-    for (size_t i = 0; i < Bones.size(); ++i)
-    {
-        OutputLocalPose[i] = Bones[i].LocalBindPose;
-    }
+    AnimPoseUtils::FillBindPoseTransforms(Skeleton, OutputLocalPose);
 }

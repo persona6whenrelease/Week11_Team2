@@ -1,11 +1,13 @@
 ﻿#pragma once
 #include "ShapeComponent.h"
 #include "CollisionTypes.h"
+#include "SphereComponent.generated.h"
 
+UCLASS()
 class USphereComponent : public UShapeComponent
 {
 public:
-	DECLARE_CLASS(USphereComponent, UShapeComponent)
+	GENERATED_BODY()
 	virtual ECollisionShapeType GetCollisionShapeType() const override
 	{
 		return ECollisionShapeType::Sphere;
@@ -20,6 +22,7 @@ public:
 	float GetSphereRadius() const { return SphereRadius; }
 	void SetSphereRadius(float InRadius)
 	{
+		FPROPERTY(DisplayName="Sphere Radius", Type=Float, min=0.0f, max=10000.0f, speed=1.0f)
 		SphereRadius = InRadius;
 		MarkWorldBoundsDirty();
 	}

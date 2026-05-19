@@ -13,7 +13,7 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Serialization/Archive.h"
 
-IMPLEMENT_CLASS(UStaticMeshComponent, UMeshComponent)
+REGISTER_FACTORY(UStaticMeshComponent)
 
 FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 {
@@ -201,13 +201,6 @@ void UStaticMeshComponent::PostDuplicate()
 	CacheLocalBounds();
 	MarkRenderStateDirty();
 	MarkWorldBoundsDirty();
-}
-
-void UStaticMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Static Mesh", EPropertyType::StaticMeshRef, &StaticMeshPath });
-	AppendMaterialSlotProperties(OutProps);
 }
 
 void UStaticMeshComponent::PostEditProperty(const char* PropertyName)

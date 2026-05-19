@@ -11,7 +11,7 @@
 
 #include <utility>
 
-IMPLEMENT_CLASS(USkeletalMesh, UObject)
+REGISTER_FACTORY(USkeletalMesh)
 
 namespace
 {

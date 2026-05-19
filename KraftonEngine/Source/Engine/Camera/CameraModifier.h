@@ -2,13 +2,15 @@
 
 #include "Object/Object.h"
 #include "Camera/CameraTypes.h"
+#include "CameraModifier.generated.h"
 
 class APlayerCameraManager;
 
+UCLASS()
 class UCameraModifier : public UObject
 {
 public:
-	DECLARE_CLASS(UCameraModifier, UObject)
+	GENERATED_BODY()
 	UCameraModifier() = default;
 	~UCameraModifier() override = default;
 

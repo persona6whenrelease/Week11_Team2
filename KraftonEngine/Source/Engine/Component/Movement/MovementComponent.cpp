@@ -14,7 +14,7 @@
 #include <algorithm>
 
 // Base movement logic only; concrete movement types should be added instead.
-IMPLEMENT_CLASS(UMovementComponent, UActorComponent)
+REGISTER_FACTORY(UMovementComponent)
 HIDE_FROM_COMPONENT_LIST(UMovementComponent)
 
 namespace
@@ -183,17 +183,6 @@ void UMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 {
 	// 기본 이동 컴포넌트는 별도 로직 없이 틱 파이프라인만 유지합니다.
 	UActorComponent::TickComponent(DeltaTime,TickType, ThisTickFunction);
-}
-
-void UMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UActorComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Auto Register Updated", EPropertyType::Bool, &bAutoRegisterUpdatedComponent });
-	OutProps.push_back({ "Updated Component", EPropertyType::SceneComponentRef, &UpdatedComponentPath });
-	OutProps.push_back({ "Receive Controller Input", EPropertyType::Bool, &bReceiveControllerInput });
-	OutProps.push_back({ "Controller Input Priority", EPropertyType::Int, &ControllerInputPriority, -100.0f, 100.0f, 1.0f });
-	OutProps.push_back({ "Last Controller Direction", EPropertyType::Vec3, &LastControllerWorldDirection, 0.0f, 0.0f, 0.1f });
-	OutProps.push_back({ "Last Controller Delta", EPropertyType::Vec3, &LastControllerWorldDelta, 0.0f, 0.0f, 0.1f });
 }
 
 void UMovementComponent::Serialize(FArchive& Ar)

@@ -16,16 +16,18 @@
 #include <windows.h>
 
 #include "Core/Time/EngineTimeManager.h"
+#include "Engine.generated.h"
 
 class FWindowsWindow;
 class FTimer;
 class UCameraComponent;
 class UGameViewportClient;
 
+UCLASS()
 class UEngine : public UObject
 {
 public:
-	DECLARE_CLASS(UEngine, UObject)
+	GENERATED_BODY()
 
 	UEngine() = default;
 	~UEngine() override = default;

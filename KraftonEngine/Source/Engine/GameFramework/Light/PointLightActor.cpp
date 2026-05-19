@@ -3,7 +3,7 @@
 #include "Component/Light/PointLightComponent.h"
 #include "Asset/Material/MaterialManager.h"
 
-IMPLEMENT_CLASS(APointLightActor, AActor)
+REGISTER_FACTORY(APointLightActor)
 
 void APointLightActor::InitDefaultComponents()
 {

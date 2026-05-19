@@ -10,6 +10,7 @@
 #include "Asset/AssetFileHeader.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "Object/Object.h"
+#include "SkeletalMesh.generated.h"
 
 struct ID3D11Device;
 
@@ -17,10 +18,11 @@ struct ID3D11Device;
  * FSkeletalMesh 데이터를 UObject로 감싸 에디터와 런타임 컴포넌트가 참조할 수 있게 하는 에셋
  * 타입이다.
  */
+UCLASS()
 class USkeletalMesh : public UObject
 {
   public:
-    DECLARE_CLASS(USkeletalMesh, UObject)
+    GENERATED_BODY()
 
     static constexpr uint32 AssetVersion = 1;
 

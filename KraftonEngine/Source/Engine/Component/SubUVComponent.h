@@ -3,13 +3,15 @@
 #include "BillboardComponent.h"
 #include "Core/ResourceTypes.h"
 #include "Object/FName.h"
+#include "SubUVComponent.generated.h"
 
 class UMaterial;
 
+UCLASS()
 class USubUVComponent : public UBillboardComponent
 {
 public:
-	DECLARE_CLASS(USubUVComponent, UBillboardComponent)
+	GENERATED_BODY()
 
 	USubUVComponent();
 	~USubUVComponent() override;
@@ -49,6 +51,7 @@ protected:
 private:
 	void RebuildSubUVMaterial();
 
+	FPROPERTY(DisplayName="Particle", Type=Name)
 	FName ParticleName;
 	FParticleResource* CachedParticle = nullptr; // ResourceManager 소유, 여기선 참조만
 	UMaterial* SubUVMaterial = nullptr;           // Particle SRV를 래핑하는 경량 머티리얼
@@ -57,6 +60,7 @@ private:
 	float  PlayRate = 30.0f; // 초당 프레임 수
 	float  TimeAccumulator = 0.0f;
 
+	FPROPERTY(Type=Bool)
 	bool bLoop = true;
 	bool bIsExecute = false;
 };

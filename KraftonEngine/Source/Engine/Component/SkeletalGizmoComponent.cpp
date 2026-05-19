@@ -2,7 +2,7 @@
 #include "Math/Matrix.h"
 #include "Component/SkinnedMeshComponent.h"
 
-IMPLEMENT_CLASS(USkeletalGizmoComponent, UGizmoComponent)
+REGISTER_FACTORY(USkeletalGizmoComponent)
 HIDE_FROM_COMPONENT_LIST(USkeletalGizmoComponent)
 
 

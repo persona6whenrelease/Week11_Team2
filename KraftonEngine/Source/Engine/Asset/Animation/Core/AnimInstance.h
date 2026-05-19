@@ -9,25 +9,26 @@
 
 #include "Asset/Animation/Core/AnimGraph.h"
 #include "Asset/Animation/Notify/AnimNotify.h"
-#include "Math/Matrix.h"
+#include "Math/Transform.h"
 #include "Object/FName.h"
 #include "Object/Object.h"
 
 #include <memory>
+#include "AnimInstance.generated.h"
 
 class USkeleton;
-class UAnimDataModel;
 
+UCLASS()
 class UAnimInstance : public UObject
 {
   public:
-    DECLARE_CLASS(UAnimInstance, UObject)
+    GENERATED_BODY()
 
     UAnimInstance();
     ~UAnimInstance() override;
 
     /**
-     * 스켈레톤을 결합하고 OutputLocalPose / TrackToBoneIndex 캐시를 초기화한다.
+     * 스켈레톤을 결합하고 OutputLocalPose를 초기화한다.
      */
     virtual void InitializeAnimation(USkeleton *InSkeleton);
 
@@ -41,7 +42,7 @@ class UAnimInstance : public UObject
      */
     virtual void EvaluateGraph();
 
-    const TArray<FMatrix> &GetOutputLocalPose() const { return OutputLocalPose; }
+    const TArray<FTransform> &GetOutputLocalPose() const { return OutputLocalPose; }
     const TArray<FName>   &GetTriggeredNotifiesThisFrame() const { return TriggeredNotifiesThisFrame; }
 
     void  SetLooping(bool b)        { bLooping = b; }
@@ -63,6 +64,12 @@ class UAnimInstance : public UObject
     USkeleton *GetSkeleton() const  { return Skeleton; }
     AnimGraph *GetAnimGraph() const { return AnimGraphPtr.get(); }
 
+    /**
+     * 파생이 외부에서 set한 bool 변수를 노출. 기본은 Default 그대로 반환.
+     * StateMachine 노드가 BoolVariable transition 조건 평가에 사용.
+     */
+    virtual bool GetBoolVariable(const FName &Name, bool Default = false) const { return Default; }
+
   protected:
     /**
      * 파생이 제공하는 현재 시퀀스 길이. 단일 시퀀스 / 스테이트머신마다 다르게 계산된다.
@@ -76,29 +83,18 @@ class UAnimInstance : public UObject
     virtual const TArray<FAnimNotifyEvent> *GetActiveNotifies() const { return nullptr; }
 
     /**
-     * 파생이 현재 활성 DataModel을 노출한다. 트랙 -> 본 인덱스 캐시 빌드에 사용.
-     */
-    virtual const UAnimDataModel *GetActiveDataModel() const { return nullptr; }
-
-    /**
-     * 현재 활성 DataModel의 트랙 이름(FName)을 USkeleton 본 인덱스로 변환해 캐싱한다.
-     * 시퀀스를 set한 직후 1회 호출 — FName::ToString() 비용을 매 프레임에서 회피한다.
-     */
-    void RebuildTrackToBoneIndex();
-
-    /**
      * Skeleton 본 수에 맞춰 OutputLocalPose를 bind pose로 초기화한다.
      */
     void FillBindPose();
 
     USkeleton                  *Skeleton = nullptr;     // ref, not owned
     std::unique_ptr<AnimGraph>  AnimGraphPtr;           // owned
-    TArray<FMatrix>             OutputLocalPose;        // size = BoneCount
-    TArray<int32>               TrackToBoneIndex;       // size = current DataModel 트랙 수
+    TArray<FTransform>          OutputLocalPose;        // size = BoneCount
     TArray<FName>               TriggeredNotifiesThisFrame;
 
     float CurrentTime   = 0.0f;
     float PreviousTime  = 0.0f; // 구간 사이 event 처리할 때 필요.
+    float LastDeltaTime = 0.0f; // Update에서 저장, EvaluateGraph가 Ctx.DeltaTime으로 전달 (paused면 0).
     float PlaybackSpeed = 1.0f;
     bool  bLooping      = true;
     bool  bPaused       = true;

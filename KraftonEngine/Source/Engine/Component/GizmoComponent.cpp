@@ -13,7 +13,7 @@
 #include <cfloat>
 #include <cmath>
 
-IMPLEMENT_CLASS(UGizmoComponent, UPrimitiveComponent)
+REGISTER_FACTORY(UGizmoComponent)
 HIDE_FROM_COMPONENT_LIST(UGizmoComponent)
 
 FPrimitiveSceneProxy* UGizmoComponent::CreateSceneProxy()

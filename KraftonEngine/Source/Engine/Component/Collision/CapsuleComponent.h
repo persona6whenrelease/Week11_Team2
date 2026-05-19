@@ -1,11 +1,13 @@
 ﻿#pragma once
 #include "ShapeComponent.h"
 #include "CollisionTypes.h"
+#include "CapsuleComponent.generated.h"
 
+UCLASS()
 class UCapsuleComponent : public UShapeComponent
 {
 public:
-	DECLARE_CLASS(UCapsuleComponent, UShapeComponent)
+	GENERATED_BODY()
 	virtual ECollisionShapeType GetCollisionShapeType() const override
 	{
 		return ECollisionShapeType::Capsule;
@@ -22,11 +24,13 @@ public:
 
 	void SetCapsuleRadius(float InRadius)
 	{
+		FPROPERTY(DisplayName="Capsule Radius", Type=Float, min=0.0f, max=10000.0f, speed=1.0f)
 		CapsuleRadius = InRadius;
 		MarkWorldBoundsDirty();
 	}
 	void SetCapsuleHalfHeight(float InHalfHeight)
 	{
+		FPROPERTY(DisplayName="Capsule Half Height", Type=Float, min=0.0f, max=10000.0f, speed=1.0f)
 		CapsuleHalfHeight = InHalfHeight;
 		MarkWorldBoundsDirty();
 	}

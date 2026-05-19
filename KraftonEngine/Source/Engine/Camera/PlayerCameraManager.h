@@ -5,6 +5,7 @@
 #include "GameFramework/AActor.h"
 #include "Math/Vector.h"
 #include "Object/FName.h"
+#include "PlayerCameraManager.generated.h"
 
 class APlayerController;
 class FArchive;
@@ -23,10 +24,11 @@ struct FViewTarget
 	FCameraView POV;
 };
 
+UCLASS()
 class APlayerCameraManager : public AActor
 {
 public:
-	DECLARE_CLASS(APlayerCameraManager, AActor)
+	GENERATED_BODY()
 
 	APlayerCameraManager();
 	~APlayerCameraManager() override;

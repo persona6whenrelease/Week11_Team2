@@ -9,19 +9,20 @@
 #include "Render/Types/VertexTypes.h"
 #include "Render/Proxy/DirtyFlag.h"
 #include "Collision/CollisionTypes.h"
+#include "PrimitiveComponent.generated.h"
 
 class FPrimitiveSceneProxy;
 class FScene;
 class FMeshBuffer;
 class FOctree;
 
+UCLASS()
 class UPrimitiveComponent : public USceneComponent
 {
 public:
-	DECLARE_CLASS(UPrimitiveComponent, USceneComponent)
+	GENERATED_BODY()
 	~UPrimitiveComponent() override;
 
-	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
 
 	void Serialize(FArchive& Ar) override;
@@ -102,10 +103,15 @@ protected:
 	mutable FVector WorldAABBMaxLocation;
 	mutable bool bWorldAABBDirty = true;
 	mutable bool bHasValidWorldAABB = false;
+	FPROPERTY(DisplayName="Visible", Type=Bool)
 	bool bIsVisible = true;
+	FPROPERTY(DisplayName="Cast Shadow", Type=Bool)
 	bool bCastShadow = true;
+	FPROPERTY(DisplayName="Two Sided Shadow", Type=Bool)
 	bool bCastShadowAsTwoSided = false;
+	FPROPERTY(DisplayName="Blocks Movement", Type=Bool)
 	bool bBlocksMovement = true;
+	FPROPERTY(DisplayName="Generate Overlap Events", Type=Bool)
 	bool bGenerateOverlapEvents = true;
 	FPrimitiveSceneProxy* SceneProxy = nullptr;
 	

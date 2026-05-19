@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(UPawnMovementComponent, UMovementComponent)
+REGISTER_FACTORY(UPawnMovementComponent)
 
 UPawnMovementComponent::UPawnMovementComponent()
 {

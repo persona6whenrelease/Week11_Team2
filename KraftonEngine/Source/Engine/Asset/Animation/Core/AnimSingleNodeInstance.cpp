@@ -2,27 +2,27 @@
 
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/Skeleton.h"
+#include "Core/Log.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(UAnimSingleNodeInstance, UAnimInstance)
+REGISTER_FACTORY(UAnimSingleNodeInstance)
 
 UAnimSingleNodeInstance::UAnimSingleNodeInstance() = default;
 
 void UAnimSingleNodeInstance::SetAnimation(UAnimSequence *InSequence)
 {
     CurrentSequence = InSequence;
-    RebuildTrackToBoneIndex();
+    SequencePlayer.SetSequence(Skeleton, CurrentSequence);
     ResetTime();
 }
 
 void UAnimSingleNodeInstance::InitializeAnimation(USkeleton *InSkeleton)
 {
     UAnimInstance::InitializeAnimation(InSkeleton);
-    // base가 RebuildTrackToBoneIndex를 이미 호출하지만, 시퀀스가 이미 set 된 상태에서
-    // 스켈레톤이 늦게 들어오는 경우를 위해 안전망 차원에서 한 번 더 호출.
+    // 시퀀스가 이미 set 된 상태에서 스켈레톤이 늦게 들어온 경우를 위해 노드에 다시 setting한다.
     if (CurrentSequence)
     {
-        RebuildTrackToBoneIndex();
+        SequencePlayer.SetSequence(Skeleton, CurrentSequence);
     }
 }
 
@@ -42,12 +42,29 @@ void UAnimSingleNodeInstance::EvaluateGraph()
     }
 
     FAnimEvalContext Ctx;
-    Ctx.Skeleton         = Skeleton;
-    Ctx.DataModel        = GetActiveDataModel();
-    Ctx.TrackToBoneIndex = &TrackToBoneIndex;
-    Ctx.TimeSeconds      = CurrentTime;
+    Ctx.Skeleton       = Skeleton;
+    Ctx.TimeSeconds    = CurrentTime;
+    Ctx.DeltaTime      = LastDeltaTime;
+    Ctx.OwningInstance = this;
 
     SequencePlayer.Evaluate(Ctx, OutputLocalPose);
+
+    // [TEMP DIAG — root_rotation_coordsys_verification] 검증 후 제거할 것.
+    {
+        static bool bLogged = false;
+        if (!bLogged && !OutputLocalPose.empty() && Skeleton && !Skeleton->GetBones().empty())
+        {
+            const FBoneInfo& Root = Skeleton->GetBones()[0];
+            const FVector BindEuler = FQuat::FromMatrix(Root.LocalBindPose).GetNormalized().ToRotator().ToVector();
+            const FVector AnimEuler = OutputLocalPose[0].Rotation.GetNormalized().ToRotator().ToVector();
+            UE_LOG("[DIAG][root_rotation_coordsys_verification] Bone0='%s' "
+                   "bind_euler_xyz=(%.3f, %.3f, %.3f) anim_t0_euler_xyz=(%.3f, %.3f, %.3f)",
+                   Root.Name.c_str(),
+                   BindEuler.X, BindEuler.Y, BindEuler.Z,
+                   AnimEuler.X, AnimEuler.Y, AnimEuler.Z);
+            bLogged = true;
+        }
+    }
 }
 
 float UAnimSingleNodeInstance::GetEffectivePlayLength() const
@@ -58,9 +75,4 @@ float UAnimSingleNodeInstance::GetEffectivePlayLength() const
 const TArray<FAnimNotifyEvent> *UAnimSingleNodeInstance::GetActiveNotifies() const
 {
     return CurrentSequence ? &CurrentSequence->GetNotifies() : nullptr;
-}
-
-const UAnimDataModel *UAnimSingleNodeInstance::GetActiveDataModel() const
-{
-    return CurrentSequence ? CurrentSequence->GetDataModel() : nullptr;
 }

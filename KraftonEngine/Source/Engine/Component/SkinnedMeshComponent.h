@@ -4,6 +4,7 @@
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Render/Resource/Buffer.h"
 #include "Render/Types/VertexTypes.h"
+#include "SkinnedMeshComponent.generated.h"
 
 class FPrimitiveSceneProxy;
 
@@ -14,10 +15,11 @@ enum class ESkinningGlobalMode : uint8
 	ForceGPU
 };
 
+UCLASS()
 class USkinnedMeshComponent : public UMeshComponent
 {
 public:
-	DECLARE_CLASS(USkinnedMeshComponent, UMeshComponent)
+	GENERATED_BODY()
 
 	USkinnedMeshComponent() = default;
 	~USkinnedMeshComponent() override;
@@ -78,7 +80,7 @@ protected:
 	
 	// 시퀀스 평가 결과를 LocalBonePoseMatrics에 반영하되, 
 	// override 마스크가 켜진 본은 사용자가 수정한 값을 유지함. Tick 흐름에서 매 프레임 호출됨.
-	void ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose);
+	void ApplyEvaluatedPose(const TArray<FTransform>& EvaluatedLocalPose);
 	
 	FVector4 ResolveVertexDebugColor(const FSkeletalVertex& SourceVertex) const;
 	void ApplyVertexDebugColors();

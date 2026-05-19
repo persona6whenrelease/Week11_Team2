@@ -50,13 +50,18 @@ private:
 	}
 };
 
+inline size_t GetTypeHash(const FShaderKey& Key)
+{
+	return static_cast<size_t>(Key.PathHash ^ (Key.DefinesHash * 0x9e3779b97f4a7c15ULL));
+}
+
 namespace std
 {
 	template<> struct hash<FShaderKey>
 	{
 		size_t operator()(const FShaderKey& K) const
 		{
-			return static_cast<size_t>(K.PathHash ^ (K.DefinesHash * 0x9e3779b97f4a7c15ULL));
+			return GetTypeHash(K);
 		}
 	};
 }
@@ -128,15 +133,20 @@ struct FCSKey
 	}
 };
 
+inline size_t GetTypeHash(const FCSKey& Key)
+{
+	size_t Seed = GetTypeHash(Key.Path);
+	Seed = HashCombine(Seed, GetTypeHash(Key.EntryPoint));
+	return Seed;
+}
+
 namespace std
 {
 	template<> struct hash<FCSKey>
 	{
 		size_t operator()(const FCSKey& K) const
 		{
-			size_t H1 = std::hash<FString>{}(K.Path);
-			size_t H2 = std::hash<FString>{}(K.EntryPoint);
-			return H1 ^ (H2 * 0x9e3779b97f4a7c15ULL);
+			return GetTypeHash(K);
 		}
 	};
 }

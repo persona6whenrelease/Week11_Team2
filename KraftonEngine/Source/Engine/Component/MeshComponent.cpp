@@ -6,7 +6,7 @@
 #include "Asset/Material/MaterialManager.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(UMeshComponent, UPrimitiveComponent)
+REGISTER_FACTORY(UMeshComponent)
 HIDE_FROM_COMPONENT_LIST(UMeshComponent)
 
 static const FString EmptyMaterialSlotName = "None";
@@ -71,14 +71,20 @@ const FString& UMeshComponent::GetMaterialSlotName(int32 ElementIndex) const
 	return EmptyMaterialSlotName;
 }
 
+void UMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UPrimitiveComponent::GetEditableProperties(OutProps);
+	AppendMaterialSlotProperties(OutProps);
+}
+
 void UMeshComponent::AppendMaterialSlotProperties(TArray<FPropertyDescriptor>& OutProps)
 {
 	for (int32 i = 0; i < static_cast<int32>(MaterialSlots.size()); ++i)
 	{
 		FPropertyDescriptor Desc;
-		Desc.Name = "Element " + std::to_string(i);
-		Desc.Type = EPropertyType::MaterialSlot;
-		Desc.ValuePtr = &MaterialSlots[i];
+		Desc.DynamicName      = "Element " + std::to_string(i);
+		Desc.ValuePtr         = &MaterialSlots[i];
+		Desc.SyntheticTypeDesc = GetBuiltinPropertyType(EPropertyType::MaterialSlot);
 		OutProps.push_back(Desc);
 	}
 }
@@ -92,12 +98,6 @@ void UMeshComponent::RestoreOverrideMaterialsFromSlots()
 			? nullptr
 			: FMaterialManager::Get().GetOrCreateMaterial(MatPath);
 	}
-}
-
-void UMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	AppendMaterialSlotProperties(OutProps);
 }
 
 void UMeshComponent::PostEditProperty(const char* PropertyName)

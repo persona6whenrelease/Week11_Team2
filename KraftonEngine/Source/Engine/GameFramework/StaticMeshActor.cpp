@@ -7,7 +7,7 @@
 #include "Component/SubUVComponent.h"
 #include "Asset/Import/MeshManager.h"
 
-IMPLEMENT_CLASS(AStaticMeshActor, AActor)
+REGISTER_FACTORY(AStaticMeshActor)
 
 void AStaticMeshActor::InitDefaultComponents(const FString& UStaticMeshFileName)
 {
@@ -16,7 +16,6 @@ void AStaticMeshActor::InitDefaultComponents(const FString& UStaticMeshFileName)
 
 	ID3D11Device* Device = GEngine->GetRenderer().GetFD3DDevice().GetDevice();
 	UStaticMesh* Asset = FMeshManager::LoadStaticMesh(UStaticMeshFileName, Device);
-
 
 
 	StaticMeshComponent->SetStaticMesh(Asset);

@@ -64,7 +64,7 @@ namespace
 	}
 }
 
-IMPLEMENT_CLASS(UHopMovementComponent, UMovementComponent)
+REGISTER_FACTORY(UHopMovementComponent)
 
 UHopMovementComponent::UHopMovementComponent()
 {
@@ -196,25 +196,6 @@ void UHopMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 
 }
 
-void UHopMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UMovementComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Velocity", EPropertyType::Vec3, &Velocity, 0.0f, 0.0f, 1.0f });
-	OutProps.push_back({ "Initial Speed", EPropertyType::Float, &InitialSpeed, 0.0f, KMaxReasonableSpeed, 1.0f });
-	OutProps.push_back({ "Max Speed", EPropertyType::Float, &MaxSpeed, 0.0f, KMaxReasonableSpeed, 1.0f });
-	OutProps.push_back({ "Hop Coefficient", EPropertyType::Float, &HopCoefficient, 0.0f, 100.0f, 0.1f });
-	OutProps.push_back({ "Acceleration", EPropertyType::Float, &Acceleration, 0.0f, KMaxReasonableAcceleration, 10.0f });
-	OutProps.push_back({ "Braking Deceleration", EPropertyType::Float, &BrakingDeceleration, 0.0f, KMaxReasonableAcceleration, 10.0f });
-	OutProps.push_back({ "Hop Height", EPropertyType::Float, &HopHeight, 0.0f, KMaxReasonableHopHeight, 1.0f });
-	OutProps.push_back({ "Hop Frequency", EPropertyType::Float, &HopFrequency, 0.0f, KMaxReasonableHopFrequency, 0.1f });
-	OutProps.push_back({ "Hop Only When Moving", EPropertyType::Bool, &bHopOnlyWhenMoving });
-	OutProps.push_back({ "Reset Hop When Idle", EPropertyType::Bool, &bResetHopWhenIdle });
-	OutProps.push_back({ "Visual Hop Component", EPropertyType::SceneComponentRef, &VisualHopComponentPath });
-	OutProps.push_back({ "Simulating", EPropertyType::Bool, &bSimulating });	
-	OutProps.push_back({ "Dash Speed", EPropertyType::Float, &DashSpeed, 0.0f, KMaxReasonableSpeed, 1.0f });
-	OutProps.push_back({ "Dash Duration", EPropertyType::Float, &DashDuration, 0.0f, 5.0f, 0.01f });
-}
-
 void UHopMovementComponent::Serialize(FArchive& Ar)
 {
 	UMovementComponent::Serialize(Ar);
@@ -250,6 +231,11 @@ void UHopMovementComponent::Serialize(FArchive& Ar)
 		bHasLockedGameplayPlaneZ = false;
 		PlaneLockedComponent = nullptr;
 	}
+}
+
+void UHopMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
+{
+	UMovementComponent::GetEditableProperties(OutProps);
 }
 
 void UHopMovementComponent::PostEditProperty(const char* PropertyName)

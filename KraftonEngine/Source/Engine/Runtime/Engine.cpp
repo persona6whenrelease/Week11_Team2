@@ -19,7 +19,6 @@
 #include "Scripting/LuaScriptSubsystem.h"
 #include "Viewport/GameViewportClient.h"
 
-DEFINE_CLASS(UEngine, UObject)
 
 UEngine* GEngine = nullptr;
 

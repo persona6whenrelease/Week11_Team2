@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Camera/CameraModifier.h"
 #include "Math/Rotator.h"
+#include "CameraShakeModifier.generated.h"
 
 enum class ECameraShakePattern : uint32
 {
@@ -30,10 +31,11 @@ struct FCameraShakeParams
 	uint32 Seed = 0;
 };
 
+UCLASS()
 class UCameraShakeModifier : public UCameraModifier
 {
 public:
-	DECLARE_CLASS(UCameraShakeModifier, UCameraModifier)
+	GENERATED_BODY()
 
 	UCameraShakeModifier() = default;
 	~UCameraShakeModifier() override = default;

@@ -3,13 +3,15 @@
 #include "Component/PrimitiveComponent.h"
 #include "Core/PropertyTypes.h"
 #include "Asset/Mesh/Common/MeshCommonTypes.h"
+#include "MeshComponent.generated.h"
 
 class UMaterial;
 
+UCLASS()
 class UMeshComponent : public UPrimitiveComponent
 {
 public:
-	DECLARE_CLASS(UMeshComponent, UPrimitiveComponent)
+	GENERATED_BODY()
 
 	UMeshComponent() = default;
 	~UMeshComponent() override = default;

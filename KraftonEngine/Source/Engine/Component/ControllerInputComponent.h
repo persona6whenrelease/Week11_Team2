@@ -2,6 +2,7 @@
 
 #include "Component/ActorComponent.h"
 #include "Math/Rotator.h"
+#include "ControllerInputComponent.generated.h"
 
 class APlayerController;
 class UCameraComponent;
@@ -16,10 +17,11 @@ enum class EControllerMovementFrame : int32
 };
 
 
+UCLASS()
 class UControllerInputComponent : public UActorComponent
 {
 public:
-	DECLARE_CLASS(UControllerInputComponent, UActorComponent)
+	GENERATED_BODY()
 
 	UControllerInputComponent() = default;
 	~UControllerInputComponent() override = default;
@@ -59,9 +61,14 @@ public:
 
 private:
 	int32 MovementFrame = static_cast<int32>(EControllerMovementFrame::ControlRotation);
+	FPROPERTY(DisplayName="Move Speed", Type=Float, min=0.0f, max=100000.0f, speed=0.1f)
 	float MoveSpeed = 10.0f;
+	FPROPERTY(DisplayName="Sprint Multiplier", Type=Float, min=0.0f, max=100.0f, speed=0.1f)
 	float SprintMultiplier = 2.5f;
+	FPROPERTY(DisplayName="Look Sensitivity", Type=Float, min=0.0f, max=100.0f, speed=0.01f)
 	float LookSensitivity = 0.08f;
+	FPROPERTY(DisplayName="Min Pitch", Type=Float, min=-180.0f, max=180.0f, speed=0.1f)
 	float MinPitch = -89.0f;
+	FPROPERTY(DisplayName="Max Pitch", Type=Float, min=-180.0f, max=180.0f, speed=0.1f)
 	float MaxPitch = 89.0f;
 };

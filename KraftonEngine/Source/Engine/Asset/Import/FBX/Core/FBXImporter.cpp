@@ -344,13 +344,9 @@ void FBXImporter::PreprocessScene()
         return;
     }
 
-    FbxAxisSystem EngineAxisSystem;
-    if (!FbxAxisSystem::ParseAxisSystem("yzx", EngineAxisSystem))
-    {
-        UE_LOG("[FBXImporter] Failed to parse engine axis system.");
-        return;
-    }
-
+    const FbxAxisSystem EngineAxisSystem(FbxAxisSystem::eZAxis,
+                                         FbxAxisSystem::eParityEven,
+                                         FbxAxisSystem::eLeftHanded);
     EngineAxisSystem.DeepConvertScene(Scene);
 
     FbxSystemUnit::ConversionOptions UnitOptions = {};

@@ -10,7 +10,7 @@
 
 #include <cstring>
 
-IMPLEMENT_CLASS(UBillboardComponent, UPrimitiveComponent)
+REGISTER_FACTORY(UBillboardComponent)
 
 FPrimitiveSceneProxy* UBillboardComponent::CreateSceneProxy()
 {
@@ -54,14 +54,6 @@ void UBillboardComponent::SetMaterial(UMaterial* InMaterial)
 	// 머티리얼 변경 시 렌더 스테이트와 프록시 갱신
 	MarkProxyDirty(EDirtyFlag::Material);
 	MarkProxyDirty(EDirtyFlag::Mesh);
-}
-
-void UBillboardComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Material", EPropertyType::MaterialSlot, &MaterialSlot });
-	OutProps.push_back({ "Width",  EPropertyType::Float, &Width,  0.1f, 100.0f, 0.1f });
-	OutProps.push_back({ "Height", EPropertyType::Float, &Height, 0.1f, 100.0f, 0.1f });
 }
 
 void UBillboardComponent::PostEditProperty(const char* PropertyName)

@@ -12,8 +12,7 @@
 #include "Render/Shader/ShaderManager.h"
 
 
-IMPLEMENT_CLASS(USkinnedMeshComponent, UMeshComponent)
-
+REGISTER_FACTORY(USkinnedMeshComponent)
 HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 
 namespace
@@ -298,8 +297,19 @@ void USkinnedMeshComponent::PostDuplicate()
 void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &OutProps)
 {
     UPrimitiveComponent::GetEditableProperties(OutProps);
-    OutProps.push_back({"Skeletal Mesh", EPropertyType::SkeletalMeshRef, &SkeletalMeshPath});
-    OutProps.push_back({"Use GPU Skinning", EPropertyType::Bool, &bUseGPUSkinning});
+    static const FPropertyTypeDesc SkeletalMeshObjectRefType{
+        EPropertyType::ObjectRef,
+        nullptr,
+        nullptr,
+        0,
+        &USkeletalMesh::StaticClassInstance
+    };
+    FPropertyDescriptor SkeletalMeshProp;
+    SkeletalMeshProp.ValuePtr = &SkeletalMeshPath;
+    SkeletalMeshProp.SyntheticTypeDesc = &SkeletalMeshObjectRefType;
+    SkeletalMeshProp.DynamicName = "Skeletal Mesh";
+    OutProps.push_back(std::move(SkeletalMeshProp));
+	OutProps.push_back({"Use GPU Skinning", EPropertyType::Bool, &bUseGPUSkinning});
     AppendMaterialSlotProperties(OutProps);
 }
 
@@ -573,32 +583,38 @@ bool USkinnedMeshComponent::PrepareGPUSkinningData()
 	return DispatchSkinningCompute();     // Compute 실행 → SkinCache에 결과 저장
 }
 
-void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose)
+void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FTransform>& EvaluatedLocalPose)
 {
 	if (EvaluatedLocalPose.empty())
 	{
 		return;
 	}
-	
-	if (LocalBonePoseMatrices.size() != EvaluatedLocalPose.size())
+
+	const size_t N = EvaluatedLocalPose.size();
+
+	if (LocalBonePoseMatrices.size() != N)
 	{
-		LocalBonePoseMatrices = EvaluatedLocalPose;
-		BoneOverrideMask.assign(EvaluatedLocalPose.size(), false);
+		LocalBonePoseMatrices.resize(N);
+		BoneOverrideMask.assign(N, false);
+		for (size_t i = 0; i < N; ++i)
+		{
+			LocalBonePoseMatrices[i] = EvaluatedLocalPose[i].ToMatrix();
+		}
 	}
 	else
 	{
 		const size_t MaskSize = BoneOverrideMask.size();
-		for (size_t i = 0; i < EvaluatedLocalPose.size(); ++i)
+		for (size_t i = 0; i < N; ++i)
 		{
 			const bool bOverridden = (i < MaskSize) ? BoneOverrideMask[i] : false;
 			// User-edited bones keep their current local pose.
 			if (!bOverridden)
 			{
-				LocalBonePoseMatrices[i] = EvaluatedLocalPose[i];
+				LocalBonePoseMatrices[i] = EvaluatedLocalPose[i].ToMatrix();
 			}
 		}
 	}
-	
+
 	RebuildMeshSpaceBoneMatrices();
 	// 컴포넌트 플래그에 따라 Skinning 방식 선택. GPU가 default
 	const bool bUsedGPUSkinning = ShouldUseGPUSkinning() && PrepareGPUSkinningData();

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "MovementComponent.h"
 #include "Math/Vector.h"
+#include "InterpToMovementComponent.generated.h"
 
 enum class EInterpBehaviour {
 	OneShot,
@@ -9,9 +10,10 @@ enum class EInterpBehaviour {
 	PingPong,
 };
 
+UCLASS()
 class UInterpToMovementComponent : public UMovementComponent {
 public:
-	DECLARE_CLASS(UInterpToMovementComponent, UMovementComponent)
+	GENERATED_BODY()
 
 	UInterpToMovementComponent() = default;
 
@@ -71,6 +73,7 @@ private:
 
 private:
 	EInterpBehaviour	InterpBehaviour = EInterpBehaviour::OneShot;
+	FPROPERTY(DisplayName="Control Points")
 	TArray<FVector>		ControlPoints;
 	uint32				CurrentPointID = 0;
 	uint32				NextPointID = 0;
@@ -80,8 +83,10 @@ private:
 	float				TotalDistance = 0;
 	float				NextDistRatio = 0;
 	bool				bisLerping = false;
+	FPROPERTY(DisplayName="Auto Activate", Type=Bool)
 	bool				bAutoActivate = true;
 	bool				bPing = true;
+	FPROPERTY(DisplayName="Orient To Movement", Type=Bool)
 	bool				bFaceTargetDir = true;
 
 	float				TargetPitch = 0.f;
