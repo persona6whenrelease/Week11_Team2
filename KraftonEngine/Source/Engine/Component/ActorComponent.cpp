@@ -93,10 +93,11 @@ void UActorComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProp
 
 	for (int32 i = static_cast<int32>(Chain.size()) - 1; i >= 0; --i)
 	{
-		for (const FPropertyDescriptor& Desc : Chain[i]->GetOwnProperties())
+		for (const FPropertyMetadata& Meta : Chain[i]->GetOwnMetadata())
 		{
-			FPropertyDescriptor Inst = Desc;
-			Inst.ValuePtr = reinterpret_cast<char*>(this) + reinterpret_cast<size_t>(Desc.ValuePtr);
+			FPropertyDescriptor Inst;
+			Inst.Meta     = &Meta;
+			Inst.ValuePtr = reinterpret_cast<char*>(this) + Meta.Offset;
 			OutProps.push_back(Inst);
 		}
 	}

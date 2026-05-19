@@ -43,15 +43,15 @@ public:
 	}
 
 	// --- Reflected properties ---
-	using FPropertiesGetter = const std::vector<FPropertyDescriptor>& (*)();
+	using FMetadataGetter = const std::vector<FPropertyMetadata>& (*)();
 
-	void SetPropertiesGetter(FPropertiesGetter F) { PropertiesGetter = F; }
+	void SetMetadataGetter(FMetadataGetter F) { MetadataGetter = F; }
 
-	// Returns own (non-inherited) reflected properties; empty vector if none registered.
-	const std::vector<FPropertyDescriptor>& GetOwnProperties() const
+	// Returns own (non-inherited) static property metadata; empty vector if none registered.
+	const std::vector<FPropertyMetadata>& GetOwnMetadata() const
 	{
-		static const std::vector<FPropertyDescriptor> Empty;
-		return PropertiesGetter ? PropertiesGetter() : Empty;
+		static const std::vector<FPropertyMetadata> Empty;
+		return MetadataGetter ? MetadataGetter() : Empty;
 	}
 
 	// --- Global class registry ---
@@ -66,7 +66,7 @@ private:
 	UClass*          SuperClass      = nullptr;
 	size_t           Size            = 0;
 	uint32           ClassFlags      = CF_None;
-	FPropertiesGetter PropertiesGetter = nullptr;
+	FMetadataGetter MetadataGetter = nullptr;
 };
 
 // static initializer 에서 UClass를 전역 레지스트리에 등록

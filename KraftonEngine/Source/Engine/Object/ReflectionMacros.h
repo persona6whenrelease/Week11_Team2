@@ -1,5 +1,13 @@
 #pragma once
 
+// Reflection annotations are consumed by the header generator script.
+// The C++ compiler should treat them as no-ops.
+#define UCLASS(...)
+#define USTRUCT(...)
+#define UENUM(...)
+#define UFUNCTION(...)
+#define FPROPERTY(...)
+
 // ---------------------------------------------------------------------------
 // GENERATED_BODY() dispatch
 //

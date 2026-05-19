@@ -566,7 +566,7 @@ def _h_class(out: list, t: ReflectedType, file_id: str):
         body.append("    virtual UClass* GetClass() const override { return StaticClass(); }")
 
     if has_props:
-        body.append("    static const std::vector<FPropertyDescriptor>& GetReflectedProperties();")
+        body.append("    static const std::vector<FPropertyMetadata>& GetReflectedMetadata();")
 
     if has_funcs:
         body.append("    static const std::vector<UFunctionInfo>& GetReflectedFunctions();")
@@ -703,7 +703,7 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
 
     if t.properties:
         out += [
-            f"const std::vector<FPropertyDescriptor>& {t.name}::GetReflectedProperties() {{",
+            f"const std::vector<FPropertyMetadata>& {t.name}::GetReflectedMetadata() {{",
             "    // Static type nodes mirror the reflected type graph and keep metadata address-stable.",
         ]
         prop_infos = []
@@ -764,10 +764,10 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             prop_infos.append((prop, type_desc_ref))
 
         out += [
-            "    static std::vector<FPropertyDescriptor> Props = {",
+            "    static std::vector<FPropertyMetadata> Props = {",
         ]
         for prop, type_desc_ref in prop_infos:
-            offset    = f"reinterpret_cast<void*>(offsetof({t.name}, {prop.name}))"
+            offset    = f"offsetof({t.name}, {prop.name})"
             min_val   = prop.meta.get('min',   '0.0f')
             max_val   = prop.meta.get('max',   '0.0f')
             speed_val = prop.meta.get('speed', '0.1f')
@@ -779,19 +779,26 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             if 'Hidden'    in prop.meta: flag_parts.append('EPF_Hidden')
             if 'Transient' in prop.meta: flag_parts.append('EPF_Transient')
             flags_val = ' | '.join(flag_parts) if flag_parts else 'EPF_None'
-            out.append(
-                f'        FPropertyDescriptor{{ {disp_name}, {offset},'
-                f' {min_val}, {max_val}, {speed_val}, {cat_val}, {tooltip_val}, {flags_val}, {type_desc_ref} }},'
-            )
+            editor_meta_name = f"{t.name}_EditorMeta_{len(out)}"
+            out.extend([
+                "        #if WITH_EDITOR",
+                f"        []() -> FPropertyMetadata {{",
+                f"            static const FEditorPropertyMetadata {editor_meta_name}{{ {cat_val}, {tooltip_val} }};",
+                f"            return FPropertyMetadata{{ {disp_name}, {offset}, {type_desc_ref}, {flags_val}, {min_val}, {max_val}, {speed_val}, &{editor_meta_name} }};",
+                "        }(),",
+                "        #else",
+                f"        FPropertyMetadata{{ {disp_name}, {offset}, {type_desc_ref}, {flags_val}, {min_val}, {max_val}, {speed_val} }},",
+                "        #endif",
+            ])
         out += [
             "    };",
             "    return Props;",
             "}",
             "",
             # Register the getter in UClass so ActorComponent can walk the chain
-            f"static bool {t.name}_PropsRegistered = []() {{",
-            f"    {t.name}::StaticClassInstance.SetPropertiesGetter(",
-            f"        &{t.name}::GetReflectedProperties);",
+            f"static bool {t.name}_MetaRegistered = []() {{",
+            f"    {t.name}::StaticClassInstance.SetMetadataGetter(",
+            f"        &{t.name}::GetReflectedMetadata);",
             f"    return true;",
             f"}}();",
             "",

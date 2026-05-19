@@ -120,83 +120,136 @@ enum EPropertyFlags : uint32
 	EPF_Transient = 1 << 2,  // 직렬화 제외 (에디터 표시는 유지)
 };
 
-// 컴포넌트가 노출하는 편집 가능한 프로퍼티 디스크립터
+// 에디터에서만 필요한 정적 메타데이터.
+struct FEditorPropertyMetadata
+{
+	const char* Category = "Default";
+	const char* Tooltip = "";
+};
+
+// 클래스당 한 번 존재하는 정적 메타데이터 (string literal 기반, 복사 비용 없음)
+struct FPropertyMetadata
+{
+	const char*              Name        = "";
+	size_t                   Offset      = 0;
+	const FPropertyTypeDesc* TypeDesc    = nullptr;
+	uint32                   Flags       = EPF_None;
+	float                    Min         = 0.0f;
+	float                    Max         = 0.0f;
+	float                    Speed       = 0.1f;
+#if WITH_EDITOR
+	const FEditorPropertyMetadata* Editor = nullptr;
+#endif
+};
+
+// 인스턴스 접근용 경량 핸들 — ValuePtr 하나와 정적 메타데이터 포인터만 보유
 struct FPropertyDescriptor
 {
+	void*                    ValuePtr          = nullptr;
+	const FPropertyMetadata* Meta              = nullptr;
+	// Meta가 없는 합성 디스크립터(배열 원소, Map 키·값 등)를 위한 fallback
+	const FPropertyTypeDesc* SyntheticTypeDesc = nullptr;
+	std::string              DynamicName;       // 배열 원소 "[N]" 등 동적 이름
 
-	std::string   Name;
-	void*         ValuePtr;
+	// ---- 메타데이터 접근자 ----
+	const char* GetName()     const { return DynamicName.empty() ? (Meta ? Meta->Name : "") : DynamicName.c_str(); }
+	const char* GetCategory() const
+	{
+#if WITH_EDITOR
+		return (Meta && Meta->Editor) ? Meta->Editor->Category : "Default";
+#else
+		return "Default";
+#endif
+	}
 
-	// float 범위 힌트 (DragFloat 등에서 사용)
-	float Min   = 0.0f;
-	float Max   = 0.0f;
-	float Speed = 0.1f;
+	const char* GetTooltip() const
+	{
+#if WITH_EDITOR
+		return (Meta && Meta->Editor) ? Meta->Editor->Tooltip : "";
+#else
+		return "";
+#endif
+	}
+	float       GetMin()      const { return Meta ? Meta->Min      : 0.0f; }
+	float       GetMax()      const { return Meta ? Meta->Max      : 0.0f; }
+	float       GetSpeed()    const { return Meta ? Meta->Speed    : 0.1f; }
+	uint32      GetFlags()    const { return Meta ? Meta->Flags    : EPF_None; }
 
-	// Optional editor metadata. Existing property initializers can ignore these.
-	std::string Category = "Default";
-	std::string Tooltip;
-	uint32 Flags = EPF_None;
-
-	const FPropertyTypeDesc* TypeDesc = nullptr;
+	const FPropertyTypeDesc* GetTypeDesc() const
+	{
+		return SyntheticTypeDesc ? SyntheticTypeDesc : (Meta ? Meta->TypeDesc : nullptr);
+	}
 
 	EPropertyType GetKind() const
 	{
-		return TypeDesc ? TypeDesc->Kind : EPropertyType::Int;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->Kind : EPropertyType::Int;
 	}
 
 	const UClass* GetStructType() const
 	{
-		return TypeDesc ? TypeDesc->StructType : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->StructType : nullptr;
 	}
 
 	const char** GetEnumNames() const
 	{
-		return TypeDesc ? TypeDesc->EnumNames : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->EnumNames : nullptr;
 	}
 
 	uint32 GetEnumCount() const
 	{
-		return TypeDesc ? TypeDesc->EnumCount : 0;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->EnumCount : 0;
 	}
 
 	const UClass* GetObjectClass() const
 	{
-		return TypeDesc ? TypeDesc->ObjectClass : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ObjectClass : nullptr;
 	}
 
 	const FPropertyTypeDesc* GetElementType() const
 	{
-		return TypeDesc ? TypeDesc->ElementType : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ElementType : nullptr;
 	}
 
 	FArraySizeGetter GetArraySizeGetter() const
 	{
-		return TypeDesc ? TypeDesc->ArraySizeGetter : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ArraySizeGetter : nullptr;
 	}
 
 	FArrayResizeFunc GetArrayResizeFunc() const
 	{
-		return TypeDesc ? TypeDesc->ArrayResizeFunc : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ArrayResizeFunc : nullptr;
 	}
 
 	FArrayElementGetter GetArrayElementGetter() const
 	{
-		return TypeDesc ? TypeDesc->ArrayElementGetter : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ArrayElementGetter : nullptr;
 	}
 
 	FArrayElementConstGetter GetArrayElementConstGetter() const
 	{
-		return TypeDesc ? TypeDesc->ArrayElementConstGetter : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ArrayElementConstGetter : nullptr;
 	}
 
 	const FPropertyTypeDesc* GetKeyType() const
 	{
-		return TypeDesc ? TypeDesc->KeyType : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->KeyType : nullptr;
 	}
 
 	const FPropertyTypeDesc* GetValueType() const
 	{
-		return TypeDesc ? TypeDesc->ValueType : nullptr;
+		const FPropertyTypeDesc* TD = GetTypeDesc();
+		return TD ? TD->ValueType : nullptr;
 	}
 };
 

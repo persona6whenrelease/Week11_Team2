@@ -97,7 +97,7 @@ namespace
 
 	bool HasDescriptorRange(const FPropertyDescriptor& Desc)
 	{
-		return Desc.Min < Desc.Max;
+		return Desc.GetMin() < Desc.GetMax();
 	}
 
 	float ClampFloatForDescriptor(const FPropertyDescriptor& Desc, float Value)
@@ -107,7 +107,7 @@ namespace
 			return Value;
 		}
 
-		return std::clamp(Value, Desc.Min, Desc.Max);
+		return std::clamp(Value, Desc.GetMin(), Desc.GetMax());
 	}
 
 	int32 ClampIntForDescriptor(const FPropertyDescriptor& Desc, int32 Value)
@@ -117,7 +117,7 @@ namespace
 			return Value;
 		}
 
-		const float ClampedValue = std::clamp(static_cast<float>(Value), Desc.Min, Desc.Max);
+		const float ClampedValue = std::clamp(static_cast<float>(Value), Desc.GetMin(), Desc.GetMax());
 		return static_cast<int32>(ClampedValue);
 	}
 
@@ -129,9 +129,10 @@ namespace
 		}
 
 		OutElementProp = ArrayProp;
-		OutElementProp.TypeDesc = ArrayProp.GetElementType();
-		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
-		OutElementProp.ValuePtr = ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex);
+		OutElementProp.Meta              = nullptr;
+		OutElementProp.SyntheticTypeDesc = ArrayProp.GetElementType();
+		OutElementProp.DynamicName       = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.ValuePtr          = ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex);
 		return OutElementProp.ValuePtr != nullptr;
 	}
 
@@ -150,10 +151,11 @@ namespace
 
 		for (int32 Index = static_cast<int32>(Chain.size()) - 1; Index >= 0; --Index)
 		{
-			for (const FPropertyDescriptor& Desc : Chain[Index]->GetOwnProperties())
+			for (const FPropertyMetadata& Meta : Chain[Index]->GetOwnMetadata())
 			{
-				FPropertyDescriptor Inst = Desc;
-				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + reinterpret_cast<size_t>(Desc.ValuePtr);
+				FPropertyDescriptor Inst;
+				Inst.Meta     = &Meta;
+				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + Meta.Offset;
 				OutProps.push_back(Inst);
 			}
 		}
@@ -226,22 +228,23 @@ namespace
 			CollectReflectedStructProperties(Desc.GetStructType(), Desc.ValuePtr, ChildProps);
 			for (const FPropertyDescriptor& ChildProp : ChildProps)
 			{
-				Table[ChildProp.Name] = MakeLuaObjectForProperty(Lua, ChildProp);
+				Table[ChildProp.GetName()] = MakeLuaObjectForProperty(Lua, ChildProp);
 			}
 			return sol::make_object(Lua, Table);
 		}
 
 		case EPropertyType::Set:
 		{
-			if (!Desc.TypeDesc || !Desc.TypeDesc->SetConstSnapshotFunc || !Desc.TypeDesc->ElementType)
+			const FPropertyTypeDesc* TD = Desc.GetTypeDesc();
+			if (!TD || !TD->SetConstSnapshotFunc || !TD->ElementType)
 				return sol::nil;
 			sol::table Table = Lua.create_table();
 			TArray<const void*> Elems;
-			Desc.TypeDesc->SetConstSnapshotFunc(Desc.ValuePtr, Elems);
+			TD->SetConstSnapshotFunc(Desc.ValuePtr, Elems);
 			for (size_t i = 0; i < Elems.size(); ++i)
 			{
 				FPropertyDescriptor ElemDesc;
-				ElemDesc.TypeDesc = Desc.TypeDesc->ElementType;
+				ElemDesc.SyntheticTypeDesc = TD->ElementType;
 				ElemDesc.ValuePtr = const_cast<void*>(Elems[i]);
 				Table[static_cast<int>(i + 1)] = MakeLuaObjectForProperty(Lua, ElemDesc);
 			}
@@ -250,18 +253,19 @@ namespace
 
 		case EPropertyType::Map:
 		{
-			if (!Desc.TypeDesc || !Desc.TypeDesc->MapConstSnapshotFunc
-				|| !Desc.TypeDesc->KeyType || !Desc.TypeDesc->ValueType)
+			const FPropertyTypeDesc* TD = Desc.GetTypeDesc();
+			if (!TD || !TD->MapConstSnapshotFunc
+				|| !TD->KeyType || !TD->ValueType)
 				return sol::nil;
 			sol::table Table = Lua.create_table();
 			TArray<const void*> Keys, Vals;
-			Desc.TypeDesc->MapConstSnapshotFunc(Desc.ValuePtr, Keys, Vals);
+			TD->MapConstSnapshotFunc(Desc.ValuePtr, Keys, Vals);
 			for (size_t i = 0; i < Keys.size(); ++i)
 			{
 				FPropertyDescriptor KDesc, VDesc;
-				KDesc.TypeDesc = Desc.TypeDesc->KeyType;
+				KDesc.SyntheticTypeDesc = TD->KeyType;
 				KDesc.ValuePtr = const_cast<void*>(Keys[i]);
-				VDesc.TypeDesc = Desc.TypeDesc->ValueType;
+				VDesc.SyntheticTypeDesc = TD->ValueType;
 				VDesc.ValuePtr = const_cast<void*>(Vals[i]);
 				Table[MakeLuaObjectForProperty(Lua, KDesc)] = MakeLuaObjectForProperty(Lua, VDesc);
 			}
@@ -315,7 +319,7 @@ namespace
 			const FString NewValue = Value.as<FString>();
 			if (IsLuaPathProperty(Desc.GetKind()) && !IsSafeLuaAssetPath(NewValue))
 			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe asset/reference path. property = %s, value = %s", Desc.Name.c_str(), NewValue.c_str());
+				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe asset/reference path. property = %s, value = %s", Desc.GetName(), NewValue.c_str());
 				return false;
 			}
 
@@ -332,7 +336,7 @@ namespace
 			const FString NewPath = Value.as<FString>();
 			if (!IsSafeLuaAssetPath(NewPath))
 			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe material path. property = %s, value = %s", Desc.Name.c_str(), NewPath.c_str());
+				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe material path. property = %s, value = %s", Desc.GetName(), NewPath.c_str());
 				return false;
 			}
 
@@ -345,7 +349,7 @@ namespace
 			const int32 NewValue = Value.as<int32>();
 			if (Desc.GetEnumCount() > 0 && (NewValue < 0 || NewValue >= static_cast<int32>(Desc.GetEnumCount())))
 			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: enum value out of range. property = %s, value = %d", Desc.Name.c_str(), NewValue);
+				UE_LOG("[LuaSecurity] SetProperty blocked: enum value out of range. property = %s, value = %d", Desc.GetName(), NewValue);
 				return false;
 			}
 
@@ -365,7 +369,7 @@ namespace
 			const std::size_t Count = Table.size();
 			if (Count > MaxLuaArraySize)
 			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: array too large. property = %s, count = %zu", Desc.Name.c_str(), Count);
+				UE_LOG("[LuaSecurity] SetProperty blocked: array too large. property = %s, count = %zu", Desc.GetName(), Count);
 				return false;
 			}
 
@@ -375,7 +379,7 @@ namespace
 				sol::object Item = Table[static_cast<int>(Index)];
 				if (!Item.valid() || Item.get_type() == sol::type::nil)
 				{
-					UE_LOG("[Lua] SetProperty failed: array contains nil. property = %s, index = %zu", Desc.Name.c_str(), Index);
+					UE_LOG("[Lua] SetProperty failed: array contains nil. property = %s, index = %zu", Desc.GetName(), Index);
 					return false;
 				}
 
@@ -396,7 +400,7 @@ namespace
 			CollectReflectedStructProperties(Desc.GetStructType(), Desc.ValuePtr, ChildProps);
 			for (FPropertyDescriptor& ChildProp : ChildProps)
 			{
-				sol::optional<sol::object> MaybeItem = Table[ChildProp.Name];
+				sol::optional<sol::object> MaybeItem = Table[ChildProp.GetName()];
 				if (!MaybeItem.has_value())
 				{
 					continue;
@@ -418,21 +422,22 @@ namespace
 
 		case EPropertyType::Set:
 		{
-			if (!Desc.TypeDesc || !Desc.TypeDesc->SetClearFunc
-				|| !Desc.TypeDesc->SetInsertFunc || !Desc.TypeDesc->SetElementSizeFunc
-				|| !Desc.TypeDesc->ElementType)
+			const FPropertyTypeDesc* TD = Desc.GetTypeDesc();
+			if (!TD || !TD->SetClearFunc
+				|| !TD->SetInsertFunc || !TD->SetElementSizeFunc
+				|| !TD->ElementType)
 				return false;
 
 			sol::table Table = Value.as<sol::table>();
 			const std::size_t Count = Table.size();
 			if (Count > 1024)
 			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: set too large. property = %s, count = %zu", Desc.Name.c_str(), Count);
+				UE_LOG("[LuaSecurity] SetProperty blocked: set too large. property = %s, count = %zu", Desc.GetName(), Count);
 				return false;
 			}
 
-			Desc.TypeDesc->SetClearFunc(Desc.ValuePtr);
-			const size_t ElemSz = Desc.TypeDesc->SetElementSizeFunc();
+			TD->SetClearFunc(Desc.ValuePtr);
+			const size_t ElemSz = TD->SetElementSizeFunc();
 			TArray<uint8_t> Buf(ElemSz, 0);
 			for (std::size_t i = 1; i <= Count; ++i)
 			{
@@ -441,46 +446,47 @@ namespace
 					continue;
 				std::fill(Buf.begin(), Buf.end(), 0);
 				FPropertyDescriptor ElemDesc;
-				ElemDesc.TypeDesc = Desc.TypeDesc->ElementType;
+				ElemDesc.SyntheticTypeDesc = TD->ElementType;
 				ElemDesc.ValuePtr = Buf.data();
 				if (!AssignPropertyFromLuaObject(ElemDesc, Item))
 					return false;
-				Desc.TypeDesc->SetInsertFunc(Desc.ValuePtr, Buf.data());
+				TD->SetInsertFunc(Desc.ValuePtr, Buf.data());
 			}
 			return true;
 		}
 
 		case EPropertyType::Map:
 		{
-			if (!Desc.TypeDesc || !Desc.TypeDesc->MapClearFunc
-				|| !Desc.TypeDesc->MapInsertFunc
-				|| !Desc.TypeDesc->MapKeySizeFunc || !Desc.TypeDesc->MapValueSizeFunc
-				|| !Desc.TypeDesc->KeyType || !Desc.TypeDesc->ValueType)
+			const FPropertyTypeDesc* TD = Desc.GetTypeDesc();
+			if (!TD || !TD->MapClearFunc
+				|| !TD->MapInsertFunc
+				|| !TD->MapKeySizeFunc || !TD->MapValueSizeFunc
+				|| !TD->KeyType || !TD->ValueType)
 				return false;
 
 			sol::table Table = Value.as<sol::table>();
-			Desc.TypeDesc->MapClearFunc(Desc.ValuePtr);
-			const size_t KeySz = Desc.TypeDesc->MapKeySizeFunc();
-			const size_t ValSz = Desc.TypeDesc->MapValueSizeFunc();
+			TD->MapClearFunc(Desc.ValuePtr);
+			const size_t KeySz = TD->MapKeySizeFunc();
+			const size_t ValSz = TD->MapValueSizeFunc();
 			TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
 
 			Table.for_each([&](const sol::object& LuaKey, const sol::object& LuaVal)
 			{
 				std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
 				FPropertyDescriptor KDesc;
-				KDesc.TypeDesc = Desc.TypeDesc->KeyType;
+				KDesc.SyntheticTypeDesc = TD->KeyType;
 				KDesc.ValuePtr = KeyBuf.data();
 				if (!AssignPropertyFromLuaObject(KDesc, LuaKey))
 					return;
 
 				std::fill(ValBuf.begin(), ValBuf.end(), 0);
 				FPropertyDescriptor VDesc;
-				VDesc.TypeDesc = Desc.TypeDesc->ValueType;
+				VDesc.SyntheticTypeDesc = TD->ValueType;
 				VDesc.ValuePtr = ValBuf.data();
 				if (!AssignPropertyFromLuaObject(VDesc, LuaVal))
 					return;
 
-				Desc.TypeDesc->MapInsertFunc(Desc.ValuePtr, KeyBuf.data(), ValBuf.data());
+				TD->MapInsertFunc(Desc.ValuePtr, KeyBuf.data(), ValBuf.data());
 			});
 			return true;
 		}
@@ -538,7 +544,7 @@ const FPropertyDescriptor* FLuaPropertyBridge::FindDescriptor(const TArray<FProp
 {
 	for (const FPropertyDescriptor& Desc : Props)
 	{
-		if (IsSamePropertyName(Desc.Name, PropertyName))
+		if (IsSamePropertyName(Desc.GetName(), PropertyName))
 		{
 			return &Desc;
 		}
@@ -636,11 +642,11 @@ sol::table FLuaPropertyBridge::ListProperties(sol::this_state State, UActorCompo
 	{
 		sol::table Item = Lua.create_table();
 
-		Item["name"] = Desc.Name;
+		Item["name"] = Desc.GetName();
 		Item["type"] = ToLuaTypeName(Desc);
-		Item["min"] = Desc.Min;
-		Item["max"] = Desc.Max;
-		Item["speed"] = Desc.Speed;
+		Item["min"] = Desc.GetMin();
+		Item["max"] = Desc.GetMax();
+		Item["speed"] = Desc.GetSpeed();
 
 		if (Desc.GetKind() == EPropertyType::Enum && Desc.GetEnumNames() && Desc.GetEnumCount() > 0)
 		{
