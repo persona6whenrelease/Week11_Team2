@@ -43,6 +43,30 @@ namespace
 
 		return Actor->ShouldSerializeToScene();
 	}
+
+	void CollectReflectedStructProperties(const UClass* StructType, void* StructValue, TArray<FPropertyDescriptor>& OutProps)
+	{
+		if (!StructType || !StructValue)
+		{
+			return;
+		}
+
+		TArray<const UClass*> Chain;
+		for (const UClass* C = StructType; C; C = C->GetSuperClass())
+		{
+			Chain.push_back(C);
+		}
+
+		for (int32 Index = static_cast<int32>(Chain.size()) - 1; Index >= 0; --Index)
+		{
+			for (const FPropertyDescriptor& Desc : Chain[Index]->GetOwnProperties())
+			{
+				FPropertyDescriptor Inst = Desc;
+				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + reinterpret_cast<size_t>(Desc.ValuePtr);
+				OutProps.push_back(Inst);
+			}
+		}
+	}
 }
 
 // ---- JSON vector helpers ---------------------------------------------------
@@ -604,6 +628,17 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 		return outer;
 	}
 
+	case EPropertyType::Struct: {
+		JSON obj = json::Object();
+		TArray<FPropertyDescriptor> ChildProps;
+		CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+		for (const FPropertyDescriptor& ChildProp : ChildProps)
+		{
+			obj[ChildProp.Name] = SerializePropertyValue(ChildProp);
+		}
+		return obj;
+	}
+
 	case EPropertyType::ActorRef:
 		return JSON(static_cast<int>(*static_cast<uint32*>(Prop.ValuePtr)));
 
@@ -1155,6 +1190,21 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 				++i;
 			}
 			Arr->push_back(v);
+		}
+		break;
+	}
+
+	case EPropertyType::Struct: {
+		TArray<FPropertyDescriptor> ChildProps;
+		CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+		for (FPropertyDescriptor& ChildProp : ChildProps)
+		{
+			if (!Value.hasKey(ChildProp.Name.c_str()))
+			{
+				continue;
+			}
+			json::JSON& ChildValue = Value[ChildProp.Name.c_str()];
+			DeserializePropertyValue(ChildProp, ChildValue);
 		}
 		break;
 	}

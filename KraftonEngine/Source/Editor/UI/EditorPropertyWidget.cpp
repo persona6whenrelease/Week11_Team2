@@ -146,6 +146,126 @@ namespace
 			[](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
 		return Extension == L".lua";
 	}
+
+	void CollectReflectedStructProperties(const UClass* StructType, void* StructValue, TArray<FPropertyDescriptor>& OutProps)
+	{
+		if (!StructType || !StructValue)
+		{
+			return;
+		}
+
+		TArray<const UClass*> Chain;
+		for (const UClass* C = StructType; C; C = C->GetSuperClass())
+		{
+			Chain.push_back(C);
+		}
+
+		for (int32 Index = static_cast<int32>(Chain.size()) - 1; Index >= 0; --Index)
+		{
+			for (const FPropertyDescriptor& Desc : Chain[Index]->GetOwnProperties())
+			{
+				FPropertyDescriptor Inst = Desc;
+				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + reinterpret_cast<size_t>(Desc.ValuePtr);
+				OutProps.push_back(Inst);
+			}
+		}
+	}
+
+	bool CopyPropertyValueRecursive(const FPropertyDescriptor& SrcProp, FPropertyDescriptor& DstProp)
+	{
+		if (SrcProp.Type != DstProp.Type || !SrcProp.ValuePtr || !DstProp.ValuePtr)
+		{
+			return false;
+		}
+
+		switch (DstProp.Type)
+		{
+		case EPropertyType::Bool:
+			*static_cast<bool*>(DstProp.ValuePtr) = *static_cast<bool*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::ByteBool:
+			*static_cast<uint8*>(DstProp.ValuePtr) = *static_cast<uint8*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Int:
+			*static_cast<int32*>(DstProp.ValuePtr) = *static_cast<int32*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Float:
+			*static_cast<float*>(DstProp.ValuePtr) = *static_cast<float*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Vec3:
+			*static_cast<FVector*>(DstProp.ValuePtr) = *static_cast<FVector*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Rotator:
+			*static_cast<FRotator*>(DstProp.ValuePtr) = *static_cast<FRotator*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Vec4:
+		case EPropertyType::Color4:
+			*static_cast<FVector4*>(DstProp.ValuePtr) = *static_cast<FVector4*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::String:
+		case EPropertyType::SceneComponentRef:
+		case EPropertyType::StaticMeshRef:
+		case EPropertyType::SkeletalMeshRef:
+			*static_cast<FString*>(DstProp.ValuePtr) = *static_cast<FString*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Name:
+			*static_cast<FName*>(DstProp.ValuePtr) = *static_cast<FName*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::MaterialSlot:
+			*static_cast<FMaterialSlot*>(DstProp.ValuePtr) = *static_cast<FMaterialSlot*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Enum:
+			*static_cast<int32*>(DstProp.ValuePtr) = *static_cast<int32*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Vec3Array:
+			*static_cast<TArray<FVector>*>(DstProp.ValuePtr) = *static_cast<TArray<FVector>*>(SrcProp.ValuePtr);
+			return true;
+
+		case EPropertyType::Struct:
+		{
+			if (SrcProp.StructType != DstProp.StructType)
+			{
+				return false;
+			}
+
+			TArray<FPropertyDescriptor> SrcChildren;
+			TArray<FPropertyDescriptor> DstChildren;
+			CollectReflectedStructProperties(SrcProp.StructType, SrcProp.ValuePtr, SrcChildren);
+			CollectReflectedStructProperties(DstProp.StructType, DstProp.ValuePtr, DstChildren);
+			if (SrcChildren.size() != DstChildren.size())
+			{
+				return false;
+			}
+
+			for (size_t ChildIndex = 0; ChildIndex < SrcChildren.size(); ++ChildIndex)
+			{
+				if (SrcChildren[ChildIndex].Name != DstChildren[ChildIndex].Name
+					|| !CopyPropertyValueRecursive(SrcChildren[ChildIndex], DstChildren[ChildIndex]))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		case EPropertyType::ActorRef:
+			*static_cast<uint32*>(DstProp.ValuePtr) = *static_cast<uint32*>(SrcProp.ValuePtr);
+			return true;
+		}
+
+		return false;
+	}
 }
 
 static FString RemoveExtension(const FString& Path)
@@ -1237,33 +1357,14 @@ void FEditorPropertyWidget::PropagatePropertyChange(const FString& PropName, con
 			TArray<FPropertyDescriptor> DstProps;
 			Comp->GetEditableProperties(DstProps);
 
-			for (const auto& DstProp : DstProps)
+			for (auto& DstProp : DstProps)
 			{
 				if (DstProp.Name != PropName || DstProp.Type != SrcProp->Type) continue;
 
-				size_t Size = 0;
-				switch (DstProp.Type)
+				if (!CopyPropertyValueRecursive(*SrcProp, DstProp))
 				{
-				case EPropertyType::Bool:          Size = sizeof(bool); break;
-				case EPropertyType::ByteBool:       Size = sizeof(uint8); break;
-				case EPropertyType::Int:            Size = sizeof(int32); break;
-				case EPropertyType::Float:          Size = sizeof(float); break;
-				case EPropertyType::Vec3:
-				case EPropertyType::Rotator:        Size = sizeof(float) * 3; break;
-				case EPropertyType::Vec4:
-				case EPropertyType::Color4:         Size = sizeof(float) * 4; break;
-				case EPropertyType::String:
-				case EPropertyType::SceneComponentRef:
-				case EPropertyType::StaticMeshRef:
-				case EPropertyType::SkeletalMeshRef: *static_cast<FString*>(DstProp.ValuePtr) = *static_cast<FString*>(SrcProp->ValuePtr); break;
-				case EPropertyType::Name:           *static_cast<FName*>(DstProp.ValuePtr) = *static_cast<FName*>(SrcProp->ValuePtr); break;
-				case EPropertyType::MaterialSlot:   *static_cast<FMaterialSlot*>(DstProp.ValuePtr) = *static_cast<FMaterialSlot*>(SrcProp->ValuePtr); break;
-				case EPropertyType::Enum:           Size = sizeof(int32); break;
-				case EPropertyType::Vec3Array:      *static_cast<TArray<FVector>*>(DstProp.ValuePtr) = *static_cast<TArray<FVector>*>(SrcProp->ValuePtr); break;
-				case EPropertyType::ActorRef:       Size = sizeof(uint32); break;
+					continue;
 				}
-				if (Size > 0)
-					memcpy(DstProp.ValuePtr, SrcProp->ValuePtr, Size);
 
 				Comp->PostEditProperty(PropName.c_str());
 				break;
@@ -1273,10 +1374,11 @@ void FEditorPropertyWidget::PropagatePropertyChange(const FString& PropName, con
 	}
 }
 
-bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Props, int32& Index)
+bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Props, int32& Index, const char* PostEditPropertyName)
 {
 	ImGui::PushID(Index);
 	FPropertyDescriptor& Prop = Props[Index];
+	const char* EffectivePostEditPropertyName = PostEditPropertyName ? PostEditPropertyName : Prop.Name.c_str();
 	bool bChanged = false;
 
 	switch (Prop.Type)
@@ -1736,6 +1838,24 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		}
 		break;
 	}
+	case EPropertyType::Struct:
+	{
+		const char* Label = Prop.Name.c_str();
+		if (ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			TArray<FPropertyDescriptor> ChildProps;
+			CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+			for (int32 ChildIndex = 0; ChildIndex < static_cast<int32>(ChildProps.size()); ++ChildIndex)
+			{
+				if (RenderPropertyWidget(ChildProps, ChildIndex, EffectivePostEditPropertyName))
+				{
+					bChanged = true;
+				}
+			}
+			ImGui::TreePop();
+		}
+		break;
+	}
 	case EPropertyType::ActorRef:
 	{
 		uint32* ActorUUID = static_cast<uint32*>(Prop.ValuePtr);
@@ -1793,7 +1913,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 
 	if (bChanged && SelectedComponent)
 	{
-		SelectedComponent->PostEditProperty(Prop.Name.c_str());
+		SelectedComponent->PostEditProperty(EffectivePostEditPropertyName);
 	}
 
 	ImGui::PopID();

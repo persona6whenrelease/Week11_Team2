@@ -312,8 +312,10 @@ _CPP_TO_EPROPERTY = {
 }
 
 
-def _cpp_type_to_eproperty(cpp_type: str) -> str:
+def _cpp_type_to_eproperty(cpp_type: str, reflected_types: Optional[dict[str, str]] = None) -> str:
     clean = cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
+    if reflected_types and reflected_types.get(clean) == 'struct':
+        return 'EPropertyType::Struct'
     return _CPP_TO_EPROPERTY.get(clean, 'EPropertyType::Int')
 
 
@@ -430,7 +432,7 @@ def _h_enum(out: list, t: ReflectedType):
 # .generated.cpp writer
 # ---------------------------------------------------------------------------
 
-def _build_generated_cpp(types: list[ReflectedType], source_include: str) -> str:
+def _build_generated_cpp(types: list[ReflectedType], source_include: str, reflected_types: Optional[dict[str, str]] = None) -> str:
     out = [
         _BANNER,
         f'#include "{source_include}"',
@@ -444,12 +446,12 @@ def _build_generated_cpp(types: list[ReflectedType], source_include: str) -> str
         if t.kind == 'enum':
             _cpp_enum(out, t)
         else:
-            _cpp_class(out, t)
+            _cpp_class(out, t, reflected_types or {})
 
     return "\n".join(out) + "\n"
 
 
-def _cpp_class(out: list, t: ReflectedType):
+def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
     flags = _specifiers_to_flags(t.specifiers)
 
     if t.parent:
@@ -483,7 +485,9 @@ def _cpp_class(out: list, t: ReflectedType):
             if 'Type' in prop.meta:
                 etype = f"EPropertyType::{prop.meta['Type']}"
             else:
-                etype = _cpp_type_to_eproperty(prop.cpp_type)
+                etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
+            clean_type = prop.cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
+            struct_type = f"&{clean_type}::StaticClassInstance" if etype == 'EPropertyType::Struct' else 'nullptr'
             offset    = f"reinterpret_cast<void*>(offsetof({t.name}, {prop.name}))"
             min_val   = prop.meta.get('min',   '0.0f')
             max_val   = prop.meta.get('max',   '0.0f')
@@ -492,7 +496,7 @@ def _cpp_class(out: list, t: ReflectedType):
             disp_name = prop.meta.get('DisplayName', f'"{prop.name}"')
             out.append(
                 f'        FPropertyDescriptor{{ {disp_name}, {etype}, {offset},'
-                f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val} }},'
+                f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val}, "", 0, {struct_type} }},'
             )
         out += [
             "    };",
@@ -560,7 +564,7 @@ def _source_newer(src: str, gen: str) -> bool:
     return not os.path.exists(gen) or os.path.getmtime(src) > os.path.getmtime(gen)
 
 
-def process_header(h_path: str, source_root: str, dry_run: bool = False) -> bool:
+def process_header(h_path: str, source_root: str, dry_run: bool = False, reflected_types: Optional[dict[str, str]] = None) -> bool:
     """
     Parse h_path; generate .generated.h/.generated.cpp if reflection macros found.
     Returns True when files were (or would be) written.
@@ -582,7 +586,7 @@ def process_header(h_path: str, source_root: str, dry_run: bool = False) -> bool
     src_include  = _compute_include(h_path, source_root)
 
     gen_h_content   = _build_generated_h(types, os.path.basename(h_path))
-    gen_cpp_content = _build_generated_cpp(types, src_include)
+    gen_cpp_content = _build_generated_cpp(types, src_include, reflected_types)
 
     if dry_run:
         rel = os.path.relpath(h_path)
@@ -657,8 +661,17 @@ def main():
     print(f"[GenerateReflectionHeaders] {mode} - scanning {len(h_files)} header(s)")
 
     generated_count = 0
+    reflected_types: dict[str, str] = {}
+    for h_path in h_files:
+        with open(h_path, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        if not re.search(r'\b(UCLASS|USTRUCT|UENUM)\b', content):
+            continue
+        for t in HeaderParser().parse(content):
+            reflected_types[t.name] = t.kind
+
     for h_path in sorted(h_files):
-        if process_header(h_path, source_root, dry_run=args.dry_run):
+        if process_header(h_path, source_root, dry_run=args.dry_run, reflected_types=reflected_types):
             generated_count += 1
 
     print(f"\nDone. {generated_count} header(s) produced generated files.")

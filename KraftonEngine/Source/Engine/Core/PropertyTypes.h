@@ -5,6 +5,8 @@
 #include <string>
 #include "Serialization/Archive.h"
 
+class UClass;
+
 // 에디터에서 자동 위젯 매핑에 사용되는 프로퍼티 타입
 enum class EPropertyType : uint8_t
 {
@@ -24,6 +26,7 @@ enum class EPropertyType : uint8_t
 	MaterialSlot,  // FMaterialSlot — 머티리얼 경로
 	Enum,
 	Vec3Array,
+	Struct,
 	ActorRef,
 };
 
@@ -59,4 +62,7 @@ struct FPropertyDescriptor
 	std::string Category = "Default";
 	std::string Tooltip;
 	uint32 Flags = 0;
+
+	// Reflected USTRUCT metadata for composite value properties.
+	const UClass* StructType = nullptr;
 };
