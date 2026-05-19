@@ -42,24 +42,7 @@ namespace
 			OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, OutSequence);
 		}
 
-		if (!OutPreviewMesh)
-		{
-			const size_t HashPos = AssetPath.find('#');
-			if (HashPos != FString::npos)
-			{
-				const FString FbxPath = AssetPath.substr(0, HashPos);
-				if (UFBXSceneAsset* FallbackScene = FMeshManager::LoadFbxScene(FbxPath))
-				{
-					OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(FallbackScene, OutSequence);
-					if (!OutPreviewMesh && !FallbackScene->GetSkeletalMeshes().empty())
-					{
-						OutPreviewMesh = FallbackScene->GetSkeletalMeshes()[0];
-					}
-				}
-			}
-		}
-
-		return OutPreviewMesh != nullptr;
+		return OutSequence != nullptr;
 	}
 
 	FString MakeTabLabelWithIconSpace(const FString& Label)

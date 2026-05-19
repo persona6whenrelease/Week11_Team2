@@ -160,34 +160,12 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 		return false;
 	}
 
-	// PreviewMesh 결정 — 다음 순서로 시도한다.
-	//   1) Sequence의 outer로 잡힌 UFBXSceneAsset이 있으면 그 안에서 SkeletonAssetPath 매칭 mesh
-	//   2) (1)이 실패하면 ResolvedSequence->GetSkeletonAssetPath()의 "Foo.fbx#SkeletonAsset_0"에서
-	//      fbx 경로를 추출해 SceneAsset을 직접 로드 후 매칭. ".asset" 단독 로드 케이스에서는 outer가
-	//      없으므로 이 경로가 유일한 fallback이 된다.
-	//   3) (2)에서 매칭도 실패하면 그 SceneAsset의 첫 SkeletalMesh를 fallback으로 사용
+	// FBX outer가 이미 메모리에 있으면 거기서 preview mesh를 찾는다.
+	// 없으면 mesh 없이 열고, 사용자가 나중에 직접 연결할 수 있다.
 	USkeletalMesh* ResolvedPreviewMesh = nullptr;
 	if (UFBXSceneAsset* SceneAsset = ResolvedSequence->GetTypedOuter<UFBXSceneAsset>())
 	{
 		ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, ResolvedSequence);
-	}
-
-	if (!ResolvedPreviewMesh)
-	{
-		const FString& SkeletonRef = ResolvedSequence->GetSkeletonAssetPath();
-		const size_t HashPos = SkeletonRef.find('#');
-		if (HashPos != FString::npos)
-		{
-			const FString FbxPath = SkeletonRef.substr(0, HashPos);
-			if (UFBXSceneAsset* FallbackScene = FMeshManager::LoadFbxScene(FbxPath))
-			{
-				ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(FallbackScene, ResolvedSequence);
-				if (!ResolvedPreviewMesh && !FallbackScene->GetSkeletalMeshes().empty())
-				{
-					ResolvedPreviewMesh = FallbackScene->GetSkeletalMeshes()[0];
-				}
-			}
-		}
 	}
 
 	return OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence);
@@ -195,7 +173,7 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 
 bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* InPreviewMesh, UAnimSequence* InSequence)
 {
-	if (!InPreviewMesh || !InSequence) return false;
+	if (!InSequence) return false;
 
 	PreviewMesh = InPreviewMesh;
 	AnimSequence = InSequence;
@@ -205,18 +183,15 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 	SetSourcePath(AssetPath);
 	DataSource = std::make_unique<FUAnimSequenceDataSource>(InSequence);
 
-	// PreviewScene 준비. 같은 탭에서 Asset Browser로 시퀀스만 교체하는 경우
-	// mesh는 동일할 가능성이 높으므로 SetPreviewMesh를 통째로 다시 부르지 않는다.
-	// (SetPreviewMesh -> SetSkeletalMesh -> ResetBonePoseToBindPose 가 호출되면
-	//  본 포즈가 통째로 bind pose로 리셋되어 애니메이션이 사라지듯 깜빡인다.)
 	PreviewScene.Ensure();
-	if (PreviewScene.PreviewMeshComponent &&
+	if (InPreviewMesh &&
+		PreviewScene.PreviewMeshComponent &&
 		PreviewScene.PreviewMeshComponent->GetSkeletalMesh() != InPreviewMesh)
 	{
 		PreviewScene.SetPreviewMesh(InPreviewMesh);
 	}
 
-	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
+	if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent; Comp && InPreviewMesh)
 	{
 		// 시퀀스가 실제로 바뀐 경우에만 SetAnimation을 호출. SetAnimation은 내부적으로
 		// ResetTime + SequencePlayer 캐시 재빌드를 동반하므로 같은 시퀀스에 매번 호출하면
@@ -893,7 +868,7 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 			ImGui::Spacing();
 			if (AnimSequence)
 			{
-				if (ImGui::Button("Save As...##AnimSeqSaveAs"))
+				if (ImGui::Button("Save Animation As...##AnimSeqSaveAs"))
 				{
 					// 시퀀스 이름이 비어 있으면 탭의 source path stem을 fallback으로 쓴다.
 					FString DefaultStem = AnimSequence->GetSequenceName();
@@ -930,6 +905,76 @@ void FAnimSequenceEditorTab::RenderLeftPanel()
 				}
 				ImGui::Spacing();
 			}
+
+			ImGui::TextUnformatted("Preview Mesh");
+			ImGui::Separator();
+			{
+				const FString MeshName = PreviewMesh
+					? ExtractFileStem(PreviewMesh->GetAssetPathFileName())
+					: FString("None");
+				ImGui::TextUnformatted(MeshName.c_str());
+				ImGui::SameLine();
+				if (ImGui::SmallButton("Load...##PreviewMeshLoad"))
+				{
+					const std::wstring InitialDirW = FPaths::Combine(FPaths::RootDir(), L"Asset/Content/");
+					FEditorFileDialogOptions Options;
+					Options.Title            = L"Select Skeletal Mesh";
+					Options.Filter           = L"Asset Files (*.asset)\0*.asset\0All Files (*.*)\0*.*\0";
+					Options.DefaultExtension = L"asset";
+					Options.InitialDirectory = InitialDirW.c_str();
+					Options.bFileMustExist   = true;
+					Options.bPathMustExist   = true;
+					Options.bReturnRelativeToProjectRoot = true;
+
+					const FString SelectedPath = FEditorFileUtils::OpenFileDialog(Options);
+					if (!SelectedPath.empty())
+					{
+						USkeletalMesh* NewMesh = FMeshManager::LoadSkeletalMeshFromFile(SelectedPath);
+						if (NewMesh)
+						{
+							if (!FMeshManager::IsAnimSequenceCompatibleWithMesh(AnimSequence, NewMesh))
+							{
+								ImGui::OpenPopup("##IncompatibleMesh");
+							}
+							else
+							{
+								PreviewMesh = NewMesh;
+								PreviewScene.SetPreviewMesh(NewMesh);
+								if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
+								{
+									Comp->SetAnimation(AnimSequence);
+									Comp->SetBakedAnimTime(0.0f);
+									Comp->SetBakedAnimPaused(true);
+								}
+								SelectedBoneIndex = -1;
+							}
+						}
+					}
+				}
+				if (PreviewMesh)
+				{
+					ImGui::SameLine();
+					if (ImGui::SmallButton("Clear##PreviewMeshClear"))
+					{
+						PreviewMesh = nullptr;
+						PreviewScene.SetPreviewMesh(nullptr);
+						SelectedBoneIndex = -1;
+					}
+				}
+			}
+			if (ImGui::BeginPopup("##IncompatibleMesh"))
+			{
+				ImGui::TextUnformatted("Incompatible rig.");
+				ImGui::TextDisabled("Root bone of animation not found in mesh.");
+				ImGui::Spacing();
+				if (ImGui::Button("OK", ImVec2(80, 0)))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
+
+			ImGui::Spacing();
 
 			ImGui::TextUnformatted("Skeleton Tree");
 			ImGui::Separator();
