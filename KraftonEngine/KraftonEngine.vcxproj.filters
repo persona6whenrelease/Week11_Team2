@@ -441,6 +441,7 @@
     <FxCompile Include="Shaders\UI\SubUV.hlsl">
       <Filter>Shaders\UI</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\Editor\BoneWeightHeatmap.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Editor\EditorEngine.cpp">
@@ -1284,6 +1285,8 @@
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraph_StateMachine.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimStateMachineInstance.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Editor\EditorEngine.h">
@@ -3491,6 +3494,9 @@
     <ClInclude Include="ThirdParty\Sol\sol.hpp">
       <Filter>ThirdParty\Sol</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph_StateMachine.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimStateMachineInstance.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimPoseUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KraftonEngine.rc" />

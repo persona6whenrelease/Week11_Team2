@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AnimGraph 노드와 인스턴스가 공유하는 포즈 유틸리티.
  *
  * 평가 출력 형식은 TArray<FTransform> 이며, USkinnedMeshComponent::ApplyEvaluatedPose에서만

@@ -651,6 +651,7 @@
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph_StateMachine.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimInstance.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimPoseUtils.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimStateMachineInstance.h" />

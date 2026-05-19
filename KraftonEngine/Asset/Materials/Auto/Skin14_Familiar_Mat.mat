@@ -14,6 +14,7 @@
   "Textures" : {
     "DiffuseTexture" : "Asset/FBX/Ahri/Ahri.fbm/Skin14_Familiar_Mat.png",
     "EmissiveTexture" : "Asset/FBX/textures/ZAKU-E.png",
-    "NormalTexture" : "Asset/FBX/textures/Zaku-N.png"
+    "NormalTexture" : "Asset/FBX/MixamoFBX/Capoeira.fbm/Ch03_1001_Normal.png",
+    "SpecularTexture" : "Asset/FBX/MixamoFBX/Capoeira.fbm/Ch03_1001_Specular.png"
   }
 }
