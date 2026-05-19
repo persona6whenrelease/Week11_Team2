@@ -27,6 +27,7 @@ using FMapClearFunc         = void   (*)(void*);
 using FMapSnapshotFunc      = void   (*)(void*, TArray<void*>&, TArray<void*>&);
 using FMapConstSnapshotFunc = void   (*)(const void*, TArray<const void*>&, TArray<const void*>&);
 using FMapInsertFunc        = void   (*)(void*, const void*, const void*);
+using FMapRemoveFunc        = void   (*)(void*, const void*);
 using FMapKeySizeFunc       = size_t (*)();
 using FMapValueSizeFunc     = size_t (*)();
 
@@ -105,6 +106,7 @@ struct FPropertyTypeDesc
 	FMapSnapshotFunc      MapSnapshotFunc      = nullptr;
 	FMapConstSnapshotFunc MapConstSnapshotFunc = nullptr;
 	FMapInsertFunc        MapInsertFunc        = nullptr;
+	FMapRemoveFunc        MapRemoveFunc        = nullptr;
 	FMapKeySizeFunc       MapKeySizeFunc       = nullptr;
 	FMapValueSizeFunc     MapValueSizeFunc     = nullptr;
 };
@@ -367,6 +369,11 @@ struct TMapPropertyOps
 	static void Insert(void* P, const void* K, const void* V)
 	{
 		(*static_cast<MapT*>(P))[*static_cast<const KeyT*>(K)] = *static_cast<const ValT*>(V);
+	}
+
+	static void Remove(void* P, const void* K)
+	{
+		static_cast<MapT*>(P)->erase(*static_cast<const KeyT*>(K));
 	}
 
 	static size_t KeySize()   { return sizeof(KeyT); }

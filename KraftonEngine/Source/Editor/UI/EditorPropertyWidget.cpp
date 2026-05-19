@@ -2133,6 +2133,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		Prop.TypeDesc->MapSnapshotFunc(Prop.ValuePtr, Keys, Vals);
 
 		bool bMapChanged = false;
+		int32 RemoveIdx = -1;
 		for (size_t i = 0; i < Keys.size(); ++i)
 		{
 			ImGui::PushID(static_cast<int>(i));
@@ -2142,7 +2143,15 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 			VDesc.TypeDesc = Prop.TypeDesc->ValueType;
 			VDesc.ValuePtr = Vals[i];
 
-			// Render key (read-only label style) and value (editable)
+			// x remove button
+			if (Prop.TypeDesc->MapRemoveFunc)
+			{
+				if (ImGui::SmallButton("x"))
+					RemoveIdx = static_cast<int32>(i);
+				ImGui::SameLine();
+			}
+
+			// Render key (read-only) and value (editable)
 			ImGui::BeginDisabled(true);
 			TArray<FPropertyDescriptor> KP = { KDesc };
 			int32 KIdx = 0;
@@ -2156,6 +2165,27 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 				bMapChanged = true;
 
 			ImGui::PopID();
+		}
+
+		// Remove after iteration to avoid invalidating snapshot pointers mid-loop
+		if (RemoveIdx >= 0 && RemoveIdx < static_cast<int32>(Keys.size()))
+		{
+			Prop.TypeDesc->MapRemoveFunc(Prop.ValuePtr, Keys[RemoveIdx]);
+			bMapChanged = true;
+		}
+
+		// Add new zero-initialized entry
+		if (Prop.TypeDesc->MapInsertFunc
+			&& Prop.TypeDesc->MapKeySizeFunc && Prop.TypeDesc->MapValueSizeFunc)
+		{
+			if (ImGui::Button("+ Add Row"))
+			{
+				const size_t KeySz = Prop.TypeDesc->MapKeySizeFunc();
+				const size_t ValSz = Prop.TypeDesc->MapValueSizeFunc();
+				TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
+				Prop.TypeDesc->MapInsertFunc(Prop.ValuePtr, KeyBuf.data(), ValBuf.data());
+				bMapChanged = true;
+			}
 		}
 
 		if (bMapChanged)
