@@ -45,9 +45,19 @@
     <Touch Files="$(ReflectionStamp)" AlwaysCreate="true" />
   </Target>
 
+  <PropertyGroup>
+    <RebuildDependsOn>MarkReflectionRebuild;$(RebuildDependsOn)</RebuildDependsOn>
+  </PropertyGroup>
+
+  <Target Name="MarkReflectionRebuild">
+    <PropertyGroup>
+      <IsReflectionRebuild>true</IsReflectionRebuild>
+    </PropertyGroup>
+  </Target>
+
   <Target Name="CleanReflectionGeneratedFiles"
           AfterTargets="Clean"
-          Condition="'$(ReflectionEnabled)' == 'true'">
+          Condition="'$(ReflectionEnabled)' == 'true' and '$(IsReflectionRebuild)' != 'true'">
     <Message Text="Deleting reflection generated files..." Importance="high" />
     <Delete Files="@(ReflectionGeneratedFiles)" TreatErrorsAsWarnings="true" />
     <Delete Files="@(ReflectionGeneratedArtifacts)" TreatErrorsAsWarnings="true" />
