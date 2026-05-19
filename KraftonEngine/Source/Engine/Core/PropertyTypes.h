@@ -12,6 +12,24 @@ using FArrayResizeFunc = void (*)(void*, size_t);
 using FArrayElementGetter = void* (*)(void*, size_t);
 using FArrayElementConstGetter = const void* (*)(const void*, size_t);
 
+// TSet 연산 함수 포인터
+using FSetSizeGetter        = size_t (*)(const void*);
+using FSetInsertFunc        = void   (*)(void*, const void*);
+using FSetRemoveFunc        = void   (*)(void*, const void*);
+using FSetClearFunc         = void   (*)(void*);
+using FSetSnapshotFunc      = void   (*)(void*, TArray<void*>&);
+using FSetConstSnapshotFunc = void   (*)(const void*, TArray<const void*>&);
+using FSetElementSizeFunc   = size_t (*)();
+
+// TMap 연산 함수 포인터
+using FMapSizeGetter        = size_t (*)(const void*);
+using FMapClearFunc         = void   (*)(void*);
+using FMapSnapshotFunc      = void   (*)(void*, TArray<void*>&, TArray<void*>&);
+using FMapConstSnapshotFunc = void   (*)(const void*, TArray<const void*>&, TArray<const void*>&);
+using FMapInsertFunc        = void   (*)(void*, const void*, const void*);
+using FMapKeySizeFunc       = size_t (*)();
+using FMapValueSizeFunc     = size_t (*)();
+
 // 에디터에서 자동 위젯 매핑에 사용되는 프로퍼티 타입
 enum class EPropertyType : uint8_t
 {
@@ -29,6 +47,8 @@ enum class EPropertyType : uint8_t
 	MaterialSlot,  // FMaterialSlot — 머티리얼 경로
 	Enum,
 	Array,
+	Set,   // TSet<T> — 순서 없는 고유 원소 집합
+	Map,   // TMap<K,V> — 키-값 쌍
 	Struct,
 	ActorRef,
 };
@@ -64,11 +84,29 @@ struct FPropertyTypeDesc
 	FArrayResizeFunc ArrayResizeFunc = nullptr;
 	FArrayElementGetter ArrayElementGetter = nullptr;
 	FArrayElementConstGetter ArrayElementConstGetter = nullptr;
-	const FPropertyTypeDesc* ElementType = nullptr;
+	const FPropertyTypeDesc* ElementType = nullptr;  // Array/Set 원소 타입
 
-	// Reserved for future container support.
-	const FPropertyTypeDesc* KeyType = nullptr;
+	// Kind == Set / Map — 키·값 타입
+	const FPropertyTypeDesc* KeyType   = nullptr;
 	const FPropertyTypeDesc* ValueType = nullptr;
+
+	// Kind == Set
+	FSetSizeGetter        SetSizeGetter        = nullptr;
+	FSetInsertFunc        SetInsertFunc        = nullptr;
+	FSetRemoveFunc        SetRemoveFunc        = nullptr;
+	FSetClearFunc         SetClearFunc         = nullptr;
+	FSetSnapshotFunc      SetSnapshotFunc      = nullptr;
+	FSetConstSnapshotFunc SetConstSnapshotFunc = nullptr;
+	FSetElementSizeFunc   SetElementSizeFunc   = nullptr;
+
+	// Kind == Map
+	FMapSizeGetter        MapSizeGetter        = nullptr;
+	FMapClearFunc         MapClearFunc         = nullptr;
+	FMapSnapshotFunc      MapSnapshotFunc      = nullptr;
+	FMapConstSnapshotFunc MapConstSnapshotFunc = nullptr;
+	FMapInsertFunc        MapInsertFunc        = nullptr;
+	FMapKeySizeFunc       MapKeySizeFunc       = nullptr;
+	FMapValueSizeFunc     MapValueSizeFunc     = nullptr;
 };
 
 // 컴포넌트가 노출하는 편집 가능한 프로퍼티 디스크립터
@@ -138,6 +176,16 @@ struct FPropertyDescriptor
 	FArrayElementConstGetter GetArrayElementConstGetter() const
 	{
 		return TypeDesc ? TypeDesc->ArrayElementConstGetter : nullptr;
+	}
+
+	const FPropertyTypeDesc* GetKeyType() const
+	{
+		return TypeDesc ? TypeDesc->KeyType : nullptr;
+	}
+
+	const FPropertyTypeDesc* GetValueType() const
+	{
+		return TypeDesc ? TypeDesc->ValueType : nullptr;
 	}
 };
 
@@ -240,4 +288,87 @@ struct TArrayPropertyOps
 	{
 		return &(*static_cast<const ArrayT*>(ArrayPtr))[Index];
 	}
+};
+
+template<typename SetT>
+struct TSetPropertyOps
+{
+	using ElemT = typename SetT::value_type;
+
+	static size_t GetSize(const void* P)
+	{
+		return static_cast<const SetT*>(P)->size();
+	}
+
+	static void Insert(void* P, const void* E)
+	{
+		static_cast<SetT*>(P)->insert(*static_cast<const ElemT*>(E));
+	}
+
+	static void Remove(void* P, const void* E)
+	{
+		static_cast<SetT*>(P)->erase(*static_cast<const ElemT*>(E));
+	}
+
+	static void Clear(void* P)
+	{
+		static_cast<SetT*>(P)->clear();
+	}
+
+	static void Snapshot(void* P, TArray<void*>& Out)
+	{
+		for (auto& e : *static_cast<SetT*>(P))
+			Out.push_back(const_cast<void*>(static_cast<const void*>(&e)));
+	}
+
+	static void ConstSnapshot(const void* P, TArray<const void*>& Out)
+	{
+		for (const auto& e : *static_cast<const SetT*>(P))
+			Out.push_back(&e);
+	}
+
+	static size_t ElementSize() { return sizeof(ElemT); }
+};
+
+template<typename MapT>
+struct TMapPropertyOps
+{
+	using KeyT = typename MapT::key_type;
+	using ValT = typename MapT::mapped_type;
+
+	static size_t GetSize(const void* P)
+	{
+		return static_cast<const MapT*>(P)->size();
+	}
+
+	static void Clear(void* P)
+	{
+		static_cast<MapT*>(P)->clear();
+	}
+
+	static void Snapshot(void* P, TArray<void*>& Keys, TArray<void*>& Vals)
+	{
+		for (auto& [k, v] : *static_cast<MapT*>(P))
+		{
+			Keys.push_back(const_cast<void*>(static_cast<const void*>(&k)));
+			Vals.push_back(&v);
+		}
+	}
+
+	static void ConstSnapshot(const void* P, TArray<const void*>& Keys, TArray<const void*>& Vals)
+	{
+		for (const auto& [k, v] : *static_cast<const MapT*>(P))
+		{
+			Keys.push_back(&k);
+			Vals.push_back(&v);
+		}
+	}
+
+	static void Insert(void* P, const void* K, const void* V)
+	{
+		(*static_cast<MapT*>(P))[*static_cast<const KeyT*>(K)] = *static_cast<const ValT*>(V);
+	}
+
+	static size_t KeySize()   { return sizeof(KeyT); }
+	static size_t ValueSize() { return sizeof(ValT); }
 };

@@ -231,6 +231,43 @@ namespace
 			return sol::make_object(Lua, Table);
 		}
 
+		case EPropertyType::Set:
+		{
+			if (!Desc.TypeDesc || !Desc.TypeDesc->SetConstSnapshotFunc || !Desc.TypeDesc->ElementType)
+				return sol::nil;
+			sol::table Table = Lua.create_table();
+			TArray<const void*> Elems;
+			Desc.TypeDesc->SetConstSnapshotFunc(Desc.ValuePtr, Elems);
+			for (size_t i = 0; i < Elems.size(); ++i)
+			{
+				FPropertyDescriptor ElemDesc;
+				ElemDesc.TypeDesc = Desc.TypeDesc->ElementType;
+				ElemDesc.ValuePtr = const_cast<void*>(Elems[i]);
+				Table[static_cast<int>(i + 1)] = MakeLuaObjectForProperty(Lua, ElemDesc);
+			}
+			return sol::make_object(Lua, Table);
+		}
+
+		case EPropertyType::Map:
+		{
+			if (!Desc.TypeDesc || !Desc.TypeDesc->MapConstSnapshotFunc
+				|| !Desc.TypeDesc->KeyType || !Desc.TypeDesc->ValueType)
+				return sol::nil;
+			sol::table Table = Lua.create_table();
+			TArray<const void*> Keys, Vals;
+			Desc.TypeDesc->MapConstSnapshotFunc(Desc.ValuePtr, Keys, Vals);
+			for (size_t i = 0; i < Keys.size(); ++i)
+			{
+				FPropertyDescriptor KDesc, VDesc;
+				KDesc.TypeDesc = Desc.TypeDesc->KeyType;
+				KDesc.ValuePtr = const_cast<void*>(Keys[i]);
+				VDesc.TypeDesc = Desc.TypeDesc->ValueType;
+				VDesc.ValuePtr = const_cast<void*>(Vals[i]);
+				Table[MakeLuaObjectForProperty(Lua, KDesc)] = MakeLuaObjectForProperty(Lua, VDesc);
+			}
+			return sol::make_object(Lua, Table);
+		}
+
 		default:
 			return sol::nil;
 		}
@@ -376,6 +413,75 @@ namespace
 					return false;
 				}
 			}
+			return true;
+		}
+
+		case EPropertyType::Set:
+		{
+			if (!Desc.TypeDesc || !Desc.TypeDesc->SetClearFunc
+				|| !Desc.TypeDesc->SetInsertFunc || !Desc.TypeDesc->SetElementSizeFunc
+				|| !Desc.TypeDesc->ElementType)
+				return false;
+
+			sol::table Table = Value.as<sol::table>();
+			const std::size_t Count = Table.size();
+			if (Count > 1024)
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: set too large. property = %s, count = %zu", Desc.Name.c_str(), Count);
+				return false;
+			}
+
+			Desc.TypeDesc->SetClearFunc(Desc.ValuePtr);
+			const size_t ElemSz = Desc.TypeDesc->SetElementSizeFunc();
+			TArray<uint8_t> Buf(ElemSz, 0);
+			for (std::size_t i = 1; i <= Count; ++i)
+			{
+				sol::object Item = Table[static_cast<int>(i)];
+				if (!Item.valid() || Item.get_type() == sol::type::nil)
+					continue;
+				std::fill(Buf.begin(), Buf.end(), 0);
+				FPropertyDescriptor ElemDesc;
+				ElemDesc.TypeDesc = Desc.TypeDesc->ElementType;
+				ElemDesc.ValuePtr = Buf.data();
+				if (!AssignPropertyFromLuaObject(ElemDesc, Item))
+					return false;
+				Desc.TypeDesc->SetInsertFunc(Desc.ValuePtr, Buf.data());
+			}
+			return true;
+		}
+
+		case EPropertyType::Map:
+		{
+			if (!Desc.TypeDesc || !Desc.TypeDesc->MapClearFunc
+				|| !Desc.TypeDesc->MapInsertFunc
+				|| !Desc.TypeDesc->MapKeySizeFunc || !Desc.TypeDesc->MapValueSizeFunc
+				|| !Desc.TypeDesc->KeyType || !Desc.TypeDesc->ValueType)
+				return false;
+
+			sol::table Table = Value.as<sol::table>();
+			Desc.TypeDesc->MapClearFunc(Desc.ValuePtr);
+			const size_t KeySz = Desc.TypeDesc->MapKeySizeFunc();
+			const size_t ValSz = Desc.TypeDesc->MapValueSizeFunc();
+			TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
+
+			Table.for_each([&](const sol::object& LuaKey, const sol::object& LuaVal)
+			{
+				std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
+				FPropertyDescriptor KDesc;
+				KDesc.TypeDesc = Desc.TypeDesc->KeyType;
+				KDesc.ValuePtr = KeyBuf.data();
+				if (!AssignPropertyFromLuaObject(KDesc, LuaKey))
+					return;
+
+				std::fill(ValBuf.begin(), ValBuf.end(), 0);
+				FPropertyDescriptor VDesc;
+				VDesc.TypeDesc = Desc.TypeDesc->ValueType;
+				VDesc.ValuePtr = ValBuf.data();
+				if (!AssignPropertyFromLuaObject(VDesc, LuaVal))
+					return;
+
+				Desc.TypeDesc->MapInsertFunc(Desc.ValuePtr, KeyBuf.data(), ValBuf.data());
+			});
 			return true;
 		}
 

@@ -330,6 +330,32 @@ def _parse_tarray_inner_type(cpp_type: str) -> Optional[str]:
     return m.group(1).strip()
 
 
+def _parse_tset_inner_type(cpp_type: str) -> Optional[str]:
+    clean = cpp_type.replace('const', '').replace('&', '').strip()
+    m = re.match(r'^TSet\s*<\s*(.+)\s*>$', clean)
+    return m.group(1).strip() if m else None
+
+
+def _parse_tmap_key_value(cpp_type: str) -> Optional[tuple]:
+    clean = cpp_type.replace('const', '').replace('&', '').strip()
+    m = re.match(r'^TMap\s*<(.+)>$', clean)
+    if not m:
+        return None
+    inner = m.group(1)
+    depth, split = 0, -1
+    for i, c in enumerate(inner):
+        if c == '<':
+            depth += 1
+        elif c == '>':
+            depth -= 1
+        elif c == ',' and depth == 0:
+            split = i
+            break
+    if split < 0:
+        return None
+    return inner[:split].strip(), inner[split + 1:].strip()
+
+
 def _generate_type_node(
     out: list,
     node_prefix: str,
@@ -345,19 +371,62 @@ def _generate_type_node(
     if depth > 4:
         return "GetBuiltinPropertyType(EPropertyType::Int)"
 
+    ct = cpp_type.strip()
+
     # --- TArray<T> (recursive) ---
-    inner = _parse_tarray_inner_type(cpp_type)
+    inner = _parse_tarray_inner_type(ct)
     if inner:
         inner_ref = _generate_type_node(out, node_prefix + "_Element", inner, reflected_types, depth + 1)
         node = node_prefix
         out.append(
             f"    static const FPropertyTypeDesc {node}"
             f"{{ EPropertyType::Array, nullptr, nullptr, 0, nullptr,"
-            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetSize,"
-            f" &TArrayPropertyOps<{cpp_type.strip()}>::Resize,"
-            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetElement,"
-            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetConstElement,"
+            f" &TArrayPropertyOps<{ct}>::GetSize,"
+            f" &TArrayPropertyOps<{ct}>::Resize,"
+            f" &TArrayPropertyOps<{ct}>::GetElement,"
+            f" &TArrayPropertyOps<{ct}>::GetConstElement,"
             f" {inner_ref}, nullptr, nullptr }};"
+        )
+        return f"&{node}"
+
+    # --- TSet<T> ---
+    set_inner = _parse_tset_inner_type(ct)
+    if set_inner is not None:
+        inner_ref = _generate_type_node(out, node_prefix + "_Element", set_inner, reflected_types, depth + 1)
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::Set, nullptr, nullptr, 0, nullptr,"
+            f" nullptr, nullptr, nullptr, nullptr, {inner_ref}, nullptr, nullptr,"
+            f" &TSetPropertyOps<{ct}>::GetSize,"
+            f" &TSetPropertyOps<{ct}>::Insert,"
+            f" &TSetPropertyOps<{ct}>::Remove,"
+            f" &TSetPropertyOps<{ct}>::Clear,"
+            f" &TSetPropertyOps<{ct}>::Snapshot,"
+            f" &TSetPropertyOps<{ct}>::ConstSnapshot,"
+            f" &TSetPropertyOps<{ct}>::ElementSize }};"
+        )
+        return f"&{node}"
+
+    # --- TMap<K,V> ---
+    map_kv = _parse_tmap_key_value(ct)
+    if map_kv is not None:
+        key_type, val_type = map_kv
+        key_ref = _generate_type_node(out, node_prefix + "_Key", key_type, reflected_types, depth + 1)
+        val_ref = _generate_type_node(out, node_prefix + "_Val", val_type, reflected_types, depth + 1)
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::Map, nullptr, nullptr, 0, nullptr,"
+            f" nullptr, nullptr, nullptr, nullptr, nullptr, {key_ref}, {val_ref},"
+            f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,"
+            f" &TMapPropertyOps<{ct}>::GetSize,"
+            f" &TMapPropertyOps<{ct}>::Clear,"
+            f" &TMapPropertyOps<{ct}>::Snapshot,"
+            f" &TMapPropertyOps<{ct}>::ConstSnapshot,"
+            f" &TMapPropertyOps<{ct}>::Insert,"
+            f" &TMapPropertyOps<{ct}>::KeySize,"
+            f" &TMapPropertyOps<{ct}>::ValueSize }};"
         )
         return f"&{node}"
 

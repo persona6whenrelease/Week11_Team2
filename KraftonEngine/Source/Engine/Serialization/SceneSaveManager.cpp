@@ -670,6 +670,44 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 		return obj;
 	}
 
+	case EPropertyType::Set: {
+		JSON outer = json::Array();
+		if (!Prop.TypeDesc || !Prop.TypeDesc->SetConstSnapshotFunc || !Prop.TypeDesc->ElementType)
+			return outer;
+		TArray<const void*> Elems;
+		Prop.TypeDesc->SetConstSnapshotFunc(Prop.ValuePtr, Elems);
+		for (const void* Elem : Elems)
+		{
+			FPropertyDescriptor ElemDesc;
+			ElemDesc.TypeDesc = Prop.TypeDesc->ElementType;
+			ElemDesc.ValuePtr = const_cast<void*>(Elem);
+			outer.append(SerializePropertyValue(ElemDesc));
+		}
+		return outer;
+	}
+
+	case EPropertyType::Map: {
+		JSON outer = json::Object();
+		if (!Prop.TypeDesc || !Prop.TypeDesc->MapConstSnapshotFunc
+			|| !Prop.TypeDesc->KeyType || !Prop.TypeDesc->ValueType)
+			return outer;
+		TArray<const void*> Keys, Vals;
+		Prop.TypeDesc->MapConstSnapshotFunc(Prop.ValuePtr, Keys, Vals);
+		for (size_t i = 0; i < Keys.size(); ++i)
+		{
+			FPropertyDescriptor KDesc, VDesc;
+			KDesc.TypeDesc = Prop.TypeDesc->KeyType;
+			KDesc.ValuePtr = const_cast<void*>(Keys[i]);
+			VDesc.TypeDesc = Prop.TypeDesc->ValueType;
+			VDesc.ValuePtr = const_cast<void*>(Vals[i]);
+			JSON KeyJson = SerializePropertyValue(KDesc);
+			std::string KeyStr = KeyJson.IsString() ? KeyJson.ToString()
+				: KeyJson.dump();
+			outer[KeyStr] = SerializePropertyValue(VDesc);
+		}
+		return outer;
+	}
+
 	case EPropertyType::ActorRef:
 		return JSON(static_cast<int>(*static_cast<uint32*>(Prop.ValuePtr)));
 
@@ -1244,6 +1282,58 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 			}
 			json::JSON& ChildValue = Value[ChildProp.Name.c_str()];
 			DeserializePropertyValue(ChildProp, ChildValue);
+		}
+		break;
+	}
+
+	case EPropertyType::Set: {
+		if (!Prop.TypeDesc || !Prop.TypeDesc->SetClearFunc
+			|| !Prop.TypeDesc->SetInsertFunc || !Prop.TypeDesc->SetElementSizeFunc
+			|| !Prop.TypeDesc->ElementType)
+			break;
+		Prop.TypeDesc->SetClearFunc(Prop.ValuePtr);
+		const size_t ElemSz = Prop.TypeDesc->SetElementSizeFunc();
+		TArray<uint8_t> Buf(ElemSz, 0);
+		for (auto& ElemVal : Value.ArrayRange())
+		{
+			std::fill(Buf.begin(), Buf.end(), 0);
+			FPropertyDescriptor ElemDesc;
+			ElemDesc.TypeDesc = Prop.TypeDesc->ElementType;
+			ElemDesc.ValuePtr = Buf.data();
+			DeserializePropertyValue(ElemDesc, ElemVal);
+			Prop.TypeDesc->SetInsertFunc(Prop.ValuePtr, Buf.data());
+		}
+		break;
+	}
+
+	case EPropertyType::Map: {
+		if (!Prop.TypeDesc || !Prop.TypeDesc->MapClearFunc
+			|| !Prop.TypeDesc->MapInsertFunc
+			|| !Prop.TypeDesc->MapKeySizeFunc || !Prop.TypeDesc->MapValueSizeFunc
+			|| !Prop.TypeDesc->KeyType || !Prop.TypeDesc->ValueType)
+			break;
+		Prop.TypeDesc->MapClearFunc(Prop.ValuePtr);
+		const size_t KeySz = Prop.TypeDesc->MapKeySizeFunc();
+		const size_t ValSz = Prop.TypeDesc->MapValueSizeFunc();
+		TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
+		for (auto& kv : Value.ObjectRange())
+		{
+			// JSON key → key buffer
+			std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
+			json::JSON KeyJson = json::JSON(kv.first);
+			FPropertyDescriptor KDesc;
+			KDesc.TypeDesc = Prop.TypeDesc->KeyType;
+			KDesc.ValuePtr = KeyBuf.data();
+			DeserializePropertyValue(KDesc, KeyJson);
+
+			// JSON value → value buffer
+			std::fill(ValBuf.begin(), ValBuf.end(), 0);
+			FPropertyDescriptor VDesc;
+			VDesc.TypeDesc = Prop.TypeDesc->ValueType;
+			VDesc.ValuePtr = ValBuf.data();
+			DeserializePropertyValue(VDesc, kv.second);
+
+			Prop.TypeDesc->MapInsertFunc(Prop.ValuePtr, KeyBuf.data(), ValBuf.data());
 		}
 		break;
 	}

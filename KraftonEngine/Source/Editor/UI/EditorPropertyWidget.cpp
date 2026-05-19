@@ -513,6 +513,65 @@ namespace
 			return true;
 		}
 
+		case EPropertyType::Set:
+		{
+			if (!SrcProp.TypeDesc || !DstProp.TypeDesc
+				|| !SrcProp.TypeDesc->SetConstSnapshotFunc || !DstProp.TypeDesc->SetClearFunc
+				|| !DstProp.TypeDesc->SetInsertFunc || !DstProp.TypeDesc->SetElementSizeFunc
+				|| !SrcProp.TypeDesc->ElementType)
+				return false;
+
+			DstProp.TypeDesc->SetClearFunc(DstProp.ValuePtr);
+			const size_t ElemSz = DstProp.TypeDesc->SetElementSizeFunc();
+			TArray<const void*> Elems;
+			SrcProp.TypeDesc->SetConstSnapshotFunc(SrcProp.ValuePtr, Elems);
+			TArray<uint8_t> Buf(ElemSz, 0);
+			for (const void* Elem : Elems)
+			{
+				std::fill(Buf.begin(), Buf.end(), 0);
+				FPropertyDescriptor SrcElem, DstElem;
+				SrcElem.TypeDesc = SrcProp.TypeDesc->ElementType;
+				SrcElem.ValuePtr = const_cast<void*>(Elem);
+				DstElem.TypeDesc = DstProp.TypeDesc->ElementType;
+				DstElem.ValuePtr = Buf.data();
+				if (!CopyPropertyValueRecursive(SrcElem, DstElem))
+					return false;
+				DstProp.TypeDesc->SetInsertFunc(DstProp.ValuePtr, Buf.data());
+			}
+			return true;
+		}
+
+		case EPropertyType::Map:
+		{
+			if (!SrcProp.TypeDesc || !DstProp.TypeDesc
+				|| !SrcProp.TypeDesc->MapConstSnapshotFunc || !DstProp.TypeDesc->MapClearFunc
+				|| !DstProp.TypeDesc->MapInsertFunc
+				|| !DstProp.TypeDesc->MapKeySizeFunc || !DstProp.TypeDesc->MapValueSizeFunc
+				|| !SrcProp.TypeDesc->KeyType || !SrcProp.TypeDesc->ValueType)
+				return false;
+
+			DstProp.TypeDesc->MapClearFunc(DstProp.ValuePtr);
+			const size_t KeySz = DstProp.TypeDesc->MapKeySizeFunc();
+			const size_t ValSz = DstProp.TypeDesc->MapValueSizeFunc();
+			TArray<const void*> Keys, Vals;
+			SrcProp.TypeDesc->MapConstSnapshotFunc(SrcProp.ValuePtr, Keys, Vals);
+			TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
+			for (size_t i = 0; i < Keys.size(); ++i)
+			{
+				std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
+				std::fill(ValBuf.begin(), ValBuf.end(), 0);
+				FPropertyDescriptor SK, SV, DK, DV;
+				SK.TypeDesc = SrcProp.TypeDesc->KeyType;   SK.ValuePtr = const_cast<void*>(Keys[i]);
+				SV.TypeDesc = SrcProp.TypeDesc->ValueType; SV.ValuePtr = const_cast<void*>(Vals[i]);
+				DK.TypeDesc = DstProp.TypeDesc->KeyType;   DK.ValuePtr = KeyBuf.data();
+				DV.TypeDesc = DstProp.TypeDesc->ValueType; DV.ValuePtr = ValBuf.data();
+				if (!CopyPropertyValueRecursive(SK, DK) || !CopyPropertyValueRecursive(SV, DV))
+					return false;
+				DstProp.TypeDesc->MapInsertFunc(DstProp.ValuePtr, KeyBuf.data(), ValBuf.data());
+			}
+			return true;
+		}
+
 		case EPropertyType::ActorRef:
 			*static_cast<uint32*>(DstProp.ValuePtr) = *static_cast<uint32*>(SrcProp.ValuePtr);
 			return true;
@@ -2004,6 +2063,108 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		}
 		break;
 	}
+	case EPropertyType::Set:
+	{
+		if (!Prop.TypeDesc || !Prop.TypeDesc->SetSnapshotFunc
+			|| !Prop.TypeDesc->SetRemoveFunc || !Prop.TypeDesc->SetInsertFunc
+			|| !Prop.TypeDesc->SetElementSizeFunc || !Prop.TypeDesc->ElementType)
+		{
+			ImGui::TextDisabled("%s (unsupported set metadata)", Prop.Name.c_str());
+			break;
+		}
+
+		if (!ImGui::TreeNodeEx(Prop.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			break;
+
+		TArray<void*> Snapshot;
+		Prop.TypeDesc->SetSnapshotFunc(Prop.ValuePtr, Snapshot);
+		const size_t Count = Snapshot.size();
+
+		// Render existing elements with Remove button
+		const size_t ElemSz = Prop.TypeDesc->SetElementSizeFunc();
+		for (size_t i = 0; i < Count; ++i)
+		{
+			ImGui::PushID(static_cast<int>(i));
+			FPropertyDescriptor ElemDesc;
+			ElemDesc.TypeDesc = Prop.TypeDesc->ElementType;
+			ElemDesc.ValuePtr = Snapshot[i];
+			TArray<FPropertyDescriptor> EP = { ElemDesc };
+			int32 Idx = 0;
+			if (RenderPropertyWidget(EP, Idx, EffectivePostEditPropertyName))
+			{
+				bChanged = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::SmallButton("x"))
+			{
+				Prop.TypeDesc->SetRemoveFunc(Prop.ValuePtr, Snapshot[i]);
+				bChanged = true;
+			}
+			ImGui::PopID();
+		}
+
+		// Add new element (zero-initialized)
+		if (ImGui::Button("+ Add Element"))
+		{
+			TArray<uint8_t> Buf(ElemSz, 0);
+			Prop.TypeDesc->SetInsertFunc(Prop.ValuePtr, Buf.data());
+			bChanged = true;
+		}
+
+		ImGui::TreePop();
+		break;
+	}
+
+	case EPropertyType::Map:
+	{
+		if (!Prop.TypeDesc || !Prop.TypeDesc->MapSnapshotFunc
+			|| !Prop.TypeDesc->MapClearFunc
+			|| !Prop.TypeDesc->MapKeySizeFunc || !Prop.TypeDesc->MapValueSizeFunc
+			|| !Prop.TypeDesc->KeyType || !Prop.TypeDesc->ValueType)
+		{
+			ImGui::TextDisabled("%s (unsupported map metadata)", Prop.Name.c_str());
+			break;
+		}
+
+		if (!ImGui::TreeNodeEx(Prop.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			break;
+
+		TArray<void*> Keys, Vals;
+		Prop.TypeDesc->MapSnapshotFunc(Prop.ValuePtr, Keys, Vals);
+
+		bool bMapChanged = false;
+		for (size_t i = 0; i < Keys.size(); ++i)
+		{
+			ImGui::PushID(static_cast<int>(i));
+			FPropertyDescriptor KDesc, VDesc;
+			KDesc.TypeDesc = Prop.TypeDesc->KeyType;
+			KDesc.ValuePtr = Keys[i];
+			VDesc.TypeDesc = Prop.TypeDesc->ValueType;
+			VDesc.ValuePtr = Vals[i];
+
+			// Render key (read-only label style) and value (editable)
+			ImGui::BeginDisabled(true);
+			TArray<FPropertyDescriptor> KP = { KDesc };
+			int32 KIdx = 0;
+			RenderPropertyWidget(KP, KIdx, "");
+			ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			TArray<FPropertyDescriptor> VP = { VDesc };
+			int32 VIdx = 0;
+			if (RenderPropertyWidget(VP, VIdx, EffectivePostEditPropertyName))
+				bMapChanged = true;
+
+			ImGui::PopID();
+		}
+
+		if (bMapChanged)
+			bChanged = true;
+
+		ImGui::TreePop();
+		break;
+	}
+
 	case EPropertyType::ActorRef:
 	{
 		uint32* ActorUUID = static_cast<uint32*>(Prop.ValuePtr);
