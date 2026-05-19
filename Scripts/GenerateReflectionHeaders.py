@@ -330,6 +330,71 @@ def _parse_tarray_inner_type(cpp_type: str) -> Optional[str]:
     return m.group(1).strip()
 
 
+def _generate_type_node(
+    out: list,
+    node_prefix: str,
+    cpp_type: str,
+    reflected_types: dict,
+    depth: int = 0,
+) -> str:
+    """Emit static FPropertyTypeDesc node(s) into *out* and return a C++ expression
+    that evaluates to ``const FPropertyTypeDesc*`` for the given cpp_type.
+
+    Supports recursive TArray nesting up to depth 4.
+    """
+    if depth > 4:
+        return "GetBuiltinPropertyType(EPropertyType::Int)"
+
+    # --- TArray<T> (recursive) ---
+    inner = _parse_tarray_inner_type(cpp_type)
+    if inner:
+        inner_ref = _generate_type_node(out, node_prefix + "_Element", inner, reflected_types, depth + 1)
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::Array, nullptr, nullptr, 0, nullptr,"
+            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetSize,"
+            f" &TArrayPropertyOps<{cpp_type.strip()}>::Resize,"
+            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetElement,"
+            f" &TArrayPropertyOps<{cpp_type.strip()}>::GetConstElement,"
+            f" {inner_ref}, nullptr, nullptr }};"
+        )
+        return f"&{node}"
+
+    etype = _cpp_type_to_eproperty(cpp_type, reflected_types)
+
+    if etype == 'EPropertyType::Enum':
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::Enum, nullptr, nullptr, 0, nullptr,"
+            f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+        )
+        return f"&{node}"
+
+    if etype == 'EPropertyType::Struct':
+        clean = _clean_cpp_type(cpp_type)
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::Struct, &{clean}::StaticClassInstance, nullptr, 0, nullptr,"
+            f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+        )
+        return f"&{node}"
+
+    if etype == 'EPropertyType::ObjectRef':
+        clean = _clean_cpp_type(cpp_type)
+        node = node_prefix
+        out.append(
+            f"    static const FPropertyTypeDesc {node}"
+            f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, &{clean}::StaticClassInstance,"
+            f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+        )
+        return f"&{node}"
+
+    return f"GetBuiltinPropertyType({etype})"
+
+
 def _clean_cpp_type(cpp_type: str) -> str:
     return cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
 
@@ -535,56 +600,25 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                 else:
                     type_desc_ref = f"GetBuiltinPropertyType({etype})"
             elif inner_type:
-                inner_etype = _cpp_type_to_eproperty(inner_type, reflected_types)
-                if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum'):
-                    type_desc_ref = "GetBuiltinPropertyType(EPropertyType::Int)"
-                else:
-                    inner_node_name = f"{t.name}_PropType_{index}_Element"
-                    clean_inner_type = _clean_cpp_type(inner_type)
-                    if inner_etype == 'EPropertyType::Struct':
-                        inner_struct_type = f"&{clean_inner_type}::StaticClassInstance"
-                        inner_object_class = 'nullptr'
-                    elif inner_etype == 'EPropertyType::ObjectRef':
-                        inner_struct_type = 'nullptr'
-                        inner_object_class = f"&{clean_inner_type}::StaticClassInstance"
-                    else:
-                        inner_struct_type = 'nullptr'
-                        inner_object_class = 'nullptr'
-                    out.append(
-                        f"    static const FPropertyTypeDesc {inner_node_name}"
-                        f"{{ {inner_etype}, {inner_struct_type}, nullptr, 0, {inner_object_class}, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
-                    )
-                    outer_node_name = f"{t.name}_PropType_{index}"
-                    out.append(
-                        f"    static const FPropertyTypeDesc {outer_node_name}"
-                        f"{{ EPropertyType::Array, nullptr, nullptr, 0, nullptr,"
-                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetSize,"
-                        f" &TArrayPropertyOps<{prop.cpp_type}>::Resize,"
-                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetElement,"
-                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetConstElement,"
-                        f" &{inner_node_name}, nullptr, nullptr }};"
-                    )
-                    type_desc_ref = f"&{outer_node_name}"
+                # Delegate to recursive helper — supports TArray<Enum>, TArray<TArray<T>>, etc.
+                outer_node_name = f"{t.name}_PropType_{index}"
+                inner_ref = _generate_type_node(
+                    out, outer_node_name + "_Element", inner_type, reflected_types
+                )
+                out.append(
+                    f"    static const FPropertyTypeDesc {outer_node_name}"
+                    f"{{ EPropertyType::Array, nullptr, nullptr, 0, nullptr,"
+                    f" &TArrayPropertyOps<{prop.cpp_type}>::GetSize,"
+                    f" &TArrayPropertyOps<{prop.cpp_type}>::Resize,"
+                    f" &TArrayPropertyOps<{prop.cpp_type}>::GetElement,"
+                    f" &TArrayPropertyOps<{prop.cpp_type}>::GetConstElement,"
+                    f" {inner_ref}, nullptr, nullptr }};"
+                )
+                type_desc_ref = f"&{outer_node_name}"
             else:
-                etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
-                if etype == 'EPropertyType::Struct':
-                    clean_type = _clean_cpp_type(prop.cpp_type)
-                    node_name = f"{t.name}_PropType_{index}"
-                    out.append(
-                        f"    static const FPropertyTypeDesc {node_name}"
-                        f"{{ {etype}, &{clean_type}::StaticClassInstance, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
-                    )
-                    type_desc_ref = f"&{node_name}"
-                elif etype == 'EPropertyType::ObjectRef':
-                    clean_type = _clean_cpp_type(prop.cpp_type)
-                    node_name = f"{t.name}_PropType_{index}"
-                    out.append(
-                        f"    static const FPropertyTypeDesc {node_name}"
-                        f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, &{clean_type}::StaticClassInstance, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
-                    )
-                    type_desc_ref = f"&{node_name}"
-                else:
-                    type_desc_ref = f"GetBuiltinPropertyType({etype})"
+                type_desc_ref = _generate_type_node(
+                    out, f"{t.name}_PropType_{index}", prop.cpp_type, reflected_types
+                )
 
             prop_infos.append((prop, type_desc_ref))
 
