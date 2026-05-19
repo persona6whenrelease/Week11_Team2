@@ -437,32 +437,38 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
     }
 }
 
-void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose)
+void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FTransform>& EvaluatedLocalPose)
 {
 	if (EvaluatedLocalPose.empty())
 	{
 		return;
 	}
-	
-	if (LocalBonePoseMatrices.size() != EvaluatedLocalPose.size())
+
+	const size_t N = EvaluatedLocalPose.size();
+
+	if (LocalBonePoseMatrices.size() != N)
 	{
-		LocalBonePoseMatrices = EvaluatedLocalPose;
-		BoneOverrideMask.assign(EvaluatedLocalPose.size(), false);
+		LocalBonePoseMatrices.resize(N);
+		BoneOverrideMask.assign(N, false);
+		for (size_t i = 0; i < N; ++i)
+		{
+			LocalBonePoseMatrices[i] = EvaluatedLocalPose[i].ToMatrix();
+		}
 	}
 	else
 	{
 		const size_t MaskSize = BoneOverrideMask.size();
-		for (size_t i = 0; i < EvaluatedLocalPose.size(); ++i)
+		for (size_t i = 0; i < N; ++i)
 		{
 			const bool bOverridden = (i < MaskSize) ? BoneOverrideMask[i] : false;
 			// User-edited bones keep their current local pose.
 			if (!bOverridden)
 			{
-				LocalBonePoseMatrices[i] = EvaluatedLocalPose[i];
+				LocalBonePoseMatrices[i] = EvaluatedLocalPose[i].ToMatrix();
 			}
 		}
 	}
-	
+
 	RebuildMeshSpaceBoneMatrices();
 	SkinVerticesToReferencePose();
 	EnsureRuntimeResources();

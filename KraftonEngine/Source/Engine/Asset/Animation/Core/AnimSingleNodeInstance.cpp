@@ -41,8 +41,10 @@ void UAnimSingleNodeInstance::EvaluateGraph()
     }
 
     FAnimEvalContext Ctx;
-    Ctx.Skeleton    = Skeleton;
-    Ctx.TimeSeconds = CurrentTime;
+    Ctx.Skeleton       = Skeleton;
+    Ctx.TimeSeconds    = CurrentTime;
+    Ctx.DeltaTime      = LastDeltaTime;
+    Ctx.OwningInstance = this;
 
     SequencePlayer.Evaluate(Ctx, OutputLocalPose);
 }
