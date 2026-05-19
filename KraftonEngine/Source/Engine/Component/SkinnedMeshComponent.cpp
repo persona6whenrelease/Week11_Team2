@@ -18,6 +18,8 @@ HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 
 namespace
 {
+ESkinningGlobalMode GSkinningGlobalMode = ESkinningGlobalMode::Component;
+
 const TArray<FBoneInfo> *GetSkeletonBones(const USkeletalMesh *SkeletalMesh)
 {
     const USkeleton *SkeletonAsset = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
@@ -40,6 +42,44 @@ float Saturate(float Value)
 	);
 }
 } // namespace
+
+void USkinnedMeshComponent::SetGlobalSkinningMode(ESkinningGlobalMode NewMode)
+{
+	GSkinningGlobalMode = NewMode;
+}
+
+ESkinningGlobalMode USkinnedMeshComponent::GetGlobalSkinningMode()
+{
+	return GSkinningGlobalMode;
+}
+
+const char* USkinnedMeshComponent::GetGlobalSkinningModeName()
+{
+	switch (GSkinningGlobalMode)
+	{
+	case ESkinningGlobalMode::ForceCPU:
+		return "cpu";
+	case ESkinningGlobalMode::ForceGPU:
+		return "gpu";
+	case ESkinningGlobalMode::Component:
+	default:
+		return "component";
+	}
+}
+
+bool USkinnedMeshComponent::ShouldUseGPUSkinning() const
+{
+	switch (GSkinningGlobalMode)
+	{
+	case ESkinningGlobalMode::ForceCPU:
+		return false;
+	case ESkinningGlobalMode::ForceGPU:
+		return true;
+	case ESkinningGlobalMode::Component:
+	default:
+		return bUseGPUSkinning;
+	}
+}
 
 USkinnedMeshComponent::~USkinnedMeshComponent()
 {
@@ -149,7 +189,7 @@ bool USkinnedMeshComponent::SetBoneLocalPose(int32 BoneIndex, const FMatrix &Loc
 	BoneOverrideMask[BoneIndex] = true;
 
     RebuildMeshSpaceBoneMatrices();
-    const bool bUsedGPUSkinning = bUseGPUSkinning && PrepareGPUSkinningData();
+    const bool bUsedGPUSkinning = ShouldUseGPUSkinning() && PrepareGPUSkinningData();
     if (!bUsedGPUSkinning)
     {
         SkinVerticesToReferencePose();
@@ -281,6 +321,40 @@ void USkinnedMeshComponent::PostEditProperty(const char *PropertyName)
         CacheLocalBounds();
         MarkWorldBoundsDirty();
     }
+    else if (std::strcmp(PropertyName, "Use GPU Skinning") == 0)
+    {
+        RefreshSkinningForCurrentPose();
+    }
+}
+
+void USkinnedMeshComponent::RefreshSkinningForCurrentPose()
+{
+    if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
+    {
+        return;
+    }
+
+    const TArray<FBoneInfo>* Bones = GetSkeletonBones(SkeletalMesh);
+    if (!Bones)
+    {
+        return;
+    }
+
+    if (LocalBonePoseMatrices.size() != Bones->size())
+    {
+        ResetBonePoseToBindPose();
+    }
+
+    RebuildMeshSpaceBoneMatrices();
+    const bool bUsedGPUSkinning = ShouldUseGPUSkinning() && PrepareGPUSkinningData();
+    if (!bUsedGPUSkinning)
+    {
+        SkinVerticesToReferencePose();
+    }
+
+    EnsureRuntimeResources();
+    MarkRenderStateDirty();
+    MarkWorldBoundsDirty();
 }
 
 void USkinnedMeshComponent::CacheLocalBounds()
@@ -527,7 +601,7 @@ void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedL
 	
 	RebuildMeshSpaceBoneMatrices();
 	// 컴포넌트 플래그에 따라 Skinning 방식 선택. GPU가 default
-	const bool bUsedGPUSkinning = bUseGPUSkinning && PrepareGPUSkinningData();
+	const bool bUsedGPUSkinning = ShouldUseGPUSkinning() && PrepareGPUSkinningData();
 	if (!bUsedGPUSkinning)
 	{
 		SkinVerticesToReferencePose(); // 원래대로 매 프레임 CPU Skinning

@@ -7,6 +7,7 @@
 #include "Render/Types/LightFrustumUtils.h"
 #include "Render/Types/RenderConstants.h"
 #include "Component/CameraComponent.h"
+#include "Component/SkinnedMeshComponent.h"
 #include "GameFramework/World.h"
 #include "Render/Scene/FScene.h"
 
@@ -153,6 +154,20 @@ namespace
 		}
 		return Result;
 	}
+
+	int32 RefreshAllSkinnedMeshComponents()
+	{
+		int32 Count = 0;
+		for (UObject* Obj : GUObjectArray)
+		{
+			if (USkinnedMeshComponent* Skinned = Cast<USkinnedMeshComponent>(Obj))
+			{
+				Skinned->RefreshSkinningForCurrentPose();
+				++Count;
+			}
+		}
+		return Count;
+	}
 }
 
 // ============================================================
@@ -259,6 +274,10 @@ void FEditorConsoleWidget::RegisterRenderCommands()
 		"Render", "shadow bias <bias> [<slope_bias>]|reset", "Overrides global shadow bias values.");
 	RegisterCommand("shadow filter", [this](const TArray<FString>& Args) { HandleShadowFilter(Args); },
 		"Render", "shadow filter hard|pcf|vsm|reset", "Overrides shadow filter mode.");
+	RegisterCommand("skinning", [this](const TArray<FString>& Args) { HandleSkinningMode(Args); },
+		"Render", "skinning status|cpu|gpu|component|mode <component|cpu|gpu>", "Controls global skeletal mesh skinning mode.");
+	RegisterCommand("skinning mode", [this](const TArray<FString>& Args) { HandleSkinningMode(Args); },
+		"Render", "skinning mode component|cpu|gpu", "Controls global skeletal mesh skinning mode.");
 }
 
 void FEditorConsoleWidget::Shutdown()
@@ -1178,6 +1197,53 @@ void FEditorConsoleWidget::HandleShadowFilter(const TArray<FString>& Args)
 		AddLog("[ERROR] Unknown filter mode: '%s'\n", Args[0].c_str());
 		AddLog("Usage: shadow filter hard|pcf|vsm|reset\n");
 	}
+}
+
+void FEditorConsoleWidget::HandleSkinningMode(const TArray<FString>& Args)
+{
+	if (Args.empty() || Args[0] == "status")
+	{
+		AddLog("skinning mode: %s\n", USkinnedMeshComponent::GetGlobalSkinningModeName());
+		AddLog("Usage: skinning status|cpu|gpu|component|mode <component|cpu|gpu>\n");
+		return;
+	}
+
+	FString ModeArg = Args[0];
+	if (ModeArg == "mode")
+	{
+		if (Args.size() < 2)
+		{
+			AddLog("[ERROR] Missing skinning mode.\n");
+			AddLog("Usage: skinning mode component|cpu|gpu\n");
+			return;
+		}
+		ModeArg = Args[1];
+	}
+
+	ESkinningGlobalMode NewMode = ESkinningGlobalMode::Component;
+	if (ModeArg == "component")
+	{
+		NewMode = ESkinningGlobalMode::Component;
+	}
+	else if (ModeArg == "cpu")
+	{
+		NewMode = ESkinningGlobalMode::ForceCPU;
+	}
+	else if (ModeArg == "gpu")
+	{
+		NewMode = ESkinningGlobalMode::ForceGPU;
+	}
+	else
+	{
+		AddLog("[ERROR] Unknown skinning mode: '%s'\n", ModeArg.c_str());
+		AddLog("Usage: skinning status|cpu|gpu|component|mode <component|cpu|gpu>\n");
+		return;
+	}
+
+	USkinnedMeshComponent::SetGlobalSkinningMode(NewMode);
+	const int32 RefreshedCount = RefreshAllSkinnedMeshComponents();
+	AddLog("skinning mode set to %s. Refreshed %d skinned mesh component(s).\n",
+		USkinnedMeshComponent::GetGlobalSkinningModeName(), RefreshedCount);
 }
 
 // History & Tab-Completion Callback____________________________________________________________

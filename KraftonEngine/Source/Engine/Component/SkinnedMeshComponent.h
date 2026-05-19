@@ -7,6 +7,13 @@
 
 class FPrimitiveSceneProxy;
 
+enum class ESkinningGlobalMode : uint8
+{
+	Component,
+	ForceCPU,
+	ForceGPU
+};
+
 class USkinnedMeshComponent : public UMeshComponent
 {
 public:
@@ -34,6 +41,12 @@ public:
 	void PostDuplicate() override;
 	void GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) override;
 	void PostEditProperty(const char* PropertyName) override;
+
+	static void SetGlobalSkinningMode(ESkinningGlobalMode NewMode);
+	static ESkinningGlobalMode GetGlobalSkinningMode();
+	static const char* GetGlobalSkinningModeName();
+	bool ShouldUseGPUSkinning() const;
+	void RefreshSkinningForCurrentPose();
 	
 	// === Animation Bone Transform ===
 	// 본을 사용자가 직접 수정한 경우 마킹.
@@ -48,7 +61,7 @@ public:
 	int32 GetBoneWeightHeatmapBoneIndex() const {return BoneWeightHeatmapBoneIndex;}
 
 	// === GPU Skinning 노출 (Proxy/Renderer가 읽음) ===
-	bool IsUsingGPUSkinning() const { return bUseGPUSkinning; }
+	bool IsUsingGPUSkinning() const { return ShouldUseGPUSkinning(); }
 	ID3D11ShaderResourceView* GetSkinCacheSRV() const { return bSkinCacheValid ? SkinCacheSRV : nullptr; }
 	
 protected:
