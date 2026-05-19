@@ -42,6 +42,18 @@ struct FVertexPNCTT
 	FVector4 Tangent;
 };
 
+// Position + Normal + Color + UV + Tangent + BoneIDs + BoneWeights
+struct FVertexPNCTT_Skinned
+{
+	FVector Position;
+	FVector Normal;
+	FVector4 Color;
+	FVector2 UV;
+	FVector4 Tangent;
+	uint32 BoneIDs[4];
+	float BoneWeights[4];
+};
+
 template<typename VertexType>
 struct TMeshData
 {

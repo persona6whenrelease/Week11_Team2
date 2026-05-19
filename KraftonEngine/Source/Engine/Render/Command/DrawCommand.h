@@ -64,6 +64,9 @@ struct FDrawCommand
 	FConstantBuffer*    PerObjectCB = nullptr;        // b1: Model + Color (per-proxy)
 	FDrawCommandBindings Bindings;                    // PerShaderCB + SRVs (per-material)
 
+	// GPU Skinning Cache (VS t30). nullptr이면 CPU 경로(기존 VB 사용).
+	ID3D11ShaderResourceView* SkinCacheSRV = nullptr;
+
 	// ===== Sort =====
 	uint64 SortKey = 0;                              // 정렬 키 (Pass → Shader → MeshBuffer → SRV)
 

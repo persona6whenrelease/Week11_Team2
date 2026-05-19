@@ -21,6 +21,7 @@ void FStateCache::Reset()
 	Buffer      = {};
 	PerObjectCB = nullptr;
 	Bindings    = {};
+	SkinCacheSRV = nullptr;
 
 	RTV = nullptr;
 	DSV = nullptr;
@@ -37,6 +38,14 @@ void FStateCache::Cleanup(ID3D11DeviceContext* Ctx)
 			Ctx->PSSetShaderResources(i, 1, &nullSRV);
 			Bindings.SRVs[i] = nullptr;
 		}
+	}
+
+	// t30 (Skin Cache) 언바인딩 — Compute가 다음 프레임에 같은 buffer를 UAV로 쓰기 위해 필요
+	if (SkinCacheSRV)
+	{
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+		Ctx->VSSetShaderResources(30, 1, &nullSRV);
+		SkinCacheSRV = nullptr;
 	}
 }
 
@@ -171,28 +180,33 @@ void FDrawCommandList::SubmitCommand(const FDrawCommand& Cmd,
 		Cache.Shader = nullptr;  // 다음 커맨드에서 PS 재바인딩 보장
 	}
 
-	// --- Geometry (VB + IB) ---
-	if (Cmd.Buffer.HasBuffers())
+	// --- Geometry ---
+	// VB: GPU Skinning 경로는 VS가 SV_VertexID로 SkinCache를 읽으므로 VB 없음(null).
+	//     CPU 경로 / StaticMesh는 기존대로 VB bind.
+	if (Cmd.Buffer.VB)
 	{
 		if (bForce || Cmd.Buffer.VB != Cache.Buffer.VB || Cmd.Buffer.VBStride != Cache.Buffer.VBStride)
 		{
 			uint32 Offset = 0;
 			Ctx->IASetVertexBuffers(0, 1, &Cmd.Buffer.VB, &Cmd.Buffer.VBStride, &Offset);
 		}
-		if (bForce || Cmd.Buffer.IB != Cache.Buffer.IB)
-		{
-			if (Cmd.Buffer.IB)
-				Ctx->IASetIndexBuffer(Cmd.Buffer.IB, DXGI_FORMAT_R32_UINT, 0);
-		}
-		Cache.Buffer = Cmd.Buffer;
 	}
-	else if (Cache.Buffer.HasBuffers())
+	else if (Cache.Buffer.VB)
 	{
-		// SV_VertexID 기반 드로우 — InputLayout + VB 해제
+		// 이전 커맨드가 VB를 썼다면 해제 — Skinned VS는 InputLayout이 비어있음
 		Ctx->IASetInputLayout(nullptr);
 		Ctx->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
-		Cache.Buffer = {};
 	}
+
+	// IB: VB 유무와 무관하게 독립적으로 bind (GPU Skinning은 IB만 필요)
+	if (Cmd.Buffer.IB)
+	{
+		if (bForce || Cmd.Buffer.IB != Cache.Buffer.IB)
+		{
+			Ctx->IASetIndexBuffer(Cmd.Buffer.IB, DXGI_FORMAT_R32_UINT, 0);
+		}
+	}
+	Cache.Buffer = Cmd.Buffer;
 
 	// --- PerObject CB (b1) ---
 	if (Cmd.PerObjectCB && (bForce || Cmd.PerObjectCB != Cache.PerObjectCB))
@@ -228,6 +242,13 @@ void FDrawCommandList::SubmitCommand(const FDrawCommand& Cmd,
 			Ctx->PSSetShaderResources(i, 1, &SRV);
 			Cache.Bindings.SRVs[i] = Cmd.Bindings.SRVs[i];
 		}
+	}
+
+	// --- SkinCache SRV (VS t30) — GPU Skinning 경로에서만 nullptr 아님 ---
+	if (bForce || Cmd.SkinCacheSRV != Cache.SkinCacheSRV)
+	{
+		Ctx->VSSetShaderResources(30, 1, &Cmd.SkinCacheSRV);
+		Cache.SkinCacheSRV = Cmd.SkinCacheSRV;
 	}
 
 	Cache.bForceAll = false;

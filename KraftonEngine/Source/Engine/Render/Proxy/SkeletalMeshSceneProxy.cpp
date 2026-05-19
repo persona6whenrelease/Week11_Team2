@@ -59,7 +59,19 @@ void FSkeletalMeshSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 		Frame.RenderOptions.ShowFlags.bBoneWeightHeatmap &&
 		SkinnedComp &&
 		SkinnedComp->IsBoneWeightHeatmapEnabled();
-	
+
+	// GPU Skinning 상태/리소스 매 프레임 동기화
+	if (SkinnedComp)
+	{
+		bUseGPUSkinning = SkinnedComp->IsUsingGPUSkinning();
+		SkinCacheSRV    = SkinnedComp->GetSkinCacheSRV();
+	}
+	else
+	{
+		bUseGPUSkinning = false;
+		SkinCacheSRV    = nullptr;
+	}
+
 	RebuildSectionDraws();
 }
 

@@ -65,11 +65,13 @@ namespace EShaderPath
 {
 	inline constexpr const char* Primitive = "Shaders/Geometry/Primitive.hlsl";
 	inline constexpr const char* UberLit = "Shaders/Geometry/UberLit.hlsl";
+	inline constexpr const char* UberLit_Skinned = "Shaders/Geometry/UberLit_Skinned.hlsl";
 	inline constexpr const char* Decal = "Shaders/Geometry/Decal.hlsl";
 
 	inline constexpr const char* Editor = "Shaders/Editor/Editor.hlsl";
 	inline constexpr const char* Gizmo = "Shaders/Editor/Gizmo.hlsl";
 	inline constexpr const char* BoneWeightHeatmap = "Shaders/Editor/BoneWeightHeatmap.hlsl";
+	inline constexpr const char* BoneWeightHeatmap_Skinned = "Shaders/Editor/BoneWeightHeatmap_Skinned.hlsl";
 
 	inline constexpr const char* FXAA = "Shaders/PostProcess/FXAA.hlsl";
 	inline constexpr const char* Outline = "Shaders/PostProcess/Outline.hlsl";
@@ -86,6 +88,7 @@ namespace EShaderPath
 	inline constexpr const char* Billboard = "Shaders/UI/Billboard.hlsl";
 
 	inline constexpr const char* ShadowDepth = "Shaders/Lighting/ShadowDepth.hlsl";
+	inline constexpr const char* ShadowDepth_Skinned = "Shaders/Lighting/ShadowDepth_Skinned.hlsl";
 	inline constexpr const char* VSMBlur = "Shaders/Lighting/VSMBlur.hlsl";
 	inline constexpr const char* ShadowMapVis = "Shaders/PostProcess/ShadowMapVis.hlsl";
 }

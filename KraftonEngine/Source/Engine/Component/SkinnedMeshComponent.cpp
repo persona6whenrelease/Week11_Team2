@@ -9,8 +9,11 @@
 #include <cmath>
 #include <cstring>
 
+#include "Render/Shader/ShaderManager.h"
+
 
 IMPLEMENT_CLASS(USkinnedMeshComponent, UMeshComponent)
+
 HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 
 namespace
@@ -38,6 +41,11 @@ float Saturate(float Value)
 }
 } // namespace
 
+USkinnedMeshComponent::~USkinnedMeshComponent()
+{
+    ReleaseGPUSkinningResources();
+}
+
 FPrimitiveSceneProxy *USkinnedMeshComponent::CreateSceneProxy()
 {
     EnsureRuntimeResources();
@@ -59,13 +67,16 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh *InMesh)
     }
 
     SkinnedVertices.clear();
+    SkinnedSourceVertices.clear();
     LocalBonePoseMatrices.clear();
     MeshSpaceBoneMatrices.clear();
 	BoneOverrideMask.clear();
     RuntimeMeshBuffer.Release();
+    ReleaseGPUSkinningResources();
 
     CacheLocalBounds();
     ResetBonePoseToBindPose();
+    BuildSkinnedSourceVertices();
     EnsureRuntimeResources();
     MarkRenderStateDirty();
     MarkWorldBoundsDirty();
@@ -138,7 +149,11 @@ bool USkinnedMeshComponent::SetBoneLocalPose(int32 BoneIndex, const FMatrix &Loc
 	BoneOverrideMask[BoneIndex] = true;
 
     RebuildMeshSpaceBoneMatrices();
-    SkinVerticesToReferencePose();
+    const bool bUsedGPUSkinning = bUseGPUSkinning && PrepareGPUSkinningData();
+    if (!bUsedGPUSkinning)
+    {
+        SkinVerticesToReferencePose();
+    }
     EnsureRuntimeResources();
     MarkWorldBoundsDirty();
     return true;
@@ -234,6 +249,7 @@ void USkinnedMeshComponent::PostDuplicate()
     CacheLocalBounds();
     ResetBonePoseToBindPose();
     BuildBindPoseRenderVertices();
+    BuildSkinnedSourceVertices();   // GPU 경로용 정점(본 정보 포함) 빌드
     EnsureRuntimeResources();
     MarkRenderStateDirty();
     MarkWorldBoundsDirty();
@@ -243,6 +259,7 @@ void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &O
 {
     UPrimitiveComponent::GetEditableProperties(OutProps);
     OutProps.push_back({"Skeletal Mesh", EPropertyType::SkeletalMeshRef, &SkeletalMeshPath});
+    OutProps.push_back({"Use GPU Skinning", EPropertyType::Bool, &bUseGPUSkinning});
     AppendMaterialSlotProperties(OutProps);
 }
 
@@ -330,6 +347,35 @@ void USkinnedMeshComponent::BuildBindPoseRenderVertices()
         RenderVert.Tangent = RawVert.tangent;
         SkinnedVertices.push_back(RenderVert);
     }
+}
+
+void USkinnedMeshComponent::BuildSkinnedSourceVertices()
+{
+	SkinnedSourceVertices.clear();
+	if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshAsset())
+	{
+		return;
+	}
+
+	const FSkeletalMesh *Asset = SkeletalMesh->GetSkeletalMeshAsset();
+	SkinnedSourceVertices.reserve(Asset->Vertices.size());
+	for (const FSkeletalVertex &RawVert : Asset->Vertices)
+	{
+		FVertexPNCTT_Skinned RenderVert;
+		RenderVert.Position = RawVert.pos;
+		RenderVert.Normal = RawVert.normal;
+		RenderVert.Color = ResolveVertexDebugColor(RawVert);
+		RenderVert.UV = RawVert.tex;
+		RenderVert.Tangent = RawVert.tangent;
+
+		for (int i=0; i < 4; ++i)
+		{
+			RenderVert.BoneIDs[i] = RawVert.BoneIDs[i];
+			RenderVert.BoneWeights[i] = RawVert.BoneWeights[i];
+		}
+
+		SkinnedSourceVertices.push_back(RenderVert);
+	}
 }
 
 void USkinnedMeshComponent::UploadSkinnedVertices()
@@ -437,6 +483,22 @@ void USkinnedMeshComponent::SkinVerticesToReferencePose()
     }
 }
 
+bool USkinnedMeshComponent::PrepareGPUSkinningData()
+{
+    bSkinCacheValid = false;
+    if (SkinnedSourceVertices.empty())
+    {
+        BuildSkinnedSourceVertices();
+    }
+
+	EnsureGPUSkinningBuffers();   // 메쉬 변경시에만 실제 작업 (idempotent)
+	if (!UpdateBonePaletteCB())    // 매 프레임 본 행렬 업로드
+	{
+		return false;
+	}
+	return DispatchSkinningCompute();     // Compute 실행 → SkinCache에 결과 저장
+}
+
 void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedLocalPose)
 {
 	if (EvaluatedLocalPose.empty())
@@ -464,7 +526,12 @@ void USkinnedMeshComponent::ApplyEvaluatedPose(const TArray<FMatrix>& EvaluatedL
 	}
 	
 	RebuildMeshSpaceBoneMatrices();
-	SkinVerticesToReferencePose();
+	// 컴포넌트 플래그에 따라 Skinning 방식 선택. GPU가 default
+	const bool bUsedGPUSkinning = bUseGPUSkinning && PrepareGPUSkinningData();
+	if (!bUsedGPUSkinning)
+	{
+		SkinVerticesToReferencePose(); // 원래대로 매 프레임 CPU Skinning
+	}
 	EnsureRuntimeResources();
 	MarkWorldBoundsDirty();
 }
@@ -592,4 +659,186 @@ void USkinnedMeshComponent::ApplyVertexDebugColors()
 	{
 		SkinnedVertices[VertexIndex].Color = ResolveVertexDebugColor(Asset->Vertices[VertexIndex]);
 	}
+}
+
+// === GPU Skinning - Compute pipeline ===
+void USkinnedMeshComponent::EnsureGPUSkinningBuffers()
+{
+    if (SkinnedSourceVertices.empty()) return;
+
+    // 이미 같은 크기로 생성돼 있다면 재사용
+    if (SkinningSourceBuffer && SkinningVertexCount == SkinnedSourceVertices.size())
+    {
+        return;
+    }
+
+    ReleaseGPUSkinningResources();  // 정점 수가 바뀐 경우 등 안전하게 재생성
+    bSkinCacheValid = false;
+
+    ID3D11Device* Device = GEngine ? GEngine->GetRenderer().GetFD3DDevice().GetDevice() : nullptr;
+    if (!Device) return;
+
+    SkinningVertexCount = static_cast<uint32>(SkinnedSourceVertices.size());
+
+    // ---- 1) Source StructuredBuffer (Compute가 읽음, 정적) ----
+    {
+        D3D11_BUFFER_DESC Desc = {};
+        Desc.ByteWidth = sizeof(FVertexPNCTT_Skinned) * SkinningVertexCount;
+        Desc.Usage = D3D11_USAGE_IMMUTABLE;           // 한 번 만들고 안 바꿈
+        Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        Desc.StructureByteStride = sizeof(FVertexPNCTT_Skinned);
+
+        D3D11_SUBRESOURCE_DATA Init = {};
+        Init.pSysMem = SkinnedSourceVertices.data();
+
+        Device->CreateBuffer(&Desc, &Init, &SkinningSourceBuffer);
+        if (!SkinningSourceBuffer)
+        {
+            ReleaseGPUSkinningResources();
+            return;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+        SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+        SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        SRVDesc.Buffer.NumElements = SkinningVertexCount;
+
+        Device->CreateShaderResourceView(SkinningSourceBuffer, &SRVDesc, &SkinningSourceSRV);
+        if (!SkinningSourceSRV)
+        {
+            ReleaseGPUSkinningResources();
+            return;
+        }
+    }
+
+    // ---- 2) Skin Cache StructuredBuffer (Compute 쓰기 + VS 읽기) ----
+    {
+        // 출력은 FVertexPNCTT 크기 (Position/Normal/Color/UV/Tangent)
+        D3D11_BUFFER_DESC Desc = {};
+        Desc.ByteWidth = sizeof(FVertexPNCTT) * SkinningVertexCount;
+        Desc.Usage = D3D11_USAGE_DEFAULT;
+        Desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        Desc.StructureByteStride = sizeof(FVertexPNCTT);
+
+        Device->CreateBuffer(&Desc, nullptr, &SkinCacheBuffer);
+        if (!SkinCacheBuffer)
+        {
+            ReleaseGPUSkinningResources();
+            return;
+        }
+
+        D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+        UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+        UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        UAVDesc.Buffer.NumElements = SkinningVertexCount;
+
+        Device->CreateUnorderedAccessView(SkinCacheBuffer, &UAVDesc, &SkinCacheUAV);
+        if (!SkinCacheUAV)
+        {
+            ReleaseGPUSkinningResources();
+            return;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+        SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+        SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        SRVDesc.Buffer.NumElements = SkinningVertexCount;
+
+        Device->CreateShaderResourceView(SkinCacheBuffer, &SRVDesc, &SkinCacheSRV);
+        if (!SkinCacheSRV)
+        {
+            ReleaseGPUSkinningResources();
+            return;
+        }
+    }
+
+    // ---- 3) Bone Palette CB (없다면 생성) ----
+    if (!BonePaletteCB.GetBuffer())
+    {
+        BonePaletteCB.Create(Device, sizeof(FBonePaletteConstants));
+    }
+}
+
+void USkinnedMeshComponent::ReleaseGPUSkinningResources()
+{
+    bSkinCacheValid = false;
+    if (SkinningSourceSRV)    { SkinningSourceSRV->Release();    SkinningSourceSRV = nullptr; }
+    if (SkinningSourceBuffer) { SkinningSourceBuffer->Release(); SkinningSourceBuffer = nullptr; }
+    if (SkinCacheSRV)         { SkinCacheSRV->Release();         SkinCacheSRV = nullptr; }
+    if (SkinCacheUAV)         { SkinCacheUAV->Release();         SkinCacheUAV = nullptr; }
+    if (SkinCacheBuffer)      { SkinCacheBuffer->Release();      SkinCacheBuffer = nullptr; }
+    SkinningVertexCount = 0;
+    // BonePaletteCB는 정점 수와 무관하므로 유지 (소멸자에서 자동 해제)
+}
+
+bool USkinnedMeshComponent::UpdateBonePaletteCB()
+{
+    const TArray<FBoneInfo>* Bones = GetSkeletonBones(SkeletalMesh);
+    if (!Bones || Bones->empty()) return false;
+    if (MeshSpaceBoneMatrices.size() != Bones->size()) return false;
+    if (!BonePaletteCB.GetBuffer()) return false;
+
+    const uint32 BoneCount = std::min<uint32>(static_cast<uint32>(Bones->size()), MAX_SKINNING_BONES);
+
+    // CPU 경로와 동일한 식: SkinMatrix = InverseBindPose * MeshSpaceBoneMatrix
+    // 정점마다 4번 곱하던 걸 본마다 1번으로 줄여서 GPU에 보냄.
+    for (uint32 i = 0; i < BoneCount; ++i)
+    {
+        BonePaletteCPUMirror.BoneMatrices[i] = (*Bones)[i].InverseBindPose * MeshSpaceBoneMatrices[i];
+    }
+    BonePaletteCPUMirror.NumSkinningVertices = SkinningVertexCount;
+    BonePaletteCPUMirror.NumSkinningBones    = BoneCount;
+
+    ID3D11DeviceContext* Context = GEngine ? GEngine->GetRenderer().GetFD3DDevice().GetDeviceContext() : nullptr;
+    if (!Context)
+    {
+        return false;
+    }
+
+    BonePaletteCB.Update(Context, &BonePaletteCPUMirror, sizeof(FBonePaletteConstants));
+    return true;
+}
+
+bool USkinnedMeshComponent::DispatchSkinningCompute()
+{
+    bSkinCacheValid = false;
+    if (!SkinningSourceSRV || !SkinCacheUAV) return false;
+
+    // Compute Shader 가져오기 (캐싱: FShaderManager가 소유)
+    static FComputeShader* SkinCS = nullptr;
+    if (!SkinCS)
+    {
+        SkinCS = FShaderManager::Get().GetOrCreateCS("Shaders/Geometry/SkinCompute.hlsl", "CSMain");
+    }
+    if (!SkinCS || !SkinCS->IsValid()) return false;
+
+    ID3D11DeviceContext* Context = GEngine ? GEngine->GetRenderer().GetFD3DDevice().GetDeviceContext() : nullptr;
+    if (!Context) return false;
+
+    // ---- Bind ----
+    SkinCS->Bind(Context);
+
+    ID3D11Buffer* CBs[] = { BonePaletteCB.GetBuffer() };
+    Context->CSSetConstantBuffers(4, 1, CBs);                 // b4
+
+    ID3D11ShaderResourceView* SRVs[] = { SkinningSourceSRV };
+    Context->CSSetShaderResources(0, 1, SRVs);                 // t0
+
+    ID3D11UnorderedAccessView* UAVs[] = { SkinCacheUAV };
+    Context->CSSetUnorderedAccessViews(0, 1, UAVs, nullptr);   // u0
+
+    // ---- Dispatch ----
+    // numthreads(64,1,1)이므로 그룹 수 = ceil(N / 64)
+    const uint32 GroupCount = (SkinningVertexCount + 63) / 64;
+    Context->Dispatch(GroupCount, 1, 1);
+
+    // ---- Unbind (UAV 풀어줘야 다음 단계가 SRV로 읽기 가능) ----
+    ID3D11UnorderedAccessView* NullUAV[] = { nullptr };
+    Context->CSSetUnorderedAccessViews(0, 1, NullUAV, nullptr);
+    ID3D11ShaderResourceView* NullSRV[] = { nullptr };
+    Context->CSSetShaderResources(0, 1, NullSRV);
+    bSkinCacheValid = true;
+    return true;
 }

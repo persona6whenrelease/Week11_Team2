@@ -11,6 +11,7 @@ class FMeshBuffer;
 class FScene;
 class UMaterial;
 struct FFrameContext;
+struct ID3D11ShaderResourceView;
 
 // ============================================================
 // EPrimitiveProxyFlags — Owner 역참조 없이 프록시 타입/특성 식별
@@ -83,6 +84,11 @@ public:
 	
 	// --- Bone Weight Heatmap ---
 	virtual bool WantsBoneWeightHeatmap() const { return false; }
+
+	// --- GPU Skinning (Compute Skin Cache 경로) ---
+	// 기본 false / nullptr — Skeletal 외 프록시는 GPU Skinning 미사용.
+	virtual bool IsGPUSkinned() const { return false; }
+	virtual ID3D11ShaderResourceView* GetSkinCacheSRV() const { return nullptr; }
 
 	// ================================================================
 	// 가상 갱신 인터페이스 (서브클래스가 오버라이드)

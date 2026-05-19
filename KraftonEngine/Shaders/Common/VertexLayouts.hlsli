@@ -33,6 +33,18 @@ struct VS_Input_PNCTT
     float4 tangent : TANGENT;
 };
 
+// FVertexPNCTT_Skinned (GPU Skinning용)
+struct VS_INPUT_PNCTT_Skinned
+{
+    float3 position : POSITION;
+    float3 normal   : NORMAL;
+    float4 color    : COLOR;
+    float2 texcoord : TEXTCOORD;
+    float4 tangent  : TANGENT;
+    uint4  boneIDs  : BLENDINDICES;
+    float4 weights  : BLENDWEIGHT;
+};
+
 // FTextureVertex (Position + TexCoord)
 // 사용: Font, SubUV, OverlayFont
 struct VS_Input_PT

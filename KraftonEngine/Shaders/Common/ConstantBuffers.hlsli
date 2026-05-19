@@ -27,6 +27,17 @@ cbuffer PerObjectBuffer : register(b1)
 // 시스템 샘플러 (s0~s4)
 #include "Common/SystemSamplers.hlsli"
 
+// b4: Skinning - 본 행렬 팔레트 + dispatch 파라미터
+#define MAX_SKINNING_BONES 256
+
+cbuffer BonePaletteBuffer : register(b4)
+{
+    float4x4 BoneMatrices[MAX_SKINNING_BONES];
+    uint NumSkinningVertices; 
+    uint NumSkinningBones; 
+    uint2 _SkinPad;
+}
+
 // b5: Shadow CB — CSM 행렬 + 공통 파라미터
 // Per-light 데이터는 StructuredBuffer (t24, t25)로 분리
 #define MAX_SHADOW_CASCADES     4

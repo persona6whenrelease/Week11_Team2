@@ -21,6 +21,7 @@ struct FStateCache
 	FDrawCommandBuffer       Buffer;
 	FConstantBuffer*         PerObjectCB = nullptr;
 	FDrawCommandBindings     Bindings;
+	ID3D11ShaderResourceView* SkinCacheSRV = nullptr;   // VS t30
 
 
 	// Render target 추적 (CopyResource 후 DSV 복원 등)

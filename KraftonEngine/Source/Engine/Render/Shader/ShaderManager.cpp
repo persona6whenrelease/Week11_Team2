@@ -56,8 +56,19 @@ void FShaderManager::Initialize(ID3D11Device* InDevice)
 	PreCompile(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Lambert), EUberLitDefines::Lambert, StartupError);
 	PreCompile(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Phong),   EUberLitDefines::Phong,   StartupError);
 
+	// GPU Skinning 변종 — 같은 lighting model permutation으로 컴파일
+	GetOrCreate(EShaderPath::UberLit_Skinned, StartupError);
+	PreCompile(FShaderKey(EShaderPath::UberLit_Skinned, EUberLitDefines::Unlit),   EUberLitDefines::Unlit,   StartupError);
+	PreCompile(FShaderKey(EShaderPath::UberLit_Skinned, EUberLitDefines::Gouraud), EUberLitDefines::Gouraud, StartupError);
+	PreCompile(FShaderKey(EShaderPath::UberLit_Skinned, EUberLitDefines::Lambert), EUberLitDefines::Lambert, StartupError);
+	PreCompile(FShaderKey(EShaderPath::UberLit_Skinned, EUberLitDefines::Phong),   EUberLitDefines::Phong,   StartupError);
+
+	GetOrCreate(EShaderPath::ShadowDepth_Skinned, StartupError);
+
 	PreCompile(FShaderKey(EShaderPath::BoneWeightHeatmap, EBoneWeightHeatmapDefines::Solid), EBoneWeightHeatmapDefines::Solid, StartupError);
 	PreCompile(FShaderKey(EShaderPath::BoneWeightHeatmap, EBoneWeightHeatmapDefines::Wire), EBoneWeightHeatmapDefines::Wire, StartupError);
+	PreCompile(FShaderKey(EShaderPath::BoneWeightHeatmap_Skinned, EBoneWeightHeatmapDefines::Solid), EBoneWeightHeatmapDefines::Solid, StartupError);
+	PreCompile(FShaderKey(EShaderPath::BoneWeightHeatmap_Skinned, EBoneWeightHeatmapDefines::Wire), EBoneWeightHeatmapDefines::Wire, StartupError);
 	
 	// include 역매핑 구축
 	RebuildIncludeDependents();

@@ -90,18 +90,21 @@ void FDrawCommandBuilder::BeginCollect(const FFrameContext& Frame, uint32 MaxPro
 // ============================================================
 // SelectEffectiveShader — ViewMode에 따른 UberLit 셰이더 변형 선택
 // ============================================================
-FShader* FDrawCommandBuilder::SelectEffectiveShader(FShader* ProxyShader, EViewMode ViewMode)
+FShader* FDrawCommandBuilder::SelectEffectiveShader(FShader* ProxyShader, EViewMode ViewMode, bool bIsSkinned)
 {
 	if (ProxyShader != FShaderManager::Get().GetOrCreate(EShaderPath::UberLit))
 		return ProxyShader;
 
+	// GPU Skinning 경로면 UberLit_Skinned 변종을 사용. 같은 lighting model permutation 유지.
+	const char* Path = bIsSkinned ? EShaderPath::UberLit_Skinned : EShaderPath::UberLit;
+
 	switch (ViewMode)
 	{
-	case EViewMode::Unlit:        return FShaderManager::Get().GetOrCreate(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Unlit));
-	case EViewMode::Lit_Gouraud:  return FShaderManager::Get().GetOrCreate(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Gouraud));
-	case EViewMode::Lit_Lambert:  return FShaderManager::Get().GetOrCreate(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Lambert));
-	case EViewMode::Lit_Phong:    return FShaderManager::Get().GetOrCreate(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Phong));
-	case EViewMode::LightCulling: return FShaderManager::Get().GetOrCreate(FShaderKey(EShaderPath::UberLit, EUberLitDefines::Phong));
+	case EViewMode::Unlit:        return FShaderManager::Get().GetOrCreate(FShaderKey(Path, EUberLitDefines::Unlit));
+	case EViewMode::Lit_Gouraud:  return FShaderManager::Get().GetOrCreate(FShaderKey(Path, EUberLitDefines::Gouraud));
+	case EViewMode::Lit_Lambert:  return FShaderManager::Get().GetOrCreate(FShaderKey(Path, EUberLitDefines::Lambert));
+	case EViewMode::Lit_Phong:    return FShaderManager::Get().GetOrCreate(FShaderKey(Path, EUberLitDefines::Phong));
+	case EViewMode::LightCulling: return FShaderManager::Get().GetOrCreate(FShaderKey(Path, EUberLitDefines::Phong));
 	default:                      return ProxyShader;
 	}
 }
@@ -145,11 +148,21 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 	const bool bBoneWeightHeatmap =
 		Proxy.WantsBoneWeightHeatmap() &&
 		Pass == ERenderPass::Opaque;
+	const bool bSkinned = Proxy.IsGPUSkinned();
 
 	// MeshBuffer → FDrawCommandBuffer 변환
 	FDrawCommandBuffer ProxyBuffer;
-	ProxyBuffer.VB = Proxy.GetMeshBuffer()->GetVertexBuffer().GetBuffer();
-	ProxyBuffer.VBStride = Proxy.GetMeshBuffer()->GetVertexBuffer().GetStride();
+	// GPU Skinning 경로는 VS가 SV_VertexID로 SkinCache를 읽으므로 VB 불필요.
+	if (bSkinned)
+	{
+		ProxyBuffer.VB       = nullptr;
+		ProxyBuffer.VBStride = 0;
+	}
+	else
+	{
+		ProxyBuffer.VB       = Proxy.GetMeshBuffer()->GetVertexBuffer().GetBuffer();
+		ProxyBuffer.VBStride = Proxy.GetMeshBuffer()->GetVertexBuffer().GetStride();
+	}
 	ProxyBuffer.IB = Proxy.GetMeshBuffer()->GetIndexBuffer().GetBuffer();
 
 	// 섹션당 1개 커맨드 (per-section 셰이더)
@@ -164,9 +177,9 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 			: Proxy.GetShader();
 		FShader* EffectiveShader = bBoneWeightHeatmap
 			? FShaderManager::Get().GetOrCreate(FShaderKey(
-				EShaderPath::BoneWeightHeatmap,
+				bSkinned ? EShaderPath::BoneWeightHeatmap_Skinned : EShaderPath::BoneWeightHeatmap,
 				EBoneWeightHeatmapDefines::Solid))
-			: SelectEffectiveShader(SectionShader, CollectViewMode);
+			: SelectEffectiveShader(SectionShader, CollectViewMode, bSkinned);
 
 		FDrawCommand& Cmd = DrawCommandList.AddCommand();
 		Cmd.Pass = Pass;
@@ -180,6 +193,11 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 		Cmd.PerObjectCB = PerObjCB;
 		Cmd.Buffer.FirstIndex = Section.FirstIndex;
 		Cmd.Buffer.IndexCount = Section.IndexCount;
+		// GPU Skinning 경로 — Compute가 채운 SkinCache를 VS t30에 바인딩 지시
+		if (bSkinned)
+		{
+			Cmd.SkinCacheSRV = Proxy.GetSkinCacheSRV();
+		}
 
 		if (!bDepthOnly && !bBoneWeightHeatmap && Section.Material)
 		{
@@ -208,7 +226,7 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 			FDrawCommand& WireCmd = DrawCommandList.AddCommand();
 			WireCmd.Pass = ERenderPass::EditorLines;
 			WireCmd.Shader = FShaderManager::Get().GetOrCreate(FShaderKey(
-				EShaderPath::BoneWeightHeatmap,
+				bSkinned ? EShaderPath::BoneWeightHeatmap_Skinned : EShaderPath::BoneWeightHeatmap,
 				EBoneWeightHeatmapDefines::Wire));
 			WireCmd.RenderState = BaseRenderState;
 			WireCmd.RenderState.DepthStencil = EDepthStencilState::DepthReadOnly;
@@ -219,6 +237,10 @@ void FDrawCommandBuilder::BuildCommandForProxy(const FPrimitiveSceneProxy& Proxy
 			WireCmd.PerObjectCB = PerObjCB;
 			WireCmd.Buffer.FirstIndex = Section.FirstIndex;
 			WireCmd.Buffer.IndexCount = Section.IndexCount;
+			if (bSkinned)
+			{
+				WireCmd.SkinCacheSRV = Proxy.GetSkinCacheSRV();
+			}
 			WireCmd.BuildSortKey();
 		}
 	}

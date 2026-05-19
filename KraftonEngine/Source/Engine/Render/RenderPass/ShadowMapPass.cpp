@@ -595,10 +595,14 @@ void FShadowMapPass::UpdateShadowCB(const FPassContext& Ctx)
 
 void FShadowMapPass::DrawShadowCasters(ID3D11DeviceContext* DC, FScene& Scene, FSystemResources& Resources, const FConvexVolume& LightFrustum, FSpatialPartition* Partition)
 {
-	FShader* ShadowShader = FShaderManager::Get().GetOrCreate(EShaderPath::ShadowDepth);
+	// Static / Skinned 두 변종 모두 미리 확보 (per-proxy 전환)
+	FShader* ShadowShader        = FShaderManager::Get().GetOrCreate(EShaderPath::ShadowDepth);
+	FShader* ShadowShaderSkinned = FShaderManager::Get().GetOrCreate(EShaderPath::ShadowDepth_Skinned);
 	if (!ShadowShader || !ShadowShader->IsValid()) return;
 
+	// 기본은 Static — 첫 skinned proxy 만나면 그때 교체
 	ShadowShader->Bind(DC);
+	FShader* CurrentShader = ShadowShader;
 
 	if (CurrentFilterMode != EShadowFilterMode::VSM)
 		DC->PSSetShader(nullptr, nullptr, 0);
@@ -618,6 +622,7 @@ void FShadowMapPass::DrawShadowCasters(ID3D11DeviceContext* DC, FScene& Scene, F
 
 	LastDrawCasterCount = 0;
 	bool bCurrentTwoSided = false;
+	bool bCurrentSkinned  = false;
 	for (FPrimitiveSceneProxy* Proxy : *ProxyList)
 	{
 		if (!Proxy || !Proxy->IsVisible()) continue;
@@ -639,15 +644,43 @@ void FShadowMapPass::DrawShadowCasters(ID3D11DeviceContext* DC, FScene& Scene, F
 				bTwoSided ? ERasterizerState::SolidNoCull : ERasterizerState::SolidFrontCull);
 		}
 
+		// Skinned ↔ Static 전환 (셰이더 + InputLayout + VB 정리)
+		const bool bSkinned = Proxy->IsGPUSkinned() && ShadowShaderSkinned && ShadowShaderSkinned->IsValid();
+		if (bSkinned != bCurrentSkinned)
+		{
+			bCurrentSkinned = bSkinned;
+			FShader* NewShader = bSkinned ? ShadowShaderSkinned : ShadowShader;
+			if (NewShader != CurrentShader)
+			{
+				NewShader->Bind(DC);
+				CurrentShader = NewShader;
+				if (CurrentFilterMode != EShadowFilterMode::VSM)
+					DC->PSSetShader(nullptr, nullptr, 0);
+			}
+		}
+
 		++LastDrawCasterCount;
 		ShadowPerObjectCB.Update(DC, &Proxy->GetPerObjectConstants(), sizeof(FPerObjectConstants));
 		ID3D11Buffer* b1 = ShadowPerObjectCB.GetBuffer();
 		DC->VSSetConstantBuffers(ECBSlot::PerObject, 1, &b1);
 
-		ID3D11Buffer* VB = Mesh->GetVertexBuffer().GetBuffer();
-		uint32 VBStride = Mesh->GetVertexBuffer().GetStride();
-		uint32 Offset = 0;
-		DC->IASetVertexBuffers(0, 1, &VB, &VBStride, &Offset);
+		if (bSkinned)
+		{
+			// VB 없이 SV_VertexID로 SkinCache(t30) 읽음
+			DC->IASetInputLayout(nullptr);
+			DC->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+
+			ID3D11ShaderResourceView* Skin[] = { Proxy->GetSkinCacheSRV() };
+			DC->VSSetShaderResources(30, 1, Skin);
+		}
+		else
+		{
+			// 기존 정점 버퍼 바인딩
+			ID3D11Buffer* VB = Mesh->GetVertexBuffer().GetBuffer();
+			uint32 VBStride = Mesh->GetVertexBuffer().GetStride();
+			uint32 Offset = 0;
+			DC->IASetVertexBuffers(0, 1, &VB, &VBStride, &Offset);
+		}
 
 		ID3D11Buffer* IB = Mesh->GetIndexBuffer().GetBuffer();
 		if (IB)
@@ -663,6 +696,13 @@ void FShadowMapPass::DrawShadowCasters(ID3D11DeviceContext* DC, FScene& Scene, F
 	// Front-cull로 복원
 	if (bCurrentTwoSided)
 		Resources.RasterizerStateManager.Set(DC, ERasterizerState::SolidFrontCull);
+
+	// Skin Cache SRV(t30) 언바인딩 — 다음 패스/프레임에서 Compute가 같은 buffer를 UAV로 쓸 수 있도록
+	if (bCurrentSkinned)
+	{
+		ID3D11ShaderResourceView* NullSRV[] = { nullptr };
+		DC->VSSetShaderResources(30, 1, NullSRV);
+	}
 }
 
 void FShadowMapPass::DrawShadowCasters(const FPassContext& Ctx, const FConvexVolume& LightFrustum)
