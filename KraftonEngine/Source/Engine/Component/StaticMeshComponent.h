@@ -4,6 +4,7 @@
 #include "Core/PropertyTypes.h"
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
 #include "../Engine/Runtime/DelegateSubscriptionBox.h"
+#include "StaticMeshComponent.generated.h"
 
 class UMaterial;
 class FPrimitiveSceneProxy;
@@ -11,10 +12,11 @@ class FPrimitiveSceneProxy;
 namespace json { class JSON; }
 
 // UStaticMeshComponent — 월드 배치 컴포넌트
+UCLASS()
 class UStaticMeshComponent : public UMeshComponent
 {
 public:
-	DECLARE_CLASS(UStaticMeshComponent, UMeshComponent)
+	GENERATED_BODY()
 
 	UStaticMeshComponent() = default;
 	~UStaticMeshComponent() override;
@@ -45,6 +47,7 @@ private:
 	void CacheLocalBounds();
 
 	UStaticMesh* StaticMesh = nullptr;
+	FPROPERTY(DisplayName="Static Mesh", Type=StaticMeshRef)
 	FString StaticMeshPath = "None";
 
 	FVector CachedLocalCenter = { 0, 0, 0 };

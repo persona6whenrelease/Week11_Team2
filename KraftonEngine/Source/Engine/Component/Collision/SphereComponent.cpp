@@ -3,7 +3,7 @@
 #include "Render/Scene/FScene.h"
 #include "Serialization/Archive.h"
 
-IMPLEMENT_CLASS(USphereComponent, UShapeComponent)
+REGISTER_FACTORY(USphereComponent)
 
 namespace
 {
@@ -37,12 +37,6 @@ FBoundingBox USphereComponent::GetWorldAABB() const
 	const FVector Extent(Radius, Radius, Radius);
 
 	return FBoundingBox(Center - Extent, Center + Extent);
-}
-
-void USphereComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UShapeComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Sphere Radius", EPropertyType::Float, &SphereRadius, 0.0f, 10000.0f, 1.0f });
 }
 
 void USphereComponent::PostEditProperty(const char* PropertyName)

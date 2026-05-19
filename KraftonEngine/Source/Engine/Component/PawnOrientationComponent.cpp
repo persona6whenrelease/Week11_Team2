@@ -12,7 +12,7 @@
 #include <cmath>
 #include <cstring>
 
-IMPLEMENT_CLASS(UPawnOrientationComponent, UActorComponent)
+REGISTER_FACTORY(UPawnOrientationComponent)
 
 namespace
 {
@@ -100,28 +100,6 @@ void UPawnOrientationComponent::Serialize(FArchive& Ar)
 	{
 		NormalizeOptions();
 	}
-}
-
-void UPawnOrientationComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UActorComponent::GetEditableProperties(OutProps);
-
-	static const char* FacingModeNames[] =
-	{
-		"None",
-		"Control Rotation Yaw",
-		"Movement Input Direction",
-		"Movement Velocity Direction",
-		"Movement Direction + Control Fallback",
-		"Custom World Direction"
-	};
-
-	OutProps.push_back({ "Facing Mode", EPropertyType::Enum, &FacingMode, 0.0f, 0.0f, 0.1f, FacingModeNames, PawnFacingModeCount });
-	OutProps.push_back({ "Rotation Speed", EPropertyType::Float, &RotationSpeed, 0.0f, 10000.0f, 1.0f });
-	OutProps.push_back({ "Yaw Only", EPropertyType::Bool, &bYawOnly });
-	OutProps.push_back({ "Min Facing Input Size", EPropertyType::Float, &MinFacingInputSize, 0.0f, 10000.0f, 0.01f });
-	OutProps.push_back({ "Min Facing Speed", EPropertyType::Float, &MinFacingSpeed, 0.0f, 10000.0f, 0.1f });
-	OutProps.push_back({ "Custom Facing Direction", EPropertyType::Vec3, &CustomFacingDirection, 0.0f, 0.0f, 0.1f });
 }
 
 void UPawnOrientationComponent::PostEditProperty(const char* PropertyName)

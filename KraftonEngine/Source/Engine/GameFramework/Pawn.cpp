@@ -7,7 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/World.h"
 
-IMPLEMENT_CLASS(APawn, AActor)
+REGISTER_FACTORY(APawn)
 
 
 void APawn::InitDefaultComponents()

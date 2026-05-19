@@ -10,7 +10,7 @@
 #include "Viewport/Viewport.h"
 #include "Runtime/EngineFactory.h"
 
-IMPLEMENT_CLASS(UObjViewerEngine, UEngine)
+REGISTER_FACTORY(UObjViewerEngine)
 
 namespace
 {

@@ -12,24 +12,27 @@
 #include "Asset/Animation/Notify/AnimNotify.h"
 #include "Asset/AssetFileHeader.h"
 #include "Object/Object.h"
+#include "AnimSequence.generated.h"
 
 /**
  * 애니메이션 에셋 계층의 공통 기반 클래스이다.
  */
+UCLASS()
 class UAnimationAsset : public UObject
 {
   public:
-    DECLARE_CLASS(UAnimationAsset, UObject)
+    GENERATED_BODY()
     virtual float GetPlayLength() const { return 0.0f; }
 };
 
 /**
  * 애니메이션 키, 프레임 정보, 커브 데이터를 소유하는 데이터 모델이다.
  */
+UCLASS()
 class UAnimDataModel : public UObject
 {
   public:
-    DECLARE_CLASS(UAnimDataModel, UObject)
+    GENERATED_BODY()
 
     void Serialize(FArchive &Ar);
 
@@ -64,10 +67,11 @@ class UAnimDataModel : public UObject
 /**
  * 데이터 모델을 참조하는 재생 가능 애니메이션 에셋 기반 클래스이다.
  */
+UCLASS()
 class UAnimSequenceBase : public UAnimationAsset
 {
   public:
-    DECLARE_CLASS(UAnimSequenceBase, UAnimationAsset)
+    GENERATED_BODY()
 
     UAnimDataModel *GetDataModel() const { return DataModel; }
     UAnimDataModel *GetDataMode() const { return DataModel; }
@@ -85,10 +89,11 @@ class UAnimSequenceBase : public UAnimationAsset
 /**
  * 스켈레톤 참조, 데이터 모델, Notify를 함께 저장하는 애니메이션 시퀀스 에셋이다.
  */
+UCLASS()
 class UAnimSequence : public UAnimSequenceBase
 {
   public:
-    DECLARE_CLASS(UAnimSequence, UAnimSequenceBase)
+    GENERATED_BODY()
 
     static constexpr uint32 AssetVersion = 3u;
 

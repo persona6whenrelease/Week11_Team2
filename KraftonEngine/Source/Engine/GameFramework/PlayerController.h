@@ -5,6 +5,7 @@
 #include "GameFramework/AActor.h"
 #include "Math/Rotator.h"
 #include "Math/Vector.h"
+#include "PlayerController.generated.h"
 
 class APawn;
 class FArchive;
@@ -14,10 +15,11 @@ class UControllerInputComponent;
 class APlayerCameraManager;
 struct FControllerMovementInput;
 
+UCLASS()
 class APlayerController : public AActor
 {
 public:
-	DECLARE_CLASS(APlayerController, AActor)
+	GENERATED_BODY()
 
 	APlayerController() = default;
 	~APlayerController() override;

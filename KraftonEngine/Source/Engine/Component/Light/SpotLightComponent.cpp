@@ -6,7 +6,7 @@
 #include "Render/Types/LightFrustumUtils.h"
 #include <cmath>
 
-IMPLEMENT_CLASS(USpotLightComponent, UPointLightComponent)
+REGISTER_FACTORY(USpotLightComponent)
 
 void USpotLightComponent::ContributeSelectedVisuals(FScene& Scene) const
 {
@@ -110,9 +110,3 @@ bool USpotLightComponent::GetLightViewProj(FLightViewProjResult& OutResult, cons
 	return true;
 }
 
-void USpotLightComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPointLightComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "InnerConeAngle", EPropertyType::Float, &InnerConeAngle, 0.0f, 89.0f, 0.1f });
-	OutProps.push_back({ "OuterConeAngle", EPropertyType::Float, &OuterConeAngle, 0.0f, 89.0f, 0.1f });
-}

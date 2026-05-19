@@ -6,7 +6,7 @@
 #include "Asset/Material/MaterialManager.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(UMeshComponent, UPrimitiveComponent)
+REGISTER_FACTORY(UMeshComponent)
 HIDE_FROM_COMPONENT_LIST(UMeshComponent)
 
 static const FString EmptyMaterialSlotName = "None";
@@ -92,12 +92,6 @@ void UMeshComponent::RestoreOverrideMaterialsFromSlots()
 			? nullptr
 			: FMaterialManager::Get().GetOrCreateMaterial(MatPath);
 	}
-}
-
-void UMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	AppendMaterialSlotProperties(OutProps);
 }
 
 void UMeshComponent::PostEditProperty(const char* PropertyName)

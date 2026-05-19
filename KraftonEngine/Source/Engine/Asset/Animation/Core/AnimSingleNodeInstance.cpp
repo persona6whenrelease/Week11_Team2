@@ -4,7 +4,7 @@
 #include "Asset/Animation/Core/Skeleton.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(UAnimSingleNodeInstance, UAnimInstance)
+REGISTER_FACTORY(UAnimSingleNodeInstance)
 
 UAnimSingleNodeInstance::UAnimSingleNodeInstance() = default;
 

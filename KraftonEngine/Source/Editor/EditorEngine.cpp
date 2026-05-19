@@ -26,7 +26,7 @@
 #include "GameClient/LinkedRuntimeModules.h"
 #include <filesystem>
 
-IMPLEMENT_CLASS(UEditorEngine, UEngine)
+REGISTER_FACTORY(UEditorEngine)
 
 namespace
 {

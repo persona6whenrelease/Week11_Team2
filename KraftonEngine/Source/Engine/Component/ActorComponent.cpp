@@ -3,7 +3,7 @@
 #include "Serialization/Archive.h"
 #include "GameFramework/AActor.h"
 
-IMPLEMENT_CLASS(UActorComponent, UObject)
+REGISTER_FACTORY(UActorComponent)
 HIDE_FROM_COMPONENT_LIST(UActorComponent)
 
 void UActorComponent::BeginPlay()
@@ -86,11 +86,20 @@ void UActorComponent::SetOwner(AActor* Actor)
 
 void UActorComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
 {
-	//OutProps.push_back({ "Active", EPropertyType::Bool, &bIsActive });
-	//OutProps.push_back({ "Auto Activate", EPropertyType::Bool, &bAutoActivate });
-	//OutProps.push_back({ "Can Ever Tick", EPropertyType::Bool, &bCanEverTick });
-	OutProps.push_back({ "bTickEnable", EPropertyType::Bool, &bTickEnable });
-	OutProps.push_back({ "bEditorOnly", EPropertyType::Bool, &bEditorOnly });
+	// Walk the class hierarchy root-first so parent properties appear before child ones.
+	TArray<const UClass*> Chain;
+	for (const UClass* C = GetClass(); C; C = C->GetSuperClass())
+		Chain.push_back(C);
+
+	for (int32 i = static_cast<int32>(Chain.size()) - 1; i >= 0; --i)
+	{
+		for (const FPropertyDescriptor& Desc : Chain[i]->GetOwnProperties())
+		{
+			FPropertyDescriptor Inst = Desc;
+			Inst.ValuePtr = reinterpret_cast<char*>(this) + reinterpret_cast<size_t>(Desc.ValuePtr);
+			OutProps.push_back(Inst);
+		}
+	}
 }
 
 void UActorComponent::PostEditProperty(const char* PropertyName)

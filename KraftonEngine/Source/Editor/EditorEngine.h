@@ -11,6 +11,7 @@
 #include <optional>
 #if STATS
 #include "Editor/EditorRenderPipeline.h"
+#include "EditorEngine.generated.h"
 #endif
 
 class UGizmoComponent;
@@ -22,10 +23,11 @@ class UGameViewportClient;
 struct FPerspectiveCameraData;
 class FSkeletalMeshViewerViewportClient;
 
+UCLASS()
 class UEditorEngine : public UEngine
 {
 public:
-	DECLARE_CLASS(UEditorEngine, UEngine)
+	GENERATED_BODY()
 
 	UEditorEngine() = default;
 	~UEditorEngine() override = default;

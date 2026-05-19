@@ -14,6 +14,7 @@
 #include "Runtime/ActorPoolSystem.h"
 #include <Collision/Octree.h>
 #include <Collision/SpatialPartition.h>
+#include "World.generated.h"
 
 class UCameraComponent;
 class UPrimitiveComponent;
@@ -21,9 +22,10 @@ class UActorComponent;
 class APawn;
 class APlayerController;
 
+UCLASS()
 class UWorld : public UObject {
 public:
-	DECLARE_CLASS(UWorld, UObject)
+	GENERATED_BODY()
 	UWorld() = default;
 	~UWorld() override;
 

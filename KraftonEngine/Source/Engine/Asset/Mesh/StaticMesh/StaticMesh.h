@@ -15,6 +15,7 @@
 #include "Asset/AssetFileHeader.h"
 
 #include <memory>
+#include "StaticMesh.generated.h"
 
 struct ID3D11Device;
 
@@ -30,10 +31,11 @@ struct FLODMeshData
 /**
  * FStaticMesh 데이터를 렌더링 가능한 UObject로 감싸고 LOD/GPU 리소스를 관리하는 에셋 타입이다.
  */
+UCLASS()
 class UStaticMesh : public UObject
 {
   public:
-    DECLARE_CLASS(UStaticMesh, UObject)
+    GENERATED_BODY()
 
     static constexpr uint32 MAX_LOD_COUNT = 4;
     static constexpr uint32 AssetVersion = 1;

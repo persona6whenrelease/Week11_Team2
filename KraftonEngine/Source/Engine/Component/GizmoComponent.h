@@ -4,6 +4,7 @@
 #include "Core/CoreTypes.h"
 #include "Math/Rotator.h"
 #include "Render/Types/ViewTypes.h"
+#include "GizmoComponent.generated.h"
 
 class AActor;
 class FPrimitiveSceneProxy;
@@ -17,10 +18,11 @@ enum EGizmoMode
 	End
 };
 
+UCLASS()
 class UGizmoComponent : public UPrimitiveComponent
 {
 public:
-	DECLARE_CLASS(UGizmoComponent, UPrimitiveComponent)
+	GENERATED_BODY()
 	UGizmoComponent();
 
 	bool LineTraceComponent(const FRay& Ray, FHitResult& OutHitResult) override;

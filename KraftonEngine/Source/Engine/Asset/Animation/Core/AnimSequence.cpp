@@ -10,10 +10,10 @@
 #include "Core/Log.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(UAnimationAsset, UObject)
-IMPLEMENT_CLASS(UAnimDataModel, UObject)
-IMPLEMENT_CLASS(UAnimSequenceBase, UAnimationAsset)
-IMPLEMENT_CLASS(UAnimSequence, UAnimSequenceBase)
+REGISTER_FACTORY(UAnimationAsset)
+REGISTER_FACTORY(UAnimDataModel)
+REGISTER_FACTORY(UAnimSequenceBase)
+REGISTER_FACTORY(UAnimSequence)
 
 void UAnimDataModel::Serialize(FArchive &Ar)
 {

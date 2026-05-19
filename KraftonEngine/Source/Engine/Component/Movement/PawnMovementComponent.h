@@ -2,13 +2,15 @@
 
 #include "Component/Movement/MovementComponent.h"
 #include "Math/Vector.h"
+#include "PawnMovementComponent.generated.h"
 
 class FArchive;
 
+UCLASS()
 class UPawnMovementComponent : public UMovementComponent
 {
 public:
-	DECLARE_CLASS(UPawnMovementComponent, UMovementComponent)
+	GENERATED_BODY()
 
 	UPawnMovementComponent();
 	~UPawnMovementComponent() override = default;

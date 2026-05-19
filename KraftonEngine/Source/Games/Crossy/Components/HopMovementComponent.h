@@ -3,6 +3,7 @@
 #include "Component/Movement/MovementComponent.h"
 #include "Runtime/Delegate.h"
 #include "Math/Vector.h"
+#include "HopMovementComponent.generated.h"
 
 class FArchive;
 class FScene;
@@ -13,10 +14,11 @@ class FScene;
  * 이 컴포넌트는 특정 키보드/마우스/패드 입력 시스템에 직접 의존하지 않는다.
  * 상위 입력 계층은 매 프레임 SetMovementInput 또는 AddMovementInput만 호출하면 된다.
  */
+UCLASS()
 class UHopMovementComponent : public UMovementComponent
 {
 public:
-	DECLARE_CLASS(UHopMovementComponent, UMovementComponent)
+	GENERATED_BODY()
 	DECLARE_DELEGATE(DashDelegate)
 
 	UHopMovementComponent();
@@ -108,11 +110,13 @@ protected:
 	FVector LastMovementInput = FVector(0.0f, 0.0f, 0.0f);
 
 	// Runtime horizontal velocity in world space.
+	FPROPERTY(Type=Vec3, min=0.0f, max=0.0f, speed=1.0f)
 	FVector Velocity = FVector(0.0f, 0.0f, 0.0f);
 
 	// Legacy-compatible movement settings.
 	float InitialSpeed = 10.0f;
 	float MaxSpeed = 15.0f;
+	FPROPERTY(DisplayName="Hop Coefficient", Type=Float, min=0.0f, max=100.0f, speed=0.1f)
 	float HopCoefficient = 1.0f;
 
 	float Acceleration = 2048.0f;
@@ -120,16 +124,20 @@ protected:
 
 	float HopHeight = 0.3f;
 	float HopFrequency = 4.0f; // cycles per second. High value + low height gives a vibration-like motion.
+	FPROPERTY(DisplayName="Hop Only When Moving", Type=Bool)
 	bool bHopOnlyWhenMoving = true;
+	FPROPERTY(DisplayName="Reset Hop When Idle", Type=Bool)
 	bool bResetHopWhenIdle = true;
 
 	float HopElapsedTime = 0.0f;
 	float AppliedHopOffset = 0.0f;
+	FPROPERTY(DisplayName="Simulating", Type=Bool)
 	bool bSimulating = true;
 	float LockedGameplayPlaneZ = 0.0f;
 	bool bHasLockedGameplayPlaneZ = false;
 	USceneComponent* PlaneLockedComponent = nullptr;
 
+	FPROPERTY(DisplayName="Visual Hop Component", Type=SceneComponentRef)
 	FString VisualHopComponentPath;
 	USceneComponent* VisualHopComponent = nullptr;
 	FVector VisualHopBaseRelativeLocation = FVector::ZeroVector;
@@ -137,6 +145,7 @@ protected:
 
 	// Dash 설정. 에디터에서 튜닝.
 	float DashSpeed = 150.0f;
+	FPROPERTY(DisplayName="Dash Duration", Type=Float, min=0.0f, max=5.0f, speed=0.01f)
 	float DashDuration = 0.15f;
 
 	// Dash 런타임 상태. 0보다 크면 Dash 중.

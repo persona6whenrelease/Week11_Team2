@@ -19,7 +19,7 @@
 #include "Camera/CameraShakeModifier.h"
 #include "Camera/CameraVignetteModifier.h"
 
-IMPLEMENT_CLASS(APlayerCameraManager, AActor)
+REGISTER_FACTORY(APlayerCameraManager)
 
 APlayerCameraManager::APlayerCameraManager()
 {

@@ -3,7 +3,7 @@
 #include "Core/Log.h"
 #include "Object/ObjectFactory.h"
 
-IMPLEMENT_CLASS(USkeleton, UObject)
+REGISTER_FACTORY(USkeleton)
 
 namespace
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Core/PropertyTypes.h"
 
 class UObject;
 
@@ -41,6 +42,18 @@ public:
 		return (ClassFlags & Flags) != 0;
 	}
 
+	// --- Reflected properties ---
+	using FPropertiesGetter = const std::vector<FPropertyDescriptor>& (*)();
+
+	void SetPropertiesGetter(FPropertiesGetter F) { PropertiesGetter = F; }
+
+	// Returns own (non-inherited) reflected properties; empty vector if none registered.
+	const std::vector<FPropertyDescriptor>& GetOwnProperties() const
+	{
+		static const std::vector<FPropertyDescriptor> Empty;
+		return PropertiesGetter ? PropertiesGetter() : Empty;
+	}
+
 	// --- Global class registry ---
 	static TArray<UClass*>& GetAllClasses()
 	{
@@ -49,10 +62,11 @@ public:
 	}
 
 private:
-	const char* Name        = nullptr;
-	UClass*     SuperClass  = nullptr;
-	size_t      Size        = 0;
-	uint32      ClassFlags  = CF_None;
+	const char*      Name            = nullptr;
+	UClass*          SuperClass      = nullptr;
+	size_t           Size            = 0;
+	uint32           ClassFlags      = CF_None;
+	FPropertiesGetter PropertiesGetter = nullptr;
 };
 
 // static initializer 에서 UClass를 전역 레지스트리에 등록

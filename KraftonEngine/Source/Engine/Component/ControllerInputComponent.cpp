@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <cstring>
 
-IMPLEMENT_CLASS(UControllerInputComponent, UActorComponent)
+REGISTER_FACTORY(UControllerInputComponent)
 
 namespace
 {
@@ -125,20 +125,6 @@ void UControllerInputComponent::Serialize(FArchive& Ar)
 	{
 		NormalizeOptions();
 	}
-}
-
-void UControllerInputComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UActorComponent::GetEditableProperties(OutProps);
-
-	static const char* MovementFrameNames[] = { "World", "Control Rotation", "View Camera" };
-
-	OutProps.push_back({ "Movement Basis", EPropertyType::Enum, &MovementFrame, 0.0f, 0.0f, 0.1f, MovementFrameNames, MovementFrameCount });
-	OutProps.push_back({ "Move Speed", EPropertyType::Float, &MoveSpeed, 0.0f, 100000.0f, 0.1f });
-	OutProps.push_back({ "Sprint Multiplier", EPropertyType::Float, &SprintMultiplier, 0.0f, 100.0f, 0.1f });
-	OutProps.push_back({ "Look Sensitivity", EPropertyType::Float, &LookSensitivity, 0.0f, 100.0f, 0.01f });
-	OutProps.push_back({ "Min Pitch", EPropertyType::Float, &MinPitch, -180.0f, 180.0f, 0.1f });
-	OutProps.push_back({ "Max Pitch", EPropertyType::Float, &MaxPitch, -180.0f, 180.0f, 0.1f });
 }
 
 void UControllerInputComponent::PostEditProperty(const char* PropertyName)

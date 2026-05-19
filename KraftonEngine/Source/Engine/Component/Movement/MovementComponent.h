@@ -2,6 +2,7 @@
 
 #include "Component/ActorComponent.h"
 #include "Math/Vector.h"
+#include "MovementComponent.generated.h"
 
 class USceneComponent;
 struct FHitResult;
@@ -25,10 +26,11 @@ struct FControllerMovementInput
  * USceneComponent를 움직이는 로직들의 베이스 클래스.
  * 실제 이동 로직은 자식 클래스에서 담당합니다.
  */
+UCLASS()
 class UMovementComponent : public UActorComponent
 {
 public:
-	DECLARE_CLASS(UMovementComponent, UActorComponent)
+	GENERATED_BODY()
 
 	UMovementComponent() = default;
 	~UMovementComponent() override = default;
@@ -78,12 +80,18 @@ protected:
 	USceneComponent* FindUpdatedComponentByPath(const FString& InPath) const;
 
 	USceneComponent* UpdatedComponent = nullptr; // 움직일 대상
+	FPROPERTY(DisplayName="Auto Register Updated", Type=Bool)
 	bool bAutoRegisterUpdatedComponent = true;
+	FPROPERTY(DisplayName="Updated Component", Type=SceneComponentRef)
 	FString UpdatedComponentPath;
+	FPROPERTY(DisplayName="Receive Controller Input", Type=Bool)
 	bool bReceiveControllerInput = false;
+	FPROPERTY(DisplayName="Controller Input Priority", Type=Int, min=-100.0f, max=100.0f, speed=1.0f)
 	int32 ControllerInputPriority = 0;
 
+	FPROPERTY(DisplayName="Last Controller Direction", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 	FVector LastControllerWorldDirection = FVector::ZeroVector;
+	FPROPERTY(DisplayName="Last Controller Delta", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 	FVector LastControllerWorldDelta = FVector::ZeroVector;
 	FVector LastControllerMovementForward = FVector::ForwardVector;
 	FVector LastControllerMovementRight = FVector::RightVector;

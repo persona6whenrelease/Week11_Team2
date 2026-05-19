@@ -3,18 +3,20 @@
 #include "Object/Object.h"
 #include "Core/PropertyTypes.h"
 #include "Core/TickFunction.h"
+#include "ActorComponent.generated.h"
 
 class AActor;
 class UWorld;
 class FScene;
 
+UCLASS()
 class UActorComponent : public UObject
 {
     friend struct FActorComponentTickFunction;
 	friend class AActor;
 
 public:
-	DECLARE_CLASS(UActorComponent, UObject)
+	GENERATED_BODY()
 
 	virtual void BeginPlay();
 	virtual void EndPlay() {};
@@ -68,9 +70,11 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction);
 	
 	AActor* Owner = nullptr;
+	FPROPERTY(Type=Bool)
 	bool bTickEnable = true;
 
 private:
+	FPROPERTY(Type=Bool)
 	bool bEditorOnly = false;
 	bool bIsActive = true;
 	bool bAutoActivate = true;

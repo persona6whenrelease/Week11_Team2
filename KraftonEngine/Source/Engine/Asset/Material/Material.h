@@ -17,6 +17,7 @@
 #include "Render/Types/MaterialTextureSlot.h"
 #include "Render/Types/RenderConstants.h"
 #include <memory>
+#include "Material.generated.h"
 
 class UTexture2D;
 class FArchive;
@@ -84,6 +85,7 @@ struct FMaterialConstantBuffer
  *
  * 템플릿이 제공하는 셰이더/렌더 상태에 개별 파라미터와 텍스처 값을 더해 메시 섹션 단위로 바인딩된다.
  */
+UCLASS()
 class UMaterial : public UObject
 {
 private:
@@ -111,7 +113,7 @@ private:
 	bool SetParameter(const FString& Name, const void* Data, uint32 Size);
 
 public:
-	DECLARE_CLASS(UMaterial, UObject)
+	GENERATED_BODY()
 	~UMaterial() override;
 
 	void Create(const FString& InPathFileName, FMaterialTemplate* InTemplate,

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cstring>
 
-IMPLEMENT_CLASS(UBoxComponent, UShapeComponent)
+REGISTER_FACTORY(UBoxComponent)
 
 namespace
 {
@@ -46,12 +46,6 @@ FBoundingBox UBoxComponent::GetWorldAABB() const
 	return FBoundingBox(
 		Center - FVector(Ex, Ey, Ez),
 		Center + FVector(Ex, Ey, Ez));
-}
-
-void UBoxComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UShapeComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Box Extent", EPropertyType::Vec3, &BoxExtent, 0.0f, 10000.0f, 1.0f });
 }
 
 void UBoxComponent::PostEditProperty(const char* PropertyName)

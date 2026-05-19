@@ -13,7 +13,7 @@
 #include "Engine/Profiling/MemoryStats.h"
 #include "Asset/Mesh/Processing/MeshSimplifier.h"
 
-IMPLEMENT_CLASS(UStaticMesh, UObject)
+REGISTER_FACTORY(UStaticMesh)
 
 static const FString EmptyPath;
 

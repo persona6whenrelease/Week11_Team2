@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <cstring>
 
-IMPLEMENT_CLASS(USpringArmComponent, USceneComponent)
+REGISTER_FACTORY(USpringArmComponent)
 
 USpringArmComponent::USpringArmComponent()
 {
@@ -49,29 +49,6 @@ void USpringArmComponent::Serialize(FArchive& Ar)
 		bHasLaggedCameraLocation = false;
 		bCollisionFixApplied = false;
 	}
-}
-
-void USpringArmComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	USceneComponent::GetEditableProperties(OutProps);
-
-	OutProps.push_back({ "Target Arm Length",EPropertyType::Float,&TargetArmLength,0.0f,10000.0f,0.1f });
-	OutProps.push_back({ "Target Offset",EPropertyType::Vec3,&TargetOffset,0.0f,0.0f,0.1f });
-	OutProps.push_back({ "Socket Offset",EPropertyType::Vec3,&SocketOffset,0.0f,0.0f,0.1f });
-
-	OutProps.push_back({ "Do Collision Test",EPropertyType::Bool,&bDoCollisionTest });
-	OutProps.push_back({ "Probe Size",EPropertyType::Float,&ProbeSize,0.0f,1000.0f,0.01f });
-	OutProps.push_back({ "Min Arm Length",EPropertyType::Float,&MinArmLength,0.0f,10000.0f,0.01f });
-
-	OutProps.push_back({ "Use Pawn Control Rotation",EPropertyType::Bool,&bUsePawnControlRotation });
-	OutProps.push_back({ "Inherit Pitch",EPropertyType::Bool,&bInheritPitch });
-	OutProps.push_back({ "Inherit Yaw",EPropertyType::Bool,&bInheritYaw });
-	OutProps.push_back({ "Inherit Roll",EPropertyType::Bool,&bInheritRoll });
-
-	OutProps.push_back({ "Enable Camera Lag",EPropertyType::Bool,&bEnableCameraLag });
-	OutProps.push_back({ "Camera Lag Speed",EPropertyType::Float,&CameraLagSpeed,0.0f,100.0f,0.1f });
-	OutProps.push_back({ "Collision Pull In Speed",EPropertyType::Float,&CollisionPullInSpeed,0.0f,1000.0f,1.0f });
-	OutProps.push_back({ "Collision Recover Speed",EPropertyType::Float,&CollisionRecoverSpeed,0.0f,1000.0f,0.1f });
 }
 
 void USpringArmComponent::PostEditProperty(const char* PropertyName)

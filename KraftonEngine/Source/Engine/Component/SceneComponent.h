@@ -5,13 +5,15 @@
 #include "Math/Quat.h"
 #include "Component/ActorComponent.h"
 #include "Math/MathUtils.h"
+#include "SceneComponent.generated.h"
 
 class AActor;
 
+UCLASS()
 class USceneComponent : public UActorComponent
 {
 public:
-	DECLARE_CLASS(USceneComponent, UActorComponent)
+	GENERATED_BODY()
 
 	USceneComponent();
 	~USceneComponent();

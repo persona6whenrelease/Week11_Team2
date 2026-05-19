@@ -1,13 +1,15 @@
 ﻿#pragma once
 #include "GizmoComponent.h"
+#include "SkeletalGizmoComponent.generated.h"
 
 class USkinnedMeshComponent;
 
+UCLASS()
 class USkeletalGizmoComponent :
     public UGizmoComponent
 {
 public:
-	DECLARE_CLASS(USkeletalGizmoComponent, UGizmoComponent)
+	GENERATED_BODY()
 
 	// 본 타겟팅을 위한 전용 함수
 	void SetTargetBone(USkinnedMeshComponent* NewTarget, int32 InBoneIndex);

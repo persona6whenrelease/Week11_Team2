@@ -16,7 +16,7 @@
 #include "Object/ObjectFactory.h"
 #include "GameFramework/World.h"
 
-IMPLEMENT_CLASS(UGameClientEngine, UEngine)
+REGISTER_FACTORY(UGameClientEngine)
 
 namespace
 {

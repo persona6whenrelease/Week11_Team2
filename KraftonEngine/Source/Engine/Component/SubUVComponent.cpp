@@ -12,7 +12,7 @@
 #include "Serialization/Archive.h"
 #include "Asset/Material/Material.h"
 
-IMPLEMENT_CLASS(USubUVComponent, UBillboardComponent)
+REGISTER_FACTORY(USubUVComponent)
 
 FPrimitiveSceneProxy* USubUVComponent::CreateSceneProxy()
 {
@@ -74,19 +74,6 @@ void USubUVComponent::RebuildSubUVMaterial()
 		SubUVMaterial->SetCachedSRV(EMaterialTextureSlot::Diffuse, CachedParticle->SRV);
 	else
 		SubUVMaterial->SetCachedSRV(EMaterialTextureSlot::Diffuse, nullptr);
-}
-
-void USubUVComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	// Billboard의 Texture 프로퍼티는 SubUV에서 의미가 없으므로 의도적으로 스킵.
-	// UPrimitiveComponent로 직접 올라가 공통 트랜스폼 등만 가져온 뒤,
-	// Width/Height(상속 멤버)와 SubUV 고유 프로퍼티만 노출한다.
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Particle",  EPropertyType::Name,  &ParticleName });
-	OutProps.push_back({ "Width",     EPropertyType::Float, &Width,  0.1f, 100.0f, 0.1f });
-	OutProps.push_back({ "Height",    EPropertyType::Float, &Height, 0.1f, 100.0f, 0.1f });
-	OutProps.push_back({ "Play Rate", EPropertyType::Float, &PlayRate, 1.0f, 120.0f, 1.0f });
-	OutProps.push_back({ "bLoop",     EPropertyType::Bool,  &bLoop });
 }
 
 void USubUVComponent::PostEditProperty(const char* PropertyName)

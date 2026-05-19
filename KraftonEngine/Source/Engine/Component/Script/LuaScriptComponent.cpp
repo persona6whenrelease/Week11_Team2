@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-IMPLEMENT_CLASS(ULuaScriptComponent, UActorComponent)
+REGISTER_FACTORY(ULuaScriptComponent)
 
 void ULuaScriptComponent::BeginPlay()
 {
@@ -44,12 +44,6 @@ void ULuaScriptComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << ScriptPath;
-}
-
-void ULuaScriptComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	Super::GetEditableProperties(OutProps);
-	OutProps.push_back({ "ScriptPath", EPropertyType::String, &ScriptPath });
 }
 
 void ULuaScriptComponent::PostEditProperty(const char* PropertyName)

@@ -19,7 +19,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Core/Log.h"
 
-IMPLEMENT_CLASS(UWorld, UObject)
+REGISTER_FACTORY(UWorld)
 
 static void RemapActor(UWorld* NewWorld, const TMap<uint32, uint32>& ActorUUIDRemap)
 {

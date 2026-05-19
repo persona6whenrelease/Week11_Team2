@@ -4,7 +4,7 @@
 #include "Math/Quat.h"
 #include "Serialization/Archive.h"
 
-IMPLEMENT_CLASS(UInterpToMovementComponent, UMovementComponent)
+REGISTER_FACTORY(UInterpToMovementComponent)
 
 namespace {
 	// Returns normalized direction from A to B
@@ -46,17 +46,6 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	// FaceTargetDir must run before UpdateLerp — UpdateLerp can advance PointIDs via DestinationReached
 	FaceTargetDir(DeltaTime);
 	UpdateLerp(DeltaTime);
-}
-
-void UInterpToMovementComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps) {
-	UMovementComponent::GetEditableProperties(OutProps);
-
-	OutProps.push_back({ "Auto Activate",		  EPropertyType::Bool,		 &bAutoActivate });
-	OutProps.push_back({ "Orient To Movement",	  EPropertyType::Bool,		 &bFaceTargetDir });
-	OutProps.push_back({ "Interp Duration",		  EPropertyType::Float,      &Duration,       0.1f, 2048.0f, 0.1f });
-	static const char* InterpBehaviourNames[] = { "One Shot", "One Shot Reverse", "Loop", "Ping-Pong" };
-	OutProps.push_back({ "Interp Mode",			  EPropertyType::Enum,		 &InterpBehaviour, 0,0,0, InterpBehaviourNames, 4 });
-	OutProps.push_back({ "Control Points",		  EPropertyType::Vec3Array,  &ControlPoints });
 }
 
 void UInterpToMovementComponent::Serialize(FArchive& Ar)

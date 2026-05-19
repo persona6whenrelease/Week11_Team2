@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-IMPLEMENT_CLASS(USkinnedMeshComponent, UMeshComponent)
+REGISTER_FACTORY(USkinnedMeshComponent)
 HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 
 namespace

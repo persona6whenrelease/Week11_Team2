@@ -13,7 +13,7 @@
 #include <cmath>
 #include <cstring>
 
-IMPLEMENT_CLASS(UCameraComponent, USceneComponent)
+REGISTER_FACTORY(UCameraComponent)
 
 namespace
 {
@@ -478,61 +478,6 @@ FRay UCameraComponent::DeprojectScreenToWorld(float MouseX, float MouseY, float 
 	Ray.Direction = (Length > 1e-4f) ? Dir / Length : FVector(1, 0, 0);
 
 	return Ray;
-}
-
-void UCameraComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	USceneComponent::GetEditableProperties(OutProps);
-
-	static const char* ViewModeNames[] = { "Static", "First Person", "Third Person", "Orthographic Follow", "Custom" };
-	static const char* BlendFunctionNames[] = { "Linear", "Ease In", "Ease Out", "Ease In Out" };
-	static const char* ProjectionSwitchNames[] = { "Switch At Start", "Switch At Half", "Switch At End" };
-
-	OutProps.push_back({ "FOV", EPropertyType::Float, &CameraState.FOV, 0.1f, 3.14f, 0.01f });
-	OutProps.push_back({ "Aspect Ratio", EPropertyType::Float, &CameraState.AspectRatio, 0.01f, 10.0f, 0.01f });
-	OutProps.push_back({ "Near Z", EPropertyType::Float, &CameraState.NearZ, 0.001f, 1000.0f, 0.01f });
-	OutProps.push_back({ "Far Z", EPropertyType::Float, &CameraState.FarZ, 1.0f, 100000.0f, 10.0f });
-	OutProps.push_back({ "Orthographic", EPropertyType::Bool, &CameraState.bIsOrthogonal });
-	OutProps.push_back({ "Ortho Width", EPropertyType::Float, &CameraState.OrthoWidth, 0.1f, 10000.0f, 0.5f });
-
-	OutProps.push_back({ "View Mode", EPropertyType::Enum, &ViewMode, 0.0f, 0.0f, 0.1f, ViewModeNames, ViewModeCount });
-	OutProps.push_back({ "Follow Subject Auto", EPropertyType::Bool, &bUseOwnerAsTarget });
-	OutProps.push_back({ "Follow Target", EPropertyType::ActorRef, &TargetActorUUID });
-	OutProps.push_back({ "Follow Offset", EPropertyType::Vec3, &TargetOffset, 0.0f, 0.0f, 0.1f });
-
-	OutProps.push_back({ "Eye Height", EPropertyType::Float, &EyeHeight, 0.0f, 1000.0f, 0.01f });
-	OutProps.push_back({ "First Person Use Control Rotation", EPropertyType::Bool, &bFirstPersonUseControlRotation });
-
-	OutProps.push_back({ "Back Distance", EPropertyType::Float, &BackDistance, 0.0f, 10000.0f, 0.1f });
-	OutProps.push_back({ "Height", EPropertyType::Float, &Height, -10000.0f, 10000.0f, 0.1f });
-	OutProps.push_back({ "Side Offset", EPropertyType::Float, &SideOffset, -10000.0f, 10000.0f, 0.1f });
-	OutProps.push_back({ "View Offset", EPropertyType::Vec3, &ViewOffset, 0.0f, 0.0f, 0.1f });
-	OutProps.push_back({ "Use Target Forward", EPropertyType::Bool, &bUseTargetForward });
-	OutProps.push_back({ "Use Control Rotation Yaw", EPropertyType::Bool, &bUseControlRotationYaw });
-
-	OutProps.push_back({ "Enable Look Ahead", EPropertyType::Bool, &bEnableLookAhead });
-	OutProps.push_back({ "Look Ahead Distance", EPropertyType::Float, &LookAheadDistance, 0.0f, 10000.0f, 0.1f });
-	OutProps.push_back({ "Look Ahead Lag Speed", EPropertyType::Float, &LookAheadLagSpeed, 0.0f, 100.0f, 0.1f });
-
-	OutProps.push_back({ "Stabilize Vertical In Orthographic", EPropertyType::Bool, &bStabilizeVerticalInOrthographic });
-	OutProps.push_back({ "Vertical Dead Zone", EPropertyType::Float, &VerticalDeadZone, 0.0f, 10000.0f, 0.01f });
-	OutProps.push_back({ "Vertical Follow Strength", EPropertyType::Float, &VerticalFollowStrength, 0.0f, 1.0f, 0.01f });
-	OutProps.push_back({ "Vertical Lag Speed", EPropertyType::Float, &VerticalLagSpeed, 0.0f, 100.0f, 0.1f });
-
-	OutProps.push_back({ "Enable Smoothing", EPropertyType::Bool, &SmoothingSettings.bEnableSmoothing });
-	OutProps.push_back({ "Location Lag Speed", EPropertyType::Float, &SmoothingSettings.LocationLagSpeed, 0.0f, 100.0f, 0.1f });
-	OutProps.push_back({ "Rotation Lag Speed", EPropertyType::Float, &SmoothingSettings.RotationLagSpeed, 0.0f, 100.0f, 0.1f });
-	OutProps.push_back({ "FOV Lag Speed", EPropertyType::Float, &SmoothingSettings.FOVLagSpeed, 0.0f, 100.0f, 0.1f });
-	OutProps.push_back({ "Ortho Width Lag Speed", EPropertyType::Float, &SmoothingSettings.OrthoWidthLagSpeed, 0.0f, 100.0f, 0.1f });
-
-	OutProps.push_back({ "Blend Time", EPropertyType::Float, &TransitionSettings.BlendTime, 0.0f, 10.0f, 0.01f });
-	OutProps.push_back({ "Blend Function", EPropertyType::Enum, &TransitionSettings.Function, 0.0f, 0.0f, 0.1f, BlendFunctionNames, BlendFunctionCount });
-	OutProps.push_back({ "Projection Switch Mode", EPropertyType::Enum, &TransitionSettings.ProjectionSwitchMode, 0.0f, 0.0f, 0.1f, ProjectionSwitchNames, ProjectionSwitchModeCount });
-	OutProps.push_back({ "Blend Location", EPropertyType::Bool, &TransitionSettings.bBlendLocation });
-	OutProps.push_back({ "Blend Rotation", EPropertyType::Bool, &TransitionSettings.bBlendRotation });
-	OutProps.push_back({ "Blend FOV", EPropertyType::Bool, &TransitionSettings.bBlendFOV });
-	OutProps.push_back({ "Blend Ortho Width", EPropertyType::Bool, &TransitionSettings.bBlendOrthoWidth });
-	OutProps.push_back({ "Blend Near/Far", EPropertyType::Bool, &TransitionSettings.bBlendNearFar });
 }
 
 void UCameraComponent::PostEditProperty(const char* PropertyName)

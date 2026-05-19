@@ -1,14 +1,16 @@
 ﻿#pragma once
 
 #include "GameFramework/AActor.h"
+#include "HeightFogActor.generated.h"
 
 class UHeightFogComponent;
 class UBillboardComponent;
 
+UCLASS()
 class AHeightFogActor : public AActor
 {
 public:
-	DECLARE_CLASS(AHeightFogActor, AActor)
+	GENERATED_BODY()
 
 	AHeightFogActor();
 	void InitDefaultComponents();

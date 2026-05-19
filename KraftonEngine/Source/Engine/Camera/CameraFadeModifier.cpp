@@ -3,7 +3,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Core/Log.h"
 
-IMPLEMENT_CLASS(UCameraFadeModifier, UCameraModifier)
+REGISTER_FACTORY(UCameraFadeModifier)
 
 void UCameraFadeModifier::StartFadeIn(float Duration, float TargetAlpha, const FVector& Color)
 {

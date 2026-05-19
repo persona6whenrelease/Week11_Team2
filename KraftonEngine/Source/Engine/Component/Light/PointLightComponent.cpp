@@ -27,7 +27,7 @@ namespace
 	}
 }
 
-IMPLEMENT_CLASS(UPointLightComponent, ULightComponent)
+REGISTER_FACTORY(UPointLightComponent)
 
 void UPointLightComponent::ContributeSelectedVisuals(FScene& Scene) const
 {
@@ -92,9 +92,3 @@ bool UPointLightComponent::GetLightViewProj(FLightViewProjResult& OutResult, con
 	return true;
 }
 
-void UPointLightComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	ULightComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "AttenuationRadius",EPropertyType::Float,&AttenuationRadius,0.05f,1000.f,0.01f });
-	OutProps.push_back({ "LightFalloffExponent",EPropertyType::Float,&LightFalloffExponent,0.05f,10.f,0.01f });
-}

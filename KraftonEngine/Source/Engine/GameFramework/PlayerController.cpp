@@ -12,7 +12,7 @@
 #include "Serialization/Archive.h"
 #include "Camera\CameraShakeModifier.h"
 
-IMPLEMENT_CLASS(APlayerController, AActor)
+REGISTER_FACTORY(APlayerController)
 
 namespace
 {

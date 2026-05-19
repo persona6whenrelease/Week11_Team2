@@ -9,15 +9,17 @@
 #include "Math/Vector.h"
 #include "Math/Rotator.h"
 #include "Collision/ConvexVolume.h"
+#include "CameraComponent.generated.h"
 
 class AActor;
 class APlayerController;
 class FArchive;
 
+UCLASS()
 class UCameraComponent : public USceneComponent
 {
 public:
-	DECLARE_CLASS(UCameraComponent, USceneComponent)
+	GENERATED_BODY()
 
 	UCameraComponent() = default;
 
@@ -137,27 +139,45 @@ private:
 private:
 	FCameraState CameraState;
 	int32 ViewMode = static_cast<int32>(ECameraViewMode::Static);
+	FPROPERTY(DisplayName="Follow Subject Auto", Type=Bool)
 	bool bUseOwnerAsTarget = true;
+	FPROPERTY(DisplayName="Follow Target", Type=ActorRef)
 	uint32 TargetActorUUID = 0;
+	FPROPERTY(DisplayName="Follow Offset", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 	FVector TargetOffset = FVector::ZeroVector;
 
+	FPROPERTY(DisplayName="Eye Height", Type=Float, min=0.0f, max=1000.0f, speed=0.01f)
 	float EyeHeight = 1.6f;
+	FPROPERTY(DisplayName="First Person Use Control Rotation", Type=Bool)
 	bool bFirstPersonUseControlRotation = true;
 
+	FPROPERTY(DisplayName="Back Distance", Type=Float, min=0.0f, max=10000.0f, speed=0.1f)
 	float BackDistance = 5.0f;
+	FPROPERTY(Type=Float, min=-10000.0f, max=10000.0f, speed=0.1f)
 	float Height = 2.0f;
+	FPROPERTY(DisplayName="Side Offset", Type=Float, min=-10000.0f, max=10000.0f, speed=0.1f)
 	float SideOffset = 0.0f;
+	FPROPERTY(DisplayName="View Offset", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 	FVector ViewOffset = FVector(-5.0f, 5.0f, 5.0f);
+	FPROPERTY(DisplayName="Use Target Forward", Type=Bool)
 	bool bUseTargetForward = true;
+	FPROPERTY(DisplayName="Use Control Rotation Yaw", Type=Bool)
 	bool bUseControlRotationYaw = true;
 
+	FPROPERTY(DisplayName="Enable Look Ahead", Type=Bool)
 	bool bEnableLookAhead = false;
+	FPROPERTY(DisplayName="Look Ahead Distance", Type=Float, min=0.0f, max=10000.0f, speed=0.1f)
 	float LookAheadDistance = 1.0f;
+	FPROPERTY(DisplayName="Look Ahead Lag Speed", Type=Float, min=0.0f, max=100.0f, speed=0.1f)
 	float LookAheadLagSpeed = 8.0f;
 
+	FPROPERTY(DisplayName="Stabilize Vertical In Orthographic", Type=Bool)
 	bool bStabilizeVerticalInOrthographic = true;
+	FPROPERTY(DisplayName="Vertical Dead Zone", Type=Float, min=0.0f, max=10000.0f, speed=0.01f)
 	float VerticalDeadZone = 0.4f;
+	FPROPERTY(DisplayName="Vertical Follow Strength", Type=Float, min=0.0f, max=1.0f, speed=0.01f)
 	float VerticalFollowStrength = 0.15f;
+	FPROPERTY(DisplayName="Vertical Lag Speed", Type=Float, min=0.0f, max=100.0f, speed=0.1f)
 	float VerticalLagSpeed = 2.0f;
 
 	FCameraSmoothingSettings SmoothingSettings;

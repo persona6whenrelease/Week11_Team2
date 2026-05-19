@@ -4,13 +4,15 @@
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Render/Resource/Buffer.h"
 #include "Render/Types/VertexTypes.h"
+#include "SkinnedMeshComponent.generated.h"
 
 class FPrimitiveSceneProxy;
 
+UCLASS()
 class USkinnedMeshComponent : public UMeshComponent
 {
 public:
-	DECLARE_CLASS(USkinnedMeshComponent, UMeshComponent)
+	GENERATED_BODY()
 
 	USkinnedMeshComponent() = default;
 	~USkinnedMeshComponent() override = default;
