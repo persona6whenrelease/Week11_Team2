@@ -105,6 +105,31 @@ double FSkinningStats::GetBoneUploadTimeMs()
 	return GetAverageMs(BoneUploadSum, BoneUploadCount);
 }
 
+double FSkinningStats::GetLastPoseSamplingTimeMs()
+{
+	return GetLastMs(PoseSamplingSamples, PoseSamplingHead, PoseSamplingCount);
+}
+
+double FSkinningStats::GetLastSkinningMatrixUpdateTimeMs()
+{
+	return GetLastMs(SkinningMatrixUpdateSamples, SkinningMatrixUpdateHead, SkinningMatrixUpdateCount);
+}
+
+double FSkinningStats::GetLastCPUSkinningTimeMs()
+{
+	return GetLastMs(CPUSkinningSamples, CPUSkinningHead, CPUSkinningCount);
+}
+
+double FSkinningStats::GetLastGPUSkeletalPassTimeMs()
+{
+	return GetLastMs(GPUSkeletalPassSamples, GPUSkeletalPassHead, GPUSkeletalPassCount);
+}
+
+double FSkinningStats::GetLastBoneUploadTimeMs()
+{
+	return GetLastMs(BoneUploadSamples, BoneUploadHead, BoneUploadCount);
+}
+
 const char* FSkinningStats::GetModeLabel()
 {
 	if (CPUComponentCount > 0 && GPUComponentCount > 0)
@@ -147,5 +172,15 @@ void FSkinningStats::AddToCurrentFrame(double Samples[WindowSize], uint32 Head, 
 double FSkinningStats::GetAverageMs(double Sum, uint32 Count)
 {
 	return Count > 0 ? (Sum / static_cast<double>(Count)) * 1000.0 : 0.0;
+}
+
+double FSkinningStats::GetLastMs(const double Samples[WindowSize], uint32 Head, uint32 Count)
+{
+	if (Count == 0)
+	{
+		return 0.0;
+	}
+
+	return Samples[(Head + WindowSize - 1) % WindowSize] * 1000.0;
 }
 #endif

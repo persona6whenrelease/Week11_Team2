@@ -17,6 +17,7 @@
 #include "Asset/Import/MeshManager.h"
 #include "Core/ProjectSettings.h"
 #include "Input/InputSystem.h"
+#include "Profiling/FrameProfiler.h"
 #include "GameFramework/AActor.h"
 #include "GameFramework/PlayerController.h"
 #include "Asset/Material/MaterialManager.h"
@@ -141,6 +142,7 @@ void UEditorEngine::OnWindowResized(uint32 Width, uint32 Height)
 void UEditorEngine::Tick(float DeltaTime)
 {
 	const float RawDeltaTime = DeltaTime;
+	FFrameProfiler::BeginFrame();
 
 	// --- PIE ?붿껌 泥섎━ (?꾨젅??寃쎄퀎?먯꽌 泥섎━?섎룄濡?Tick ?좊몢?먯꽌 ?뚮퉬) ---
 	if (bRequestEndPlayMapQueued)

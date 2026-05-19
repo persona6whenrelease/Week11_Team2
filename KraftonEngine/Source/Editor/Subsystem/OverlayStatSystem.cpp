@@ -31,6 +31,20 @@ static int FormatBytes(char* Buffer, int32 BufferSize, const char* Label, uint64
 	return snprintf(Buffer, BufferSize, "%s : %llu B", Label, static_cast<unsigned long long>(Bytes));
 }
 
+static FString FormatSkinningTimingLine(const char* Label, double TimeMs)
+{
+	char Buffer[160] = {};
+	if (TimeMs >= 0.001)
+	{
+		snprintf(Buffer, sizeof(Buffer), "%-24s : %.3f ms", Label, TimeMs);
+	}
+	else
+	{
+		snprintf(Buffer, sizeof(Buffer), "%-24s : %.1f us", Label, TimeMs * 1000.0);
+	}
+	return FString(Buffer);
+}
+
 void FOverlayStatSystem::AppendLine(TArray<FOverlayStatLine>& OutLines, float Y, const FString& Text) const
 {
 	FOverlayStatLine Line;
@@ -264,44 +278,42 @@ void FOverlayStatSystem::BuildSkinningLines(TArray<FString>& OutLines) const
     }
     if (GPUSkinningTimeMs <= 0.0)
     {
-        GPUSkinningTimeMs = FSkinningStats::GetGPUSkeletalPassTimeMs();
+        GPUSkinningTimeMs = FSkinningStats::GetLastGPUSkeletalPassTimeMs();
     }
 
-    OutLines.push_back(FString("[Time]"));
-    snprintf(Buffer, sizeof(Buffer), "Pose Sampling Time       : %.3f ms", FSkinningStats::GetPoseSamplingTimeMs());
-    OutLines.push_back(FString(Buffer));
-    snprintf(Buffer, sizeof(Buffer), "Skinning Matrix Update   : %.3f ms", FSkinningStats::GetSkinningMatrixUpdateTimeMs());
-    OutLines.push_back(FString(Buffer));
+    OutLines.push_back(FString("[Time - Last Frame]"));
+    OutLines.push_back(FormatSkinningTimingLine("Pose Sampling Time", FSkinningStats::GetLastPoseSamplingTimeMs()));
+    OutLines.push_back(FormatSkinningTimingLine("Skinning Matrix Update", FSkinningStats::GetLastSkinningMatrixUpdateTimeMs()));
 
     if (CPUComponentCount > 0)
     {
-        snprintf(Buffer, sizeof(Buffer), "CPU Vertex Skinning Time : %.3f ms", FSkinningStats::GetCPUSkinningTimeMs());
+        OutLines.push_back(FormatSkinningTimingLine("CPU Vertex Skinning Time", FSkinningStats::GetLastCPUSkinningTimeMs()));
     }
     else
     {
         snprintf(Buffer, sizeof(Buffer), "CPU Vertex Skinning Time : Not Measured");
+        OutLines.push_back(FString(Buffer));
     }
-    OutLines.push_back(FString(Buffer));
 
     if (GPUComponentCount > 0)
     {
-        snprintf(Buffer, sizeof(Buffer), "GPU Skeletal Pass Time   : %.3f ms", GPUSkinningTimeMs);
+        OutLines.push_back(FormatSkinningTimingLine("GPU Skeletal Pass Time", GPUSkinningTimeMs));
     }
     else
     {
         snprintf(Buffer, sizeof(Buffer), "GPU Skeletal Pass Time   : Not Measured");
+        OutLines.push_back(FString(Buffer));
     }
-    OutLines.push_back(FString(Buffer));
 
     if (GPUComponentCount > 0)
     {
-        snprintf(Buffer, sizeof(Buffer), "Bone Matrix Upload Time  : %.3f ms", FSkinningStats::GetBoneUploadTimeMs());
+        OutLines.push_back(FormatSkinningTimingLine("Bone Matrix Upload Time", FSkinningStats::GetLastBoneUploadTimeMs()));
     }
     else
     {
         snprintf(Buffer, sizeof(Buffer), "Bone Matrix Upload Time  : Not Measured");
+        OutLines.push_back(FString(Buffer));
     }
-    OutLines.push_back(FString(Buffer));
 #else
     OutLines.push_back(FString("Skinning stats unavailable (STATS=0)"));
 #endif

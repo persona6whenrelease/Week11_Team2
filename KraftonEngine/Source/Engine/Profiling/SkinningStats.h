@@ -23,6 +23,11 @@ struct FSkinningStats
 	static double GetCPUSkinningTimeMs();
 	static double GetGPUSkeletalPassTimeMs();
 	static double GetBoneUploadTimeMs();
+	static double GetLastPoseSamplingTimeMs();
+	static double GetLastSkinningMatrixUpdateTimeMs();
+	static double GetLastCPUSkinningTimeMs();
+	static double GetLastGPUSkeletalPassTimeMs();
+	static double GetLastBoneUploadTimeMs();
 
 	static uint32 GetVertexCount() { return VertexCount; }
 	static uint32 GetBoneCount() { return BoneCount; }
@@ -36,6 +41,7 @@ private:
 	static void PushFrameSample(double Samples[WindowSize], uint32& Head, uint32& Count, double& Sum, double Seconds);
 	static void AddToCurrentFrame(double Samples[WindowSize], uint32 Head, double& Sum, double Seconds);
 	static double GetAverageMs(double Sum, uint32 Count);
+	static double GetLastMs(const double Samples[WindowSize], uint32 Head, uint32 Count);
 
 	static double PoseSamplingSamples[WindowSize];
 	static double SkinningMatrixUpdateSamples[WindowSize];
