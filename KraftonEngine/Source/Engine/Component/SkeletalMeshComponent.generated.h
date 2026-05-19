@@ -9,7 +9,7 @@
 #define CURRENT_FILE_ID SkeletalMeshComponent_h_LINE_
 
 // ---- USkeletalMeshComponent ----
-#define SkeletalMeshComponent_h_LINE_24 \
+#define SkeletalMeshComponent_h_LINE_29 \
     using Super = USkinnedMeshComponent; \
     static UClass StaticClassInstance; \
     static FClassRegistrar s_Registrar; \

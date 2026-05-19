@@ -369,6 +369,7 @@
     <ClCompile Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraph.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraph_StateMachine.cpp" />
+    <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimGraphInstance.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimInstance.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSequence.cpp" />
     <ClCompile Include="Source\Engine\Asset\Animation\Core\AnimSingleNodeInstance.cpp" />
@@ -661,6 +662,7 @@
     <ClInclude Include="Source\Editor\Viewport\SkeletalMeshViewerViewportClient.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraph_StateMachine.h" />
+    <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimGraphInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimInstance.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimPoseUtils.h" />
     <ClInclude Include="Source\Engine\Asset\Animation\Core\AnimSequence.h" />

@@ -1,5 +1,6 @@
 ﻿#include "Editor/UI/EditorConsoleWidget.h"
 #include "Editor/EditorEngine.h"
+#include "Editor/Selection/SelectionManager.h"
 #include "Editor/Subsystem/OverlayStatSystem.h"
 #include "Engine/Platform/CrashDump.h"
 #include "Object/Object.h"
@@ -7,14 +8,24 @@
 #include "Render/Types/LightFrustumUtils.h"
 #include "Render/Types/RenderConstants.h"
 #include "Component/CameraComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/SkinnedMeshComponent.h"
+#include "GameFramework/AActor.h"
 #include "GameFramework/World.h"
+#include "Asset/Animation/Core/AnimGraph.h"
+#include "Asset/Animation/Core/AnimSequence.h"
+#include "Asset/Animation/Core/Skeleton.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Asset/Import/MeshManager.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Render/Scene/FScene.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <set>
 
 namespace
@@ -280,6 +291,8 @@ void FEditorConsoleWidget::RegisterRenderCommands()
 		"Render", "skinning status|cpu|gpu|component|mode <component|cpu|gpu>", "Controls global skeletal mesh skinning mode.");
 	RegisterCommand("skinning mode", [this](const TArray<FString>& Args) { HandleSkinningMode(Args); },
 		"Render", "skinning mode component|cpu|gpu", "Controls global skeletal mesh skinning mode.");
+	RegisterCommand("anim graph test", [this](const TArray<FString>& Args) { HandleAnimGraphTest(Args); },
+		"Diagnostics", "anim graph test", "Injects a runtime AnimGraph(root=SequencePlayer) into the selected SkeletalMeshComponent and asserts the output pose differs from bind pose.");
 }
 
 void FEditorConsoleWidget::Shutdown()
@@ -1337,6 +1350,152 @@ int32 FEditorConsoleWidget::TextEditCallback(ImGuiInputTextCallbackData* Data)
 	}
 
 	return 0;
+}
+
+void FEditorConsoleWidget::HandleAnimGraphTest(const TArray<FString>& Args)
+{
+	(void)Args;
+
+	if (!EditorEngine)
+	{
+		AddLog("anim graph test: EditorEngine unavailable.\n");
+		return;
+	}
+
+	// 1) 대상 SkeletalMeshComponent 조회 — selected actor 우선, 없으면 world의 첫 actor 순회.
+	USkeletalMeshComponent* SkelComp = nullptr;
+	auto FindSkelCompOnActor = [](AActor* Actor) -> USkeletalMeshComponent* {
+		if (!Actor) return nullptr;
+		for (UActorComponent* Comp : Actor->GetComponents())
+		{
+			if (auto* Sk = Cast<USkeletalMeshComponent>(Comp))
+				return Sk;
+		}
+		return nullptr;
+	};
+
+	if (AActor* Primary = EditorEngine->GetSelectionManager().GetPrimarySelection())
+	{
+		SkelComp = FindSkelCompOnActor(Primary);
+	}
+	if (!SkelComp)
+	{
+		if (UWorld* World = EditorEngine->GetWorld())
+		{
+			for (AActor* Actor : World->GetActors())
+			{
+				SkelComp = FindSkelCompOnActor(Actor);
+				if (SkelComp) break;
+			}
+		}
+	}
+
+	if (!SkelComp)
+	{
+		AddLog("anim graph test: no USkeletalMeshComponent found (selection or world).\n");
+		return;
+	}
+
+	USkeletalMesh* Mesh = SkelComp->GetSkeletalMesh();
+	USkeleton* Skeleton = Mesh ? Mesh->GetSkeleton() : nullptr;
+	if (!Mesh || !Skeleton)
+	{
+		AddLog("anim graph test: target component has no SkeletalMesh/Skeleton.\n");
+		return;
+	}
+
+	// 2) 호환 시퀀스 1개 확보. 첫 인덱스 사용.
+	UFBXSceneAsset* SceneAsset = Mesh->GetTypedOuter<UFBXSceneAsset>();
+	if (!SceneAsset)
+	{
+		AddLog("anim graph test: mesh has no owning UFBXSceneAsset.\n");
+		return;
+	}
+	const int32 SeqCount = FMeshManager::GetAnimSequenceCountForSkeletalMesh(SceneAsset, Mesh);
+	if (SeqCount <= 0)
+	{
+		AddLog("anim graph test: no anim sequences for this mesh.\n");
+		return;
+	}
+	UAnimSequence* Sequence = FMeshManager::FindAnimSequenceForSkeletalMesh(SceneAsset, Mesh, 0, nullptr);
+	if (!Sequence)
+	{
+		AddLog("anim graph test: failed to load first anim sequence.\n");
+		return;
+	}
+
+	// 3) root 그래프 조립: SequencePlayer 단일 노드.
+	auto Root = std::make_unique<FAnimGraphNode_SequencePlayer>();
+	Root->SetSequence(Skeleton, Sequence);
+
+	// 4) 모드 강제 swap을 커맨드 측에서 명시 — 컴포넌트 API(정책 ii)가 silent swap을 하지 않음.
+	//    "Animation Mode" PostEditProperty가 기존 AnimInstance를 destroy 후 EnsureAnimInstance를
+	//    재호출해 graph 모드용 UAnimGraphInstance를 생성하는 경로(SkeletalMeshComponent.cpp:262).
+	SkelComp->SetAnimationMode(EAnimationMode::AnimationGraph);
+	SkelComp->PostEditProperty("Animation Mode");
+
+	// 5) root 주입.
+	const float PlayLength = Sequence->GetPlayLength();
+	SkelComp->SetRootGraph(std::move(Root));
+
+	// 6) 평가 시간 set & 강제 평가. SetBakedAnimTime이 내부에서 SetEvaluationTime + RefreshAnimationPose.
+	const float EvalTime = (PlayLength > 0.0f) ? (0.5f * PlayLength) : 0.0f;
+	SkelComp->SetBakedAnimTime(EvalTime);
+	SkelComp->RefreshAnimationPose();
+
+	// 7) 단언: 평가 결과를 컴포넌트의 LocalBonePoseMatrices(public)에서 읽어 bind pose와 비교.
+	//    AnimInstance는 protected이고 getter 신설이 확정 설계로 금지되어 있으므로
+	//    skin pipeline의 가시 산출물(LocalBonePoseMatrices)을 검증 입력으로 사용한다.
+	const TArray<FMatrix>& EvalMatrices = SkelComp->GetLocalBonePoseMatrices();
+	const TArray<FBoneInfo>& Bones = Skeleton->GetBones();
+	if (EvalMatrices.size() != Bones.size())
+	{
+		AddLog("anim graph test: FAIL — LocalBonePoseMatrices size (%zu) != bone count (%zu).\n",
+			(size_t)EvalMatrices.size(), (size_t)Bones.size());
+		return;
+	}
+
+	int32 TargetBone = -1;
+	for (int32 i = 0; i < (int32)Bones.size(); ++i)
+	{
+		if (Bones[i].ParentIndex >= 0)
+		{
+			TargetBone = i;
+			break;
+		}
+	}
+	if (TargetBone < 0)
+	{
+		AddLog("anim graph test: FAIL — skeleton has no non-root bone (%zu bones).\n", (size_t)Bones.size());
+		return;
+	}
+
+	auto QuatDotAbs = [](const FQuat& A, const FQuat& B) -> float {
+		return std::fabs(A.X * B.X + A.Y * B.Y + A.Z * B.Z + A.W * B.W);
+	};
+
+	const FQuat BindQuat = FQuat::FromMatrix(Bones[TargetBone].LocalBindPose).GetNormalized();
+	const FQuat OutQuat = FQuat::FromMatrix(EvalMatrices[TargetBone]).GetNormalized();
+	const float DotAbs = QuatDotAbs(BindQuat, OutQuat);
+
+	int32 DifferingBones = 0;
+	for (int32 i = 0; i < (int32)Bones.size(); ++i)
+	{
+		const FQuat BQ = FQuat::FromMatrix(Bones[i].LocalBindPose).GetNormalized();
+		const FQuat OQ = FQuat::FromMatrix(EvalMatrices[i]).GetNormalized();
+		if (QuatDotAbs(BQ, OQ) <= 0.999f) ++DifferingBones;
+	}
+
+	if (DotAbs <= 0.999f)
+	{
+		AddLog("anim graph test: PASS — bone[%d] |dot|=%.5f (<= 0.999), %d/%zu bones differ from bind pose.\n",
+			TargetBone, DotAbs, DifferingBones, (size_t)Bones.size());
+	}
+	else
+	{
+		AddLog("anim graph test: FAIL — bone[%d] |dot|=%.5f (> 0.999), pose matches bind pose. Differing bones: %d/%zu.\n",
+			TargetBone, DotAbs, DifferingBones, (size_t)Bones.size());
+	}
 }
 
 ImVector<char*> FEditorConsoleWidget::History;

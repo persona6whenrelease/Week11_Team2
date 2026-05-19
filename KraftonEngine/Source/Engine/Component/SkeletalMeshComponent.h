@@ -1,9 +1,12 @@
 ﻿#pragma once
 
 #include "Component/SkinnedMeshComponent.h"
+#include "Asset/Animation/Core/AnimGraph.h"
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "SkeletalMeshComponent.generated.h"
+
+#include <memory>
 
 class UAnimationAsset;
 class UAnimSequence;
@@ -11,10 +14,12 @@ class USkeleton;
 class UAnimInstance;
 
 // AnimInstance 종류별 분기. 신규 모드 추가 시 USkeletalMeshComponent::EnsureAnimInstance switch에 case도 함께.
+// 정수값은 Serialize round-trip 대상이므로 기존 항목 순서를 바꾸지 말 것 — 새 항목은 끝에 추가.
 enum class EAnimationMode : int32
 {
     AnimationSingleNode,
-    AnimationStateMachine
+    AnimationStateMachine,
+    AnimationGraph
 };
 
 UCLASS()
@@ -57,6 +62,13 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
      * UAnimSequence -> UAnimDataModel -> USkeleton 기준으로 현재 로컬 포즈를 평가한다.
      */
     bool EvaluateAnimationPose(const UAnimSequence *Sequence, float TimeSeconds);
+
+    /**
+     * 코드로 조립한 root 그래프를 컴포넌트에 주입한다(소유권 이전).
+     * - 정책: AnimationMode == AnimationGraph가 아니면 로그 + early return(모드 강제 swap 안 함).
+     * - EnsureAnimInstance를 선호출하고 UAnimGraphInstance로 cast 후 주입.
+     */
+    void SetRootGraph(std::unique_ptr<FAnimGraphNode_Base> InRoot);
 
     float GetBakedAnimTime() const
     {

@@ -1,5 +1,7 @@
 ﻿#include "Component/SkeletalMeshComponent.h"
 
+#include "Core/Log.h"
+#include "Asset/Animation/Core/AnimGraphInstance.h"
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/AnimSingleNodeInstance.h"
@@ -22,7 +24,8 @@ namespace
 {
     const char* GAnimationModeNames[] = {
         "Single Node",
-        "State Machine"
+        "State Machine",
+        "Graph"
     };
 
     /**
@@ -102,6 +105,9 @@ void USkeletalMeshComponent::EnsureAnimInstance()
     {
     case EAnimationMode::AnimationStateMachine:
         AnimInstance = UObjectManager::Get().CreateObject<UAnimStateMachineInstance>(this);
+        break;
+    case EAnimationMode::AnimationGraph:
+        AnimInstance = UObjectManager::Get().CreateObject<UAnimGraphInstance>(this);
         break;
     case EAnimationMode::AnimationSingleNode:
     default:
@@ -296,6 +302,28 @@ void USkeletalMeshComponent::PostEditProperty(const char* PropertyName)
         SetBakedAnimTime(0.0f);
         SetBakedAnimPaused(true);
     }
+}
+
+void USkeletalMeshComponent::SetRootGraph(std::unique_ptr<FAnimGraphNode_Base> InRoot)
+{
+    // 정책 (ii): 모드 일치 강제. AnimationGraph가 아니면 외부가 모드를 먼저 set해야 한다 —
+    // silent mode swap을 컴포넌트 API가 하지 않는다.
+    if (AnimationMode != EAnimationMode::AnimationGraph)
+    {
+        UE_LOG("SetRootGraph called but AnimationMode is not AnimationGraph — ignored.");
+        return;
+    }
+
+    EnsureAnimInstance();
+
+    auto *Graph = Cast<UAnimGraphInstance>(AnimInstance);
+    if (!Graph)
+    {
+        UE_LOG("SetRootGraph: AnimInstance is not UAnimGraphInstance — ignored.");
+        return;
+    }
+
+    Graph->SetRootGraph(std::move(InRoot));
 }
 
 bool USkeletalMeshComponent::EvaluateAnimationPose(const UAnimSequence *Sequence, float TimeSeconds)
