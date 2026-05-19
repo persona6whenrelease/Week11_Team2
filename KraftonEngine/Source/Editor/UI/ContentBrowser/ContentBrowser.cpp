@@ -3,6 +3,7 @@
 #include "ContentBrowserElement.h"
 #include "Editor/Settings/EditorSettings.h"
 #include <algorithm>
+#include <cwctype>
 #include <fstream>
 
 namespace
@@ -294,6 +295,18 @@ void FEditorContentBrowserWidget::RefreshContent()
 		else if (Content.Path.extension() == ".png" || Content.Path.extension() == ".PNG")
 		{
 			element = std::make_shared<PNGElement>();
+		}
+		else if ([&]() {
+			// `.asset` 확장자만 소문자 정규화로 비교한다 (".asset" / ".ASSET" / ".Asset" 모두 인식).
+			// 다른 확장자 분기의 대소문자 처리는 본 작업 범위 밖이라 그대로 둔다.
+			std::wstring Ext = Content.Path.extension().wstring();
+			std::transform(Ext.begin(), Ext.end(), Ext.begin(),
+				[](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+			return Ext == L".asset";
+		}())
+		{
+			// 헤더의 AssetType 검사는 더블클릭 시점에 한 번만 수행한다 (분류 단계 I/O 회피).
+			element = std::make_shared<AnimSequenceAssetElement>();
 		}
 		else
 		{

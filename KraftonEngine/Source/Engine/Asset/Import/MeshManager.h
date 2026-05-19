@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Asset/AssetTypes.h"
 #include "Asset/Mesh/Common/MeshCommonTypes.h"
 
 struct FImportOptions;
@@ -18,6 +19,12 @@ class UObject;
 class USkeletalMesh;
 class UStaticMesh;
 class UAnimSequence;
+
+/**
+ * `.asset` 파일의 앞부분만 읽어 `FAssetFileHeader`의 AssetType을 돌려준다.
+ * 파일을 열 수 없거나 Magic이 불일치하면 false. 헤더 본문 검증을 위한 1회성 I/O 헬퍼.
+ */
+bool TryReadAssetType(const FString &PathFileName, EAssetType &OutType);
 
 /**
  * OBJ와 FBX 로드 경로를 하나로 묶어 제공하는 상위 메시 매니저이다.
