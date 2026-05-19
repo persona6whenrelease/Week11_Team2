@@ -32,7 +32,7 @@ namespace
 	}
 }
 
-IMPLEMENT_CLASS(UPrimitiveComponent, USceneComponent)
+REGISTER_FACTORY(UPrimitiveComponent)
 HIDE_FROM_COMPONENT_LIST(UPrimitiveComponent)
 
 UPrimitiveComponent::~UPrimitiveComponent()
@@ -112,16 +112,6 @@ void UPrimitiveComponent::MarkRenderVisibilityDirty()
 	{
 		World->RemoveWorldPrimitivePickingBVH(this);
 	}
-}
-
-void UPrimitiveComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	USceneComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Visible", EPropertyType::Bool, &bIsVisible });
-	OutProps.push_back({ "Cast Shadow", EPropertyType::Bool, &bCastShadow });
-	OutProps.push_back({ "Two Sided Shadow", EPropertyType::Bool, &bCastShadowAsTwoSided });
-	OutProps.push_back({ "Blocks Movement", EPropertyType::Bool, &bBlocksMovement });
-	OutProps.push_back({ "Generate Overlap Events", EPropertyType::Bool, &bGenerateOverlapEvents });
 }
 
 void UPrimitiveComponent::PostEditProperty(const char* PropertyName)

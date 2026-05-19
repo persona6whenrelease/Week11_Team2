@@ -4,7 +4,7 @@
 #include "Component/TextRenderComponent.h"
 #include "Asset/Material/MaterialManager.h"
 
-IMPLEMENT_CLASS(ADecalActor, AActor)
+REGISTER_FACTORY(ADecalActor)
 
 ADecalActor::ADecalActor()
 	: DecalComponent(nullptr)

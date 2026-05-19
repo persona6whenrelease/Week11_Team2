@@ -14,7 +14,7 @@
 #include "Math/Vector.h"
 #include "Runtime/Engine.h"
 
-IMPLEMENT_CLASS(UParryComponent, UActorComponent)
+REGISTER_FACTORY(UParryComponent)
 
 void UParryComponent::BeginPlay()
 {

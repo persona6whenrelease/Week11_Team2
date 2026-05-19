@@ -13,6 +13,7 @@
 
 #include <map>
 #include <string>
+#include "Texture2D.generated.h"
 
 struct ID3D11Device;
 struct ID3D11ShaderResourceView;
@@ -20,10 +21,11 @@ struct ID3D11ShaderResourceView;
 /**
  * 이미지 파일을 D3D11 SRV로 로드하고 경로 기반 캐시로 공유하는 텍스처 에셋 타입이다.
  */
+UCLASS()
 class UTexture2D : public UObject
 {
 public:
-	DECLARE_CLASS(UTexture2D, UObject)
+	GENERATED_BODY()
 
 	UTexture2D() = default;
 	~UTexture2D() override;

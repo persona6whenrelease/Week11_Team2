@@ -2,7 +2,7 @@
 #include "Component/BillboardComponent.h"
 #include "Component/Light/DirectionalLightComponent.h"
 #include "Asset/Material/MaterialManager.h"
-IMPLEMENT_CLASS(ADirectionalLightActor, AActor)
+REGISTER_FACTORY(ADirectionalLightActor)
 
 void ADirectionalLightActor::InitDefaultComponents()
 {

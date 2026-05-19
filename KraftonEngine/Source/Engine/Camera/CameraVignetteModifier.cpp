@@ -2,7 +2,7 @@
 #include "Math/MathUtils.h"
 #include "Camera/PlayerCameraManager.h"
 
-IMPLEMENT_CLASS(UVignetteModifier, UCameraModifier)
+REGISTER_FACTORY(UVignetteModifier)
 
 void UVignetteModifier::StartVignette(float Intensity, const FVector& Color, float Duration, float Smoothness)
 {

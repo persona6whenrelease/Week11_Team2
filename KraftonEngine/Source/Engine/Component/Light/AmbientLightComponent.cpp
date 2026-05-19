@@ -3,7 +3,7 @@
 #include "GameFramework/AActor.h"
 #include "GameFramework/World.h"
 
-IMPLEMENT_CLASS(UAmbientLightComponent, ULightComponentBase)
+REGISTER_FACTORY(UAmbientLightComponent)
 
 UAmbientLightComponent::UAmbientLightComponent()
 {

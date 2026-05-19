@@ -32,7 +32,7 @@ namespace
 	}
 }
 
-IMPLEMENT_CLASS(AActor, UObject)
+REGISTER_FACTORY(AActor)
 
 AActor::AActor()
 {

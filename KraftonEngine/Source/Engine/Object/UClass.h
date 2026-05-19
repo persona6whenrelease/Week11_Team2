@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Core/PropertyTypes.h"
+#include <cstring>
 
 class UObject;
 
@@ -41,6 +43,18 @@ public:
 		return (ClassFlags & Flags) != 0;
 	}
 
+	// --- Reflected properties ---
+	using FMetadataGetter = const std::vector<FPropertyMetadata>& (*)();
+
+	void SetMetadataGetter(FMetadataGetter F) { MetadataGetter = F; }
+
+	// Returns own (non-inherited) static property metadata; empty vector if none registered.
+	const std::vector<FPropertyMetadata>& GetOwnMetadata() const
+	{
+		static const std::vector<FPropertyMetadata> Empty;
+		return MetadataGetter ? MetadataGetter() : Empty;
+	}
+
 	// --- Global class registry ---
 	static TArray<UClass*>& GetAllClasses()
 	{
@@ -48,11 +62,30 @@ public:
 		return Registry;
 	}
 
+	static UClass* FindClassByName(const char* InName)
+	{
+		if (InName == nullptr)
+		{
+			return nullptr;
+		}
+
+		for (UClass* RegisteredClass : GetAllClasses())
+		{
+			if (RegisteredClass && RegisteredClass->GetName() && strcmp(RegisteredClass->GetName(), InName) == 0)
+			{
+				return RegisteredClass;
+			}
+		}
+
+		return nullptr;
+	}
+
 private:
-	const char* Name        = nullptr;
-	UClass*     SuperClass  = nullptr;
-	size_t      Size        = 0;
-	uint32      ClassFlags  = CF_None;
+	const char*      Name            = nullptr;
+	UClass*          SuperClass      = nullptr;
+	size_t           Size            = 0;
+	uint32           ClassFlags      = CF_None;
+	FMetadataGetter MetadataGetter = nullptr;
 };
 
 // static initializer 에서 UClass를 전역 레지스트리에 등록
@@ -63,3 +96,8 @@ struct FClassRegistrar
 		UClass::GetAllClasses().push_back(InClass);
 	}
 };
+
+inline UClass* FindRegisteredClassByName(const char* InName)
+{
+	return UClass::FindClassByName(InName);
+}

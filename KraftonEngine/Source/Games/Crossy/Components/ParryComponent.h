@@ -3,15 +3,17 @@
 #include "Runtime/Delegate.h"
 #include "Component/ActorComponent.h"
 #include "Core/CoreTypes.h"
+#include "ParryComponent.generated.h"
 
 class USceneComponent;
 class AActor;
 class UProjectileMovementComponent;
 
+UCLASS()
 class UParryComponent : public UActorComponent
 {
 public:
-	DECLARE_CLASS(UParryComponent, UActorComponent)
+	GENERATED_BODY()
 	DECLARE_DELEGATE(ParryDelegate)
 
 	virtual void BeginPlay() override;

@@ -9,13 +9,15 @@
 #pragma once
 
 #include "Asset/Animation/Core/AnimInstance.h"
+#include "AnimSingleNodeInstance.generated.h"
 
 class UAnimSequence;
 
+UCLASS()
 class UAnimSingleNodeInstance : public UAnimInstance
 {
   public:
-    DECLARE_CLASS(UAnimSingleNodeInstance, UAnimInstance)
+    GENERATED_BODY()
 
     UAnimSingleNodeInstance();
     ~UAnimSingleNodeInstance() override = default;

@@ -7,7 +7,7 @@
 #include "Engine/Serialization/Archive.h"
 #include <cmath>
 
-IMPLEMENT_CLASS(UDirectionalLightComponent, ULightComponent)
+REGISTER_FACTORY(UDirectionalLightComponent)
 
 namespace
 {

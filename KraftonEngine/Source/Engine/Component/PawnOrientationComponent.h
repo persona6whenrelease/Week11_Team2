@@ -2,6 +2,7 @@
 
 #include "Component/ActorComponent.h"
 #include "Math/Vector.h"
+#include "PawnOrientationComponent.generated.h"
 
 class APlayerController;
 class UMovementComponent;
@@ -17,10 +18,11 @@ enum class EPawnFacingMode : int32
 	CustomWorldDirection = 5,
 };
 
+UCLASS()
 class UPawnOrientationComponent : public UActorComponent
 {
 public:
-	DECLARE_CLASS(UPawnOrientationComponent, UActorComponent)
+	GENERATED_BODY()
 
 	UPawnOrientationComponent() = default;
 	~UPawnOrientationComponent() override = default;
@@ -52,9 +54,14 @@ private:
 
 private:
 	int32 FacingMode = static_cast<int32>(EPawnFacingMode::ControlRotationYaw);
+	FPROPERTY(DisplayName="Rotation Speed", Type=Float, min=0.0f, max=10000.0f, speed=1.0f)
 	float RotationSpeed = 720.0f;
+	FPROPERTY(DisplayName="Yaw Only", Type=Bool)
 	bool bYawOnly = true;
+	FPROPERTY(DisplayName="Min Facing Input Size", Type=Float, min=0.0f, max=10000.0f, speed=0.01f)
 	float MinFacingInputSize = 0.01f;
+	FPROPERTY(DisplayName="Min Facing Speed", Type=Float, min=0.0f, max=10000.0f, speed=0.1f)
 	float MinFacingSpeed = 1.0f;
+	FPROPERTY(DisplayName="Custom Facing Direction", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 	FVector CustomFacingDirection = FVector::ForwardVector;
 };

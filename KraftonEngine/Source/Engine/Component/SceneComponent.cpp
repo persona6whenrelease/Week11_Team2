@@ -3,7 +3,7 @@
 #include <GameFramework/World.h>
 #include "Serialization/Archive.h"
 
-IMPLEMENT_CLASS(USceneComponent, UActorComponent)
+REGISTER_FACTORY(USceneComponent)
 HIDE_FROM_COMPONENT_LIST(USceneComponent)
 
 static void NotifyOctreeTransformChanged(USceneComponent* Comp)
@@ -55,14 +55,6 @@ void USceneComponent::AttachToComponent(USceneComponent* InParent)
 void USceneComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
 {
 	UActorComponent::GetEditableProperties(OutProps);
-	if (bCachedEulerDirty)
-	{
-		CachedEditRotator = RelativeTransform.GetRotator();
-		bCachedEulerDirty = false;
-	}
-	OutProps.push_back({ "Location", EPropertyType::Vec3, &RelativeTransform.Location, 0.0f, 0.0f, 0.1f });
-	OutProps.push_back({ "Rotation", EPropertyType::Rotator, &CachedEditRotator, 0.0f, 0.0f, 0.1f });
-	OutProps.push_back({ "Scale", EPropertyType::Vec3, &RelativeTransform.Scale, 0.0f, 0.0f, 0.1f });
 }
 
 void USceneComponent::PostEditProperty(const char* PropertyName)

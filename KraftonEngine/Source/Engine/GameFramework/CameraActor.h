@@ -1,13 +1,15 @@
 #pragma once
 
 #include "GameFramework/AActor.h"
+#include "CameraActor.generated.h"
 
 class UCameraComponent;
 
+UCLASS()
 class ACameraActor : public AActor
 {
 public:
-	DECLARE_CLASS(ACameraActor, AActor)
+	GENERATED_BODY()
 
 	ACameraActor() = default;
 	~ACameraActor() override = default;

@@ -1,16 +1,18 @@
 ﻿#pragma once
 
 #include "GameFramework/AActor.h"
+#include "StaticMeshActor.generated.h"
 
 class UStaticMeshComponent;
 class UTextRenderComponent;
 class USubUVComponent;
 class UBoxComponent;
 
+UCLASS()
 class AStaticMeshActor : public AActor
 {
 public:
-	DECLARE_CLASS(AStaticMeshActor, AActor)
+	GENERATED_BODY()
 	AStaticMeshActor() {}
 
 	//void InitDefaultComponents(const FString& UStaticMeshFileName = "Data/BasicShape/Cylinder.obj");

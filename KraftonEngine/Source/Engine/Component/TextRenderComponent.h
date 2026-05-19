@@ -3,6 +3,7 @@
 #include "BillboardComponent.h"
 #include "Core/ResourceTypes.h"
 #include "Object/FName.h"
+#include "TextRenderComponent.generated.h"
 
 // 텍스트 렌더링 공간 모드
 enum class ETextRenderSpace : int32
@@ -30,10 +31,11 @@ enum class ETextVAlign : int32
 // 텍스트를 월드 공간에 빌보드로 렌더링하는 컴포넌트.
 // PrimitiveComponent를 상속받아 RenderCollector에 자동으로 감지됩니다.
 // MeshBuffer를 사용하지 않으며, FFontGeometry가 드로우콜을 처리합니다.
+UCLASS()
 class UTextRenderComponent : public UBillboardComponent
 {
 public:
-	DECLARE_CLASS(UTextRenderComponent, UPrimitiveComponent)
+	GENERATED_BODY()
 
 	UTextRenderComponent();
 	~UTextRenderComponent() override = default;
@@ -97,11 +99,14 @@ public:
 	float GetCharHeight() const { return CharHeight; }
 
 private:
+	FPROPERTY(Type=String)
 	FString Text = FString("Empty");
+	FPROPERTY(DisplayName="Font", Type=Name)
 	FName FontName = FName("Default");
 	FFontResource* CachedFont = nullptr;	// ResourceManager 소유, 여기선 참조만
 
 	FVector4 Color = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	FPROPERTY(DisplayName="Font Size", Type=Float, min=0.1f, max=100.0f, speed=0.1f)
 	float FontSize = 1.0f;
 	float Spacing = 0.1f;
 	float CharWidth = 0.5f;

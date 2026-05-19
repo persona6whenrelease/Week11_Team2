@@ -3,6 +3,7 @@
 #include "Component/SkinnedMeshComponent.h"
 #include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Animation/Core/AnimSequence.h"
+#include "SkeletalMeshComponent.generated.h"
 
 class UAnimationAsset;
 class UAnimSequence;
@@ -16,10 +17,11 @@ enum class EAnimationMode
     AnimationStateMachine
 };
 
+UCLASS()
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
   public:
-    DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
+    GENERATED_BODY()
 
     USkeletalMeshComponent() = default;
     ~USkeletalMeshComponent() override;

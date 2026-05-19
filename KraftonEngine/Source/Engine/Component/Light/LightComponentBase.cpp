@@ -5,17 +5,8 @@
 #include "Component/BillboardComponent.h"
 #include "Asset/Material/MaterialManager.h"
 
-IMPLEMENT_CLASS(ULightComponentBase, USceneComponent)
+REGISTER_FACTORY(ULightComponentBase)
 HIDE_FROM_COMPONENT_LIST(ULightComponentBase)
-
-void ULightComponentBase::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	USceneComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Intensity",EPropertyType::Float,&Intensity,0.0f,50.f,0.05f });
-	OutProps.push_back({ "Color",EPropertyType::Color4,&LightColor });
-	OutProps.push_back({ "Visible",EPropertyType::Bool,&bVisible });
-	OutProps.push_back({ "Cast Shadows",EPropertyType::Bool,&bCastShadows });
-}
 
 void ULightComponentBase::Serialize(FArchive& Ar)
 {

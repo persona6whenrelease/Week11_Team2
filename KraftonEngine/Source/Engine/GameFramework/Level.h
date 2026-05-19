@@ -1,16 +1,18 @@
 ﻿#pragma once
 #include "Object/Object.h"
 #include <memory>
+#include "Level.generated.h"
 
 class AActor;
 class UWorld;
 class FSpatialPartition;
 
+UCLASS()
 class ULevel :
     public UObject
 {
 public:
-	DECLARE_CLASS(ULevel, UObject)
+	GENERATED_BODY()
 
 	ULevel() = default;
 	ULevel(UWorld* OwingWorld);

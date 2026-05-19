@@ -14,7 +14,7 @@
 #include "Asset/Material/Material.h"
 #include <algorithm>
 
-IMPLEMENT_CLASS(UDecalComponent, UPrimitiveComponent)
+REGISTER_FACTORY(UDecalComponent)
 
 void UDecalComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction& ThisTickFunction)
 {
@@ -30,17 +30,6 @@ void UDecalComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 FPrimitiveSceneProxy* UDecalComponent::CreateSceneProxy()
 {
 	return new FDecalSceneProxy(this);
-}
-
-void UDecalComponent::GetEditableProperties(TArray<FPropertyDescriptor>& OutProps)
-{
-	UPrimitiveComponent::GetEditableProperties(OutProps);
-	OutProps.push_back({ "Material", EPropertyType::MaterialSlot, &MaterialSlot });
-	OutProps.push_back({ "Color", EPropertyType::Vec4, &Color });
-	OutProps.push_back({ "FadeInDelay", EPropertyType::Float, &FadeInDelay });
-	OutProps.push_back({ "FadeInDuration", EPropertyType::Float, &FadeInDuration });
-	OutProps.push_back({ "FadeOutDelay", EPropertyType::Float, &FadeOutDelay });
-	OutProps.push_back({ "FadeOutDuration", EPropertyType::Float, &FadeOutDuration });
 }
 
 void UDecalComponent::PostEditProperty(const char* PropertyName)

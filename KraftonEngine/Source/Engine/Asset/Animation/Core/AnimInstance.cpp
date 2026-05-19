@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(UAnimInstance, UObject)
+REGISTER_FACTORY(UAnimInstance)
 
 UAnimInstance::UAnimInstance() = default;
 UAnimInstance::~UAnimInstance() = default;

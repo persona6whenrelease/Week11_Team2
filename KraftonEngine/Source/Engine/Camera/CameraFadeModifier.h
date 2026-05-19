@@ -2,11 +2,13 @@
 
 #include "Camera/CameraModifier.h"
 #include "Math/Vector.h"
+#include "CameraFadeModifier.generated.h"
 
+UCLASS()
 class UCameraFadeModifier : public UCameraModifier
 {
 public:
-	DECLARE_CLASS(UCameraFadeModifier, UCameraModifier)
+	GENERATED_BODY()
 	UCameraFadeModifier() = default;
 	~UCameraFadeModifier() override = default;
 

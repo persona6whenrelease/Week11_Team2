@@ -14,7 +14,7 @@
 #include <d3d11.h>
 #include <filesystem>
 
-IMPLEMENT_CLASS(UTexture2D, UObject)
+REGISTER_FACTORY(UTexture2D)
 
 std::map<FString, UTexture2D*> UTexture2D::TextureCache;
 

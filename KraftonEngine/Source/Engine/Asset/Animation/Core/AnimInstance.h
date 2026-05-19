@@ -14,13 +14,15 @@
 #include "Object/Object.h"
 
 #include <memory>
+#include "AnimInstance.generated.h"
 
 class USkeleton;
 
+UCLASS()
 class UAnimInstance : public UObject
 {
   public:
-    DECLARE_CLASS(UAnimInstance, UObject)
+    GENERATED_BODY()
 
     UAnimInstance();
     ~UAnimInstance() override;

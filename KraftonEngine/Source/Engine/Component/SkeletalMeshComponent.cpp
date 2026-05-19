@@ -11,7 +11,7 @@
 
 #include <cmath>
 
-IMPLEMENT_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
+REGISTER_FACTORY(USkeletalMeshComponent)
 
 namespace
 {

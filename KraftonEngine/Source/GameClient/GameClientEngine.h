@@ -6,11 +6,13 @@
 #include "GameClient/GameClientSession.h"
 #include "GameClient/GameClientSettings.h"
 #include "GameClient/GameClientViewport.h"
+#include "GameClientEngine.generated.h"
 
+UCLASS()
 class UGameClientEngine : public UEngine
 {
 public:
-	DECLARE_CLASS(UGameClientEngine, UEngine)
+	GENERATED_BODY()
 
 	UGameClientEngine() = default;
 	~UGameClientEngine() override = default;

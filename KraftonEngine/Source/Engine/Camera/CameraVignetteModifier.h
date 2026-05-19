@@ -2,15 +2,17 @@
 
 #include "Camera/CameraModifier.h"
 #include "Math/Vector.h"
+#include "CameraVignetteModifier.generated.h"
 
 /**
  * 전역적인 Vignette 효과를 제어하기 위한 카메라 모디파이어.
  * PlayerCameraManager를 통해 활성화되며, 카메라 전환 중에도 효과를 유지합니다.
  */
+UCLASS()
 class UVignetteModifier : public UCameraModifier
 {
 public:
-	DECLARE_CLASS(UVignetteModifier, UCameraModifier)
+	GENERATED_BODY()
 	UVignetteModifier() = default;
 	~UVignetteModifier() override = default;
 

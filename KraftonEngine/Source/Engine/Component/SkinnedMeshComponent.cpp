@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-IMPLEMENT_CLASS(USkinnedMeshComponent, UMeshComponent)
+REGISTER_FACTORY(USkinnedMeshComponent)
 HIDE_FROM_COMPONENT_LIST(USkinnedMeshComponent)
 
 namespace
@@ -242,7 +242,18 @@ void USkinnedMeshComponent::PostDuplicate()
 void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &OutProps)
 {
     UPrimitiveComponent::GetEditableProperties(OutProps);
-    OutProps.push_back({"Skeletal Mesh", EPropertyType::SkeletalMeshRef, &SkeletalMeshPath});
+    static const FPropertyTypeDesc SkeletalMeshObjectRefType{
+        EPropertyType::ObjectRef,
+        nullptr,
+        nullptr,
+        0,
+        &USkeletalMesh::StaticClassInstance
+    };
+    FPropertyDescriptor SkeletalMeshProp;
+    SkeletalMeshProp.ValuePtr = &SkeletalMeshPath;
+    SkeletalMeshProp.SyntheticTypeDesc = &SkeletalMeshObjectRefType;
+    SkeletalMeshProp.DynamicName = "Skeletal Mesh";
+    OutProps.push_back(std::move(SkeletalMeshProp));
     AppendMaterialSlotProperties(OutProps);
 }
 

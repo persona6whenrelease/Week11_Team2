@@ -4,12 +4,14 @@
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
 #include "Math/Vector.h"
+#include "RotatingMovementComponent.generated.h"
 
 // 런타임 동안 UpdatedComponent를 일정 각속도로 회전시키는 이동 컴포넌트
+UCLASS()
 class URotatingMovementComponent : public UMovementComponent
 {
 public:
-	DECLARE_CLASS(URotatingMovementComponent, UMovementComponent)
+	GENERATED_BODY()
 
 	URotatingMovementComponent() = default;
 	~URotatingMovementComponent() override = default;
@@ -24,6 +26,7 @@ public:
 	bool IsRotationInLocalSpace() const { return bRotationInLocalSpace; }
 	void SetRotationInLocalSpace(bool bNewRotationInLocalSpace)
 	{
+		FPROPERTY(DisplayName="Rotation In Local Space", Type=Bool, min=0.0f, max=0.0f, speed=0.0f)
 		bRotationInLocalSpace = bNewRotationInLocalSpace;
 		bWorldPivotInitialized = false;
 		CachedWorldPivotComponent = nullptr;
@@ -31,6 +34,7 @@ public:
 
 	void SetPivotTranslation(const FVector& NewPivotTranslation)
 	{
+		FPROPERTY(DisplayName="Pivot Translation", Type=Vec3, min=0.0f, max=0.0f, speed=0.1f)
 		PivotTranslation = NewPivotTranslation;
 		bWorldPivotInitialized = false;
 		CachedWorldPivotComponent = nullptr;
@@ -46,6 +50,7 @@ public:
 	}
 
 private:
+	FPROPERTY(DisplayName="Rotation Rate", Type=Rotator, min=0.0f, max=0.0f, speed=0.1f)
 	FRotator RotationRate = FRotator(0.0f, 90.0f, 0.0f);
 	bool bRotationInLocalSpace = false;
 	FVector PivotTranslation = FVector(0.0f, 0.0f, 0.0f);

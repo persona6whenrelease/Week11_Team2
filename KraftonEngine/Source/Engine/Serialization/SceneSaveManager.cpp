@@ -43,6 +43,58 @@ namespace
 
 		return Actor->ShouldSerializeToScene();
 	}
+
+	void CollectReflectedStructProperties(const UClass* StructType, void* StructValue, TArray<FPropertyDescriptor>& OutProps)
+	{
+		if (!StructType || !StructValue)
+		{
+			return;
+		}
+
+		TArray<const UClass*> Chain;
+		for (const UClass* C = StructType; C; C = C->GetSuperClass())
+		{
+			Chain.push_back(C);
+		}
+
+		for (int32 Index = static_cast<int32>(Chain.size()) - 1; Index >= 0; --Index)
+		{
+			for (const FPropertyMetadata& Meta : Chain[Index]->GetOwnMetadata())
+			{
+				FPropertyDescriptor Inst;
+				Inst.Meta     = &Meta;
+				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + Meta.Offset;
+				OutProps.push_back(Inst);
+			}
+		}
+	}
+
+	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp, bool bMutable)
+	{
+		if (bMutable)
+		{
+			if (!ArrayProp.GetArrayElementGetter() || !ArrayProp.ValuePtr)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if (!ArrayProp.GetArrayElementConstGetter() || !ArrayProp.ValuePtr)
+			{
+				return false;
+			}
+		}
+
+		OutElementProp = ArrayProp;
+		OutElementProp.Meta             = nullptr;
+		OutElementProp.SyntheticTypeDesc = ArrayProp.GetElementType();
+		OutElementProp.DynamicName      = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.ValuePtr = bMutable
+			? ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex)
+			: const_cast<void*>(ArrayProp.GetArrayElementConstGetter()(ArrayProp.ValuePtr, ElementIndex));
+		return OutElementProp.ValuePtr != nullptr;
+	}
 }
 
 // ---- JSON vector helpers ---------------------------------------------------
@@ -523,8 +575,8 @@ json::JSON FSceneSaveManager::SerializeProperties(UActorComponent* Comp)
 	Comp->GetEditableProperties(Descriptors);
 
 	for (const auto& Prop : Descriptors) {
-		//if (Prop.Name == "Static Mesh") continue; // Primitives 블록에 이미 저장됨
-		props[Prop.Name] = SerializePropertyValue(Prop);
+		if (Prop.GetFlags() & EPF_Transient) continue;
+		props[Prop.GetName()] = SerializePropertyValue(Prop);
 	}
 	return props;
 }
@@ -533,7 +585,7 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 {
 	using namespace json;
 
-	switch (Prop.Type) {
+	switch (Prop.GetKind()) {
 	case EPropertyType::Bool:
 		return JSON(*static_cast<bool*>(Prop.ValuePtr));
 
@@ -570,9 +622,7 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 		return arr;
 	}
 	case EPropertyType::String:
-	case EPropertyType::SceneComponentRef:
-	case EPropertyType::StaticMeshRef:
-	case EPropertyType::SkeletalMeshRef:
+	case EPropertyType::ObjectRef:
 		return JSON(*static_cast<FString*>(Prop.ValuePtr));
 
 	case EPropertyType::MaterialSlot: {
@@ -591,15 +641,74 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 	case EPropertyType::Enum:
 		return JSON(*static_cast<int32*>(Prop.ValuePtr));
 
-	case EPropertyType::Vec3Array: {
-		const TArray<FVector>* Arr = static_cast<const TArray<FVector>*>(Prop.ValuePtr);
+	case EPropertyType::Array: {
 		JSON outer = json::Array();
-		for (const FVector& v : *Arr) {
-			JSON inner = json::Array();
-			inner.append(static_cast<double>(v.X));
-			inner.append(static_cast<double>(v.Y));
-			inner.append(static_cast<double>(v.Z));
-			outer.append(inner);
+		if (!Prop.GetArraySizeGetter())
+		{
+			return outer;
+		}
+
+		const size_t Count = Prop.GetArraySizeGetter()(Prop.ValuePtr);
+		for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
+		{
+			FPropertyDescriptor ElementProp;
+			if (!BuildArrayElementDescriptor(Prop, ElementIndex, ElementProp, false))
+			{
+				continue;
+			}
+			outer.append(SerializePropertyValue(ElementProp));
+		}
+		return outer;
+	}
+
+	case EPropertyType::Struct: {
+		JSON obj = json::Object();
+		TArray<FPropertyDescriptor> ChildProps;
+		CollectReflectedStructProperties(Prop.GetStructType(), Prop.ValuePtr, ChildProps);
+		for (const FPropertyDescriptor& ChildProp : ChildProps)
+		{
+			obj[ChildProp.GetName()] = SerializePropertyValue(ChildProp);
+		}
+		return obj;
+	}
+
+	case EPropertyType::Set: {
+		JSON outer = json::Array();
+		const FPropertyTypeDesc* TD = Prop.GetTypeDesc();
+		if (!TD || !TD->SetConstSnapshotFunc || !TD->ElementType)
+			return outer;
+		TArray<const void*> Elems;
+		TD->SetConstSnapshotFunc(Prop.ValuePtr, Elems);
+		for (const void* Elem : Elems)
+		{
+			FPropertyDescriptor ElemDesc;
+			ElemDesc.SyntheticTypeDesc = TD->ElementType;
+			ElemDesc.ValuePtr = const_cast<void*>(Elem);
+			outer.append(SerializePropertyValue(ElemDesc));
+		}
+		return outer;
+	}
+
+	case EPropertyType::Map: {
+		JSON outer = json::Object();
+		const FPropertyTypeDesc* TD = Prop.GetTypeDesc();
+		if (!TD || !TD->MapConstSnapshotFunc
+			|| !TD->KeyType || !TD->ValueType)
+			return outer;
+		TArray<const void*> Keys, Vals;
+		TD->MapConstSnapshotFunc(Prop.ValuePtr, Keys, Vals);
+		for (size_t i = 0; i < Keys.size(); ++i)
+		{
+			FPropertyDescriptor KDesc, VDesc;
+			KDesc.SyntheticTypeDesc = TD->KeyType;
+			KDesc.ValuePtr = const_cast<void*>(Keys[i]);
+			VDesc.SyntheticTypeDesc = TD->ValueType;
+			VDesc.ValuePtr = const_cast<void*>(Vals[i]);
+			JSON KeyJson = SerializePropertyValue(KDesc);
+			std::string KeyStr = (KeyJson.JSONType() == json::JSON::Class::String)
+				? KeyJson.ToString()
+				: KeyJson.dump();
+			outer[KeyStr] = SerializePropertyValue(VDesc);
 		}
 		return outer;
 	}
@@ -1054,10 +1163,11 @@ void FSceneSaveManager::DeserializeProperties(UActorComponent* Comp, json::JSON&
 	Comp->GetEditableProperties(Descriptors);
 
 	for (auto& Prop : Descriptors) {
-		if (!PropsJSON.hasKey(Prop.Name.c_str())) continue;
-		json::JSON& Value = PropsJSON[Prop.Name.c_str()];
+		if (Prop.GetFlags() & EPF_Transient) continue;
+		if (!PropsJSON.hasKey(Prop.GetName())) continue;
+		json::JSON& Value = PropsJSON[Prop.GetName()];
 		DeserializePropertyValue(Prop, Value);
-		Comp->PostEditProperty(Prop.Name.c_str());
+		Comp->PostEditProperty(Prop.GetName());
 	}
 
 	// 2nd pass: PostEditProperty가 새 프로퍼티를 추가할 수 있음
@@ -1067,16 +1177,16 @@ void FSceneSaveManager::DeserializeProperties(UActorComponent* Comp, json::JSON&
 
 	for (size_t i = Descriptors.size(); i < Descriptors2.size(); ++i) {
 		auto& Prop = Descriptors2[i];
-		if (!PropsJSON.hasKey(Prop.Name.c_str())) continue;
-		json::JSON& Value = PropsJSON[Prop.Name.c_str()];
+		if (!PropsJSON.hasKey(Prop.GetName())) continue;
+		json::JSON& Value = PropsJSON[Prop.GetName()];
 		DeserializePropertyValue(Prop, Value);
-		Comp->PostEditProperty(Prop.Name.c_str());
+		Comp->PostEditProperty(Prop.GetName());
 	}
 }
 
 void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json::JSON& Value)
 {
-	switch (Prop.Type) {
+	switch (Prop.GetKind()) {
 	case EPropertyType::Bool:
 		*static_cast<bool*>(Prop.ValuePtr) = Value.ToBool();
 		break;
@@ -1122,9 +1232,7 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 		break;
 	}
 	case EPropertyType::String:
-	case EPropertyType::SceneComponentRef:
-	case EPropertyType::StaticMeshRef:
-	case EPropertyType::SkeletalMeshRef:
+	case EPropertyType::ObjectRef:
 		*static_cast<FString*>(Prop.ValuePtr) = Value.ToString();
 		break;
 
@@ -1142,19 +1250,111 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 		*static_cast<int32*>(Prop.ValuePtr) = Value.ToInt();
 		break;
 
-	case EPropertyType::Vec3Array: {
-		TArray<FVector>* Arr = static_cast<TArray<FVector>*>(Prop.ValuePtr);
-		Arr->clear();
-		for (auto& elem : Value.ArrayRange()) {
-			FVector v(0, 0, 0);
-			int i = 0;
-			for (auto& c : elem.ArrayRange()) {
-				if (i == 0) v.X = static_cast<float>(c.ToFloat());
-				else if (i == 1) v.Y = static_cast<float>(c.ToFloat());
-				else if (i == 2) v.Z = static_cast<float>(c.ToFloat());
-				++i;
+	case EPropertyType::Array: {
+		if (!Prop.GetArrayResizeFunc() || !Prop.GetArraySizeGetter())
+		{
+			break;
+		}
+
+		size_t Count = 0;
+		for (auto& _ : Value.ArrayRange())
+		{
+			(void)_;
+			++Count;
+		}
+
+		Prop.GetArrayResizeFunc()(Prop.ValuePtr, Count);
+		size_t ElementIndex = 0;
+		for (auto& ElementValue : Value.ArrayRange())
+		{
+			FPropertyDescriptor ElementProp;
+			if (BuildArrayElementDescriptor(Prop, ElementIndex, ElementProp, true))
+			{
+				DeserializePropertyValue(ElementProp, ElementValue);
 			}
-			Arr->push_back(v);
+			++ElementIndex;
+		}
+		break;
+	}
+
+	case EPropertyType::Struct: {
+		TArray<FPropertyDescriptor> ChildProps;
+		CollectReflectedStructProperties(Prop.GetStructType(), Prop.ValuePtr, ChildProps);
+		for (FPropertyDescriptor& ChildProp : ChildProps)
+		{
+			if (!Value.hasKey(ChildProp.GetName()))
+			{
+				continue;
+			}
+			json::JSON& ChildValue = Value[ChildProp.GetName()];
+			DeserializePropertyValue(ChildProp, ChildValue);
+		}
+		break;
+	}
+
+	case EPropertyType::Set: {
+		const FPropertyTypeDesc* TD = Prop.GetTypeDesc();
+		if (!TD || !TD->SetClearFunc
+			|| !TD->SetInsertFunc || !TD->SetElementSizeFunc
+			|| !TD->ElementType)
+			break;
+		TD->SetClearFunc(Prop.ValuePtr);
+		const size_t ElemSz = TD->SetElementSizeFunc();
+		TArray<uint8_t> Buf(ElemSz, 0);
+		for (auto& ElemVal : Value.ArrayRange())
+		{
+			std::fill(Buf.begin(), Buf.end(), 0);
+			FPropertyDescriptor ElemDesc;
+			ElemDesc.SyntheticTypeDesc = TD->ElementType;
+			ElemDesc.ValuePtr = Buf.data();
+			DeserializePropertyValue(ElemDesc, ElemVal);
+			TD->SetInsertFunc(Prop.ValuePtr, Buf.data());
+		}
+		break;
+	}
+
+	case EPropertyType::Map: {
+		const FPropertyTypeDesc* TD = Prop.GetTypeDesc();
+		if (!TD || !TD->MapClearFunc
+			|| !TD->MapInsertFunc
+			|| !TD->MapKeySizeFunc || !TD->MapValueSizeFunc
+			|| !TD->KeyType || !TD->ValueType)
+			break;
+		TD->MapClearFunc(Prop.ValuePtr);
+		const size_t KeySz = TD->MapKeySizeFunc();
+		const size_t ValSz = TD->MapValueSizeFunc();
+		TArray<uint8_t> KeyBuf(KeySz, 0), ValBuf(ValSz, 0);
+		for (auto& kv : Value.ObjectRange())
+		{
+			std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
+			json::JSON KeyJson;
+			const EPropertyType KeyKind = TD->KeyType->Kind;
+			if (KeyKind == EPropertyType::Int)
+			{
+				try { KeyJson = json::JSON(static_cast<long>(std::stol(kv.first))); }
+				catch (...) { KeyJson = json::JSON(0L); }
+			}
+			else if (KeyKind == EPropertyType::Float)
+			{
+				try { KeyJson = json::JSON(std::stod(kv.first)); }
+				catch (...) { KeyJson = json::JSON(0.0); }
+			}
+			else
+			{
+				KeyJson = json::JSON(kv.first);
+			}
+			FPropertyDescriptor KDesc;
+			KDesc.SyntheticTypeDesc = TD->KeyType;
+			KDesc.ValuePtr = KeyBuf.data();
+			DeserializePropertyValue(KDesc, KeyJson);
+
+			std::fill(ValBuf.begin(), ValBuf.end(), 0);
+			FPropertyDescriptor VDesc;
+			VDesc.SyntheticTypeDesc = TD->ValueType;
+			VDesc.ValuePtr = ValBuf.data();
+			DeserializePropertyValue(VDesc, kv.second);
+
+			TD->MapInsertFunc(Prop.ValuePtr, KeyBuf.data(), ValBuf.data());
 		}
 		break;
 	}

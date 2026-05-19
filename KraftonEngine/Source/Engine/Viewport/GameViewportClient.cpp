@@ -28,7 +28,6 @@ namespace
 	}
 }
 
-DEFINE_CLASS(UGameViewportClient, UObject)
 
 void UGameViewportClient::OnBeginPIE(UCameraComponent* InitialTarget, FViewport* InViewport)
 {

@@ -16,6 +16,7 @@
 #include "Object/Object.h"
 #include "Object/ObjectFactory.h"
 #include "Serialization/Archive.h"
+#include "FBXSceneAsset.generated.h"
 
 /**
  * FBX 하나에서 생성된 여러 하위 에셋과 씬 컴포넌트 설명을 묶는 직렬화 구조이다.
@@ -135,10 +136,11 @@ struct FFBXScene
 /**
  * FBX 씬 캐시를 UObject로 저장해 하위 에셋을 나중에 다시 꺼낼 수 있게 하는 타입이다.
  */
+UCLASS()
 class UFBXSceneAsset : public UObject
 {
   public:
-    DECLARE_CLASS(UFBXSceneAsset, UObject)
+    GENERATED_BODY()
 
     void           SetSourcePath(const FString &InSourcePath) { SourcePath = InSourcePath; }
     const FString &GetSourcePath() const { return SourcePath; }
