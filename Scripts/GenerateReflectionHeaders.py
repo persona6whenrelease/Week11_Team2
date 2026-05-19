@@ -427,6 +427,7 @@ def _generate_type_node(
             f" &TMapPropertyOps<{ct}>::Snapshot,"
             f" &TMapPropertyOps<{ct}>::ConstSnapshot,"
             f" &TMapPropertyOps<{ct}>::Insert,"
+            f" &TMapPropertyOps<{ct}>::Remove,"
             f" &TMapPropertyOps<{ct}>::KeySize,"
             f" &TMapPropertyOps<{ct}>::ValueSize }};"
         )
@@ -435,10 +436,11 @@ def _generate_type_node(
     etype = _cpp_type_to_eproperty(cpp_type, reflected_types)
 
     if etype == 'EPropertyType::Enum':
+        clean = _clean_cpp_type(cpp_type)
         node = node_prefix
         out.append(
             f"    static const FPropertyTypeDesc {node}"
-            f"{{ EPropertyType::Enum, nullptr, nullptr, 0, nullptr,"
+            f"{{ EPropertyType::Enum, nullptr, {clean}_EnumNames, (uint32)GetEnumCount_{clean}(), nullptr,"
             f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
         )
         return f"&{node}"
@@ -578,10 +580,12 @@ def _h_class(out: list, t: ReflectedType, file_id: str):
 
 
 def _h_enum(out: list, t: ReflectedType):
+    names_list = ", ".join(f'"{ev.name}"' for ev in t.enum_values)
     out += [
         f"// ---- {t.name} ----",
         f"const char* GetEnumName_{t.name}({t.name} Value);",
         f"inline int   GetEnumCount_{t.name}() {{ return {len(t.enum_values)}; }}",
+        f"inline const char* {t.name}_EnumNames[] = {{ {names_list} }};",
         "",
     ]
 
@@ -710,10 +714,12 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                     )
                     type_desc_ref = f"&{node_name}"
                 elif etype == 'EPropertyType::Enum':
+                    clean_enum = _clean_cpp_type(prop.cpp_type)
                     node_name = f"{t.name}_PropType_{index}"
                     out.append(
                         f"    static const FPropertyTypeDesc {node_name}"
-                        f"{{ {etype}, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                        f"{{ {etype}, nullptr, {clean_enum}_EnumNames, (uint32)GetEnumCount_{clean_enum}(), nullptr,"
+                        f" nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
                     )
                     type_desc_ref = f"&{node_name}"
                 else:
