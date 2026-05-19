@@ -1486,15 +1486,17 @@ void FEditorConsoleWidget::HandleAnimGraphTest(const TArray<FString>& Args)
 		if (QuatDotAbs(BQ, OQ) <= 0.999f) ++DifferingBones;
 	}
 
-	if (DotAbs <= 0.999f)
+	// 판정: 전체 본 중 하나라도 bind pose와 다르면 PASS. 특정 본 하나의 dot로 판정하면
+	// 해당 본이 시퀀스에서 회전이 없을 때 다른 본들이 분명히 움직였는데도 FAIL이 된다.
+	if (DifferingBones > 0)
 	{
-		AddLog("anim graph test: PASS — bone[%d] |dot|=%.5f (<= 0.999), %d/%zu bones differ from bind pose.\n",
-			TargetBone, DotAbs, DifferingBones, (size_t)Bones.size());
+		AddLog("anim graph test: PASS — %d/%zu bones differ from bind pose (sample bone[%d] |dot|=%.5f).\n",
+			DifferingBones, (size_t)Bones.size(), TargetBone, DotAbs);
 	}
 	else
 	{
-		AddLog("anim graph test: FAIL — bone[%d] |dot|=%.5f (> 0.999), pose matches bind pose. Differing bones: %d/%zu.\n",
-			TargetBone, DotAbs, DifferingBones, (size_t)Bones.size());
+		AddLog("anim graph test: FAIL — 0/%zu bones differ from bind pose (sample bone[%d] |dot|=%.5f).\n",
+			(size_t)Bones.size(), TargetBone, DotAbs);
 	}
 }
 

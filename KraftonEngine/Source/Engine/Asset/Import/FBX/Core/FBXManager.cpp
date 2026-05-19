@@ -423,13 +423,13 @@ namespace
     void LogSceneLoad(const FString &SourcePath, const UFBXSceneAsset *SceneAsset,
                       EFBXSceneCacheStatus Status)
     {
-        UE_LOG("[FBXManager] Loaded FBX scene. Path=%s StaticMeshes=%u SkeletalMeshes=%u "
-               "Components=%u Cache=%s",
-               SourcePath.c_str(),
-               SceneAsset ? static_cast<uint32>(SceneAsset->GetStaticMeshes().size()) : 0u,
-               SceneAsset ? static_cast<uint32>(SceneAsset->GetSkeletalMeshes().size()) : 0u,
-               SceneAsset ? static_cast<uint32>(SceneAsset->GetSceneComponents().size()) : 0u,
-               ToLogString(Status));
+        //UE_LOG("[FBXManager] Loaded FBX scene. Path=%s StaticMeshes=%u SkeletalMeshes=%u "
+        //       "Components=%u Cache=%s",
+        //       SourcePath.c_str(),
+        //       SceneAsset ? static_cast<uint32>(SceneAsset->GetStaticMeshes().size()) : 0u,
+        //       SceneAsset ? static_cast<uint32>(SceneAsset->GetSkeletalMeshes().size()) : 0u,
+        //       SceneAsset ? static_cast<uint32>(SceneAsset->GetSceneComponents().size()) : 0u,
+        //       ToLogString(Status));
     }
 
     void AddFilesWithExtension(const std::filesystem::path &Root, const std::wstring &Extension,
