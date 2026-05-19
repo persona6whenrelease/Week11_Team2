@@ -16,6 +16,16 @@ enum class ESkeletalEditorTabKind : uint8_t
 	AnimSequence,
 };
 
+enum class EModeBarIcon : int32
+{
+	SkeletalMesh = 0,
+	AnimSequence,
+	Count
+};
+
+EModeBarIcon GetSkeletalEditorModeBarIconForKind(ESkeletalEditorTabKind Kind);
+ImTextureID GetSkeletalEditorModeBarIconTexture(EModeBarIcon Icon);
+
 // Skeletal Editor 탭의 추상 베이스.
 // 공용: preview 뷰포트 / toolbar / show flags / 뷰포트 입력 / bone debug.
 // 서브클래스: mode-specific 좌·우 패널과 라벨/현재 미리보기 메시 선택.

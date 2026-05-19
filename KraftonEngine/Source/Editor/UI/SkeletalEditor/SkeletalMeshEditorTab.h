@@ -23,6 +23,7 @@ public:
 
 	FString GetTabLabel() const override;
 	ESkeletalEditorTabKind GetKind() const override { return ESkeletalEditorTabKind::SkeletalMesh; }
+	void RenderTabContent(float DeltaTime) override;
 
 	// Mode bar / 외부 호출 편의용 (현재 미리보기 상태 조회)
 	USkeletalMesh* GetCurrentPreviewMesh() const { return PreviewSkeletalMesh; }
@@ -36,10 +37,12 @@ protected:
 	void RenderRightPanel() override;
 
 private:
+	void RenderCenterPanel(float DeltaTime);
 	void RenderResourcePanel();
 	void RenderBonePanel();
 	void RenderTransformPanel();
-	void RenderAnimationPlaybackPanel();
+	void RenderPreviewAnimationSelector();
+	void RenderPreviewAnimationTimeline();
 	USkeletalMesh* GetSelectedSkeletalMesh() const;
 
 	UFBXSceneAsset* CurrentSceneAsset = nullptr;
@@ -47,10 +50,13 @@ private:
 	FString CurrentFbxPath;
 	FString StatusMessage = "Double-click an FBX asset in ContentBrowser";
 	FOpenAnimEditorCallback OpenAnimEditorCallback;
-	int32 CurrentSequenceIndex = 0;
+	int32 CurrentSequenceIndex = -1;
 	int32 SelectedResourceIndex = -1;
 	int32 SelectedBoneIndex = -1;
 	bool bScrollToSelectedBone = false;
 	int32 RequestSetOpenBoneIndex = -1;
 	bool bRequestSetOpenValue = false;
+	float TimelinePanelHeight = 72.0f;
+	bool bPreviewRecording = false;
+	bool bPreviewLooping = true;
 };

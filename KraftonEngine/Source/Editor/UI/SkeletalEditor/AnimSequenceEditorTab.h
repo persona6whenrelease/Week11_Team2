@@ -21,6 +21,8 @@ public:
 	// FbxPath은 mode bar의 "Open SkeletalMesh Editor" 버튼이 같은 FBX를 열기 위해 보관.
 	const FString& GetFbxPath() const { return FbxPath; }
 	int32 GetClipIndex() const { return BakedClipIndex; }
+	USkeletalMesh* GetCurrentPreviewMesh() const { return PreviewMesh; }
+	UAnimSequence* GetCurrentAnimSequence() const { return AnimSequence; }
 
 	FString GetTabLabel() const override;
 	ESkeletalEditorTabKind GetKind() const override { return ESkeletalEditorTabKind::AnimSequence; }

@@ -9,6 +9,96 @@
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "ImGui/imgui.h"
 
+#include <algorithm>
+#include <cctype>
+
+namespace
+{
+	FString NormalizeEditorTabPath(FString Path)
+	{
+		std::replace(Path.begin(), Path.end(), '\\', '/');
+		std::transform(Path.begin(), Path.end(), Path.begin(),
+			[](unsigned char Ch)
+			{
+				return static_cast<char>(std::tolower(Ch));
+			});
+		return Path;
+	}
+
+	bool ResolveAnimSequencePreviewContext(
+		const FString& AssetPath,
+		USkeletalMesh*& OutPreviewMesh,
+		UAnimSequence*& OutSequence)
+	{
+		OutPreviewMesh = nullptr;
+		OutSequence = FMeshManager::ResolveAnimSequenceReference(AssetPath);
+		if (!OutSequence)
+		{
+			return false;
+		}
+
+		if (UFBXSceneAsset* SceneAsset = OutSequence->GetTypedOuter<UFBXSceneAsset>())
+		{
+			OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, OutSequence);
+		}
+
+		if (!OutPreviewMesh)
+		{
+			const size_t HashPos = AssetPath.find('#');
+			if (HashPos != FString::npos)
+			{
+				const FString FbxPath = AssetPath.substr(0, HashPos);
+				if (UFBXSceneAsset* FallbackScene = FMeshManager::LoadFbxScene(FbxPath))
+				{
+					OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(FallbackScene, OutSequence);
+					if (!OutPreviewMesh && !FallbackScene->GetSkeletalMeshes().empty())
+					{
+						OutPreviewMesh = FallbackScene->GetSkeletalMeshes()[0];
+					}
+				}
+			}
+		}
+
+		return OutPreviewMesh != nullptr;
+	}
+
+	FString MakeTabLabelWithIconSpace(const FString& Label)
+	{
+		constexpr const char* IconTextPadding = "     ";
+		const size_t IdMarkerPos = Label.find("###");
+		if (IdMarkerPos == FString::npos)
+		{
+			return FString(IconTextPadding) + Label;
+		}
+
+		return FString(IconTextPadding) + Label.substr(0, IdMarkerPos) + Label.substr(IdMarkerPos);
+	}
+
+	void DrawTabKindIcon(const FSkeletalEditorTab* Tab)
+	{
+		if (!Tab)
+		{
+			return;
+		}
+
+		ImTextureID IconTexture = GetSkeletalEditorModeBarIconTexture(
+			GetSkeletalEditorModeBarIconForKind(Tab->GetKind()));
+		if (!IconTexture)
+		{
+			return;
+		}
+
+		constexpr float IconSize = 14.0f;
+		const ImVec2 TabMin = ImGui::GetItemRectMin();
+		const ImVec2 TabMax = ImGui::GetItemRectMax();
+		const ImVec2 IconMin(
+			TabMin.x + 8.0f,
+			TabMin.y + std::max(0.0f, (TabMax.y - TabMin.y - IconSize) * 0.5f));
+		const ImVec2 IconMax(IconMin.x + IconSize, IconMin.y + IconSize);
+		ImGui::GetWindowDrawList()->AddImage(IconTexture, IconMin, IconMax);
+	}
+}
+
 FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
 {
 	Tabs.clear();
@@ -16,13 +106,62 @@ FEditorSkeletalMeshViewerWidget::~FEditorSkeletalMeshViewerWidget()
 
 FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::FindTabBySource(const FString& Path) const
 {
+	const FString NormalizedPath = NormalizeEditorTabPath(Path);
 	for (const auto& Tab : Tabs)
 	{
-		if (Tab && Tab->GetSourcePath() == Path)
+		if (Tab && NormalizeEditorTabPath(Tab->GetSourcePath()) == NormalizedPath)
 		{
 			return Tab.get();
 		} 
 	}
+	return nullptr;
+}
+
+FSkeletalMeshEditorTab* FEditorSkeletalMeshViewerWidget::FindSkeletalMeshTabByMesh(USkeletalMesh* Mesh) const
+{
+	if (!Mesh)
+	{
+		return nullptr;
+	}
+
+	for (const auto& Tab : Tabs)
+	{
+		if (!Tab || Tab->GetKind() != ESkeletalEditorTabKind::SkeletalMesh)
+		{
+			continue;
+		}
+
+		auto* MeshTab = static_cast<FSkeletalMeshEditorTab*>(Tab.get());
+		if (MeshTab->GetCurrentPreviewMesh() == Mesh)
+		{
+			return MeshTab;
+		}
+	}
+
+	return nullptr;
+}
+
+FAnimSequenceEditorTab* FEditorSkeletalMeshViewerWidget::FindAnimSequenceTabByMesh(USkeletalMesh* Mesh) const
+{
+	if (!Mesh)
+	{
+		return nullptr;
+	}
+
+	for (const auto& Tab : Tabs)
+	{
+		if (!Tab || Tab->GetKind() != ESkeletalEditorTabKind::AnimSequence)
+		{
+			continue;
+		}
+
+		auto* AnimTab = static_cast<FAnimSequenceEditorTab*>(Tab.get());
+		if (AnimTab->GetCurrentPreviewMesh() == Mesh)
+		{
+			return AnimTab;
+		}
+	}
+
 	return nullptr;
 }
 
@@ -33,6 +172,24 @@ FSkeletalEditorTab* FEditorSkeletalMeshViewerWidget::GetActiveTab() const
 		return nullptr;
 	}
 	return Tabs[ActiveTabIndex].get();
+}
+
+void FEditorSkeletalMeshViewerWidget::FocusTab(FSkeletalEditorTab* Tab)
+{
+	if (!Tab)
+	{
+		return;
+	}
+
+	RequestedFocusTabId = Tab->GetTabId();
+	for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+	{
+		if (Tabs[i].get() == Tab)
+		{
+			ActiveTabIndex = i;
+			break;
+		}
+	}
 }
 
 void FEditorSkeletalMeshViewerWidget::RequestCloseTab(int32 Index)
@@ -56,15 +213,7 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 {
 	if (FSkeletalEditorTab* Existing = FindTabBySource(FbxPath))
 	{
-		RequestedFocusTabId = Existing->GetTabId();
-		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
-		{
-			if (Tabs[i].get() == Existing)
-			{
-				ActiveTabIndex = i;
-				break;
-			}
-		}
+		FocusTab(Existing);
 		return true;
 	}
 
@@ -94,6 +243,13 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	{
 		return false;
 	}
+
+	if (FSkeletalMeshEditorTab* ExistingMeshTab = FindSkeletalMeshTabByMesh(NewTab->GetCurrentPreviewMesh()))
+	{
+		FocusTab(ExistingMeshTab);
+		return true;
+	}
+
 	RequestedFocusTabId = NewTab->GetTabId();
 	Tabs.emplace_back(std::move(NewTab));
 	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
@@ -104,16 +260,22 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 {
 	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
 	{
-		RequestedFocusTabId = Existing->GetTabId();
-		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
+		FocusTab(Existing);
+		return true;
+	}
+
+	USkeletalMesh* ResolvedPreviewMesh = nullptr;
+	UAnimSequence* ResolvedSequence = nullptr;
+	if (ResolveAnimSequencePreviewContext(AssetPath, ResolvedPreviewMesh, ResolvedSequence))
+	{
+		if (FAnimSequenceEditorTab* ExistingAnimTab = FindAnimSequenceTabByMesh(ResolvedPreviewMesh))
 		{
-			if (Tabs[i].get() == Existing)
+			if (ExistingAnimTab->OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence))
 			{
-				ActiveTabIndex = i;
-				break;
+				FocusTab(ExistingAnimTab);
+				return true;
 			}
 		}
-		return true;
 	}
 
 	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextTabId++);
@@ -128,7 +290,10 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 			}
 		});
 	NewTab->SetOnSwitchToAnimSequence(nullptr);
-	if (!NewTab->OpenAnimSequenceAsset(AssetPath))
+	const bool bOpened = (ResolvedPreviewMesh && ResolvedSequence)
+		? NewTab->OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence)
+		: NewTab->OpenAnimSequenceAsset(AssetPath);
+	if (!bOpened)
 	{
 		return false;
 	}
@@ -147,16 +312,17 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 
 	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
 	{
-		RequestedFocusTabId = Existing->GetTabId();
-		for (int32 i = 0; i < static_cast<int32>(Tabs.size()); ++i)
-		{
-			if (Tabs[i].get() == Existing)
-			{
-				ActiveTabIndex = i;
-				break;
-			}
-		}
+		FocusTab(Existing);
 		return true;
+	}
+
+	if (FAnimSequenceEditorTab* ExistingAnimTab = FindAnimSequenceTabByMesh(PreviewMesh))
+	{
+		if (ExistingAnimTab->OpenAnimSequenceAsset(AssetPath, PreviewMesh, Sequence))
+		{
+			FocusTab(ExistingAnimTab);
+			return true;
+		}
 	}
 
 	auto NewTab = std::make_unique<FAnimSequenceEditorTab>(EditorEngine, NextTabId++);
@@ -262,8 +428,10 @@ void FEditorSkeletalMeshViewerWidget::Render(float DeltaTime)
 			}
 
 			bool bTabOpen = true;
-			const FString Label = Tab->GetTabLabel();
-			if (ImGui::BeginTabItem(Label.c_str(), &bTabOpen, TabFlags))
+			const FString Label = MakeTabLabelWithIconSpace(Tab->GetTabLabel());
+			const bool bSelected = ImGui::BeginTabItem(Label.c_str(), &bTabOpen, TabFlags);
+			DrawTabKindIcon(Tab);
+			if (bSelected)
 			{
 				ActiveTabIndex = i;
 				Tab->RenderTabContent(DeltaTime);

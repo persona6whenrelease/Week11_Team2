@@ -29,19 +29,12 @@
 namespace
 {
 	// ===== Mode bar 아이콘 (현재 탭 종류 강조 + 다른 모드로 점프) =====
-	enum class EModeBarIcon : int32
-	{
-		SkeletalMesh = 0,
-		AnimSequence,
-		Count
-	};
-
 	const wchar_t* GetModeBarIconFileName(EModeBarIcon Icon)
 	{
 		switch (Icon)
 		{
 		case EModeBarIcon::SkeletalMesh: return L"SkeletalMesh.png";
-		case EModeBarIcon::AnimSequence: return L"SyncMarker.png";
+		case EModeBarIcon::AnimSequence: return L"Animation.png";
 		default: return L"";
 		}
 	}
@@ -366,6 +359,20 @@ namespace
 			EditorEngine->ApplyTransformSettingsToGizmo(Gizmo);
 		}
 	}
+}
+
+EModeBarIcon GetSkeletalEditorModeBarIconForKind(ESkeletalEditorTabKind Kind)
+{
+	return Kind == ESkeletalEditorTabKind::AnimSequence
+		? EModeBarIcon::AnimSequence
+		: EModeBarIcon::SkeletalMesh;
+}
+
+ImTextureID GetSkeletalEditorModeBarIconTexture(EModeBarIcon Icon)
+{
+	EnsureModeBarIconsLoaded();
+	ID3D11ShaderResourceView* SRV = GetModeBarIconTable()[static_cast<int32>(Icon)];
+	return reinterpret_cast<ImTextureID>(SRV);
 }
 
 // ===== FSkeletalEditorTab =====

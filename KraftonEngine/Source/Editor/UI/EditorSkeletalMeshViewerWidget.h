@@ -26,7 +26,10 @@ public:
 
 private:
 	FSkeletalEditorTab* FindTabBySource(const FString& Path) const;
+	class FSkeletalMeshEditorTab* FindSkeletalMeshTabByMesh(USkeletalMesh* Mesh) const;
+	class FAnimSequenceEditorTab* FindAnimSequenceTabByMesh(USkeletalMesh* Mesh) const;
 	FSkeletalEditorTab* GetActiveTab() const;
+	void FocusTab(FSkeletalEditorTab* Tab);
 	void RequestCloseTab(int32 Index);
 
 	TArray<std::unique_ptr<FSkeletalEditorTab>> Tabs;

@@ -548,6 +548,21 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		DL->AddLine(ImVec2(X, NotifyY), ImVec2(X, RegMax.y), IM_COL32(70, 70, 75, 60));
 	}
 
+	// UE Persona처럼 시퀀스 범위 시작/끝을 명시한다.
+	const float StartX = TimeToX(0.0f);
+	const float EndX = TimeToX(Duration);
+	const ImU32 StartColor = IM_COL32(60, 220, 90, 255);
+	const ImU32 EndColor = IM_COL32(235, 65, 55, 255);
+	DL->AddLine(ImVec2(StartX, Origin.y), ImVec2(StartX, RegMax.y), StartColor, 2.0f);
+	DL->AddLine(ImVec2(EndX, Origin.y), ImVec2(EndX, RegMax.y), EndColor, 2.0f);
+
+	char StartLabel[16]; snprintf(StartLabel, sizeof(StartLabel), "%d", 0);
+	char EndLabel[16]; snprintf(EndLabel, sizeof(EndLabel), "%d", FrameCount);
+	const ImVec2 EndLabelSize = ImGui::CalcTextSize(EndLabel);
+	const float BoundaryLabelY = RegMax.y - ImGui::GetTextLineHeight() - 3.0f;
+	DL->AddText(ImVec2(StartX + 4.0f, BoundaryLabelY), StartColor, StartLabel);
+	DL->AddText(ImVec2(std::max(ContentX, EndX - EndLabelSize.x - 4.0f), BoundaryLabelY), EndColor, EndLabel);
+
 	// 트랙 라벨
 	const ImU32 LabelColor = IM_COL32(190, 195, 205, 255);
 	DL->AddText(ImVec2(Origin.x + 10.0f, NotifyY + 6.0f),   LabelColor, "Notifies");
