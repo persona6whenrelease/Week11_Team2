@@ -3,6 +3,7 @@
 
 #include "Component/SkeletalMeshComponent.h"
 #include "Editor/Viewport/SkeletalMeshViewerViewportClient.h"
+#include "Editor/UI/EditorFileUtils.h"
 #include "Asset/Import/MeshManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Animation/Core/AnimSequence.h"
@@ -302,7 +303,7 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 {
 	FSkeletalMeshViewerViewportClient* PreviewViewportClient = PreviewScene.PreviewViewportClient;
 
-	if (ImGui::BeginChild("##SkeletalMeshResources", ImVec2(0.0f, 120.0f), false))
+	if (ImGui::BeginChild("##SkeletalMeshResources", ImVec2(0.0f, 160.0f), false))
 	{
 		ImGui::TextUnformatted("Resources");
 		ImGui::Separator();
@@ -350,6 +351,49 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 				}
 			}
 		}
+
+		ImGui::Separator();
+		USkeletalMesh* SelectedMesh = GetSelectedSkeletalMesh();
+		const bool bCanSave = SelectedMesh != nullptr;
+		if (!bCanSave) ImGui::BeginDisabled();
+		if (ImGui::Button("Save Skeletal Mesh As..."))
+		{
+			FString DefaultStem;
+			const FSkeletalMesh* MeshAsset = SelectedMesh ? SelectedMesh->GetSkeletalMeshAsset() : nullptr;
+			if (MeshAsset && !MeshAsset->PathFileName.empty())
+			{
+				DefaultStem = ExtractFileStem(MeshAsset->PathFileName);
+			}
+			if (DefaultStem.empty())
+			{
+				DefaultStem = ExtractFileStem(GetSourcePath());
+			}
+			if (DefaultStem.empty())
+			{
+				DefaultStem = "SkeletalMesh";
+			}
+
+			const std::wstring DefaultFileNameW = FPaths::ToWide(DefaultStem) + L".asset";
+			const std::wstring InitialDirW = FPaths::Combine(FPaths::RootDir(), L"Asset/Content/");
+
+			FEditorFileDialogOptions Options;
+			Options.Title             = L"Save Skeletal Mesh As";
+			Options.Filter            = L"Asset Files (*.asset)\0*.asset\0All Files (*.*)\0*.*\0";
+			Options.DefaultExtension  = L"asset";
+			Options.DefaultFileName   = DefaultFileNameW.c_str();
+			Options.InitialDirectory  = InitialDirW.c_str();
+			Options.bFileMustExist    = false;
+			Options.bPathMustExist    = true;
+			Options.bPromptOverwrite  = true;
+			Options.bReturnRelativeToProjectRoot = true;
+
+			const FString SavePath = FEditorFileUtils::SaveFileDialog(Options);
+			if (!SavePath.empty())
+			{
+				FMeshManager::SaveSkeletalMeshToFile(SelectedMesh, SavePath);
+			}
+		}
+		if (!bCanSave) ImGui::EndDisabled();
 	}
 	ImGui::EndChild();
 }

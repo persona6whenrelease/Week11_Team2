@@ -24,7 +24,7 @@ class USkeletalMesh : public UObject
   public:
     GENERATED_BODY()
 
-    static constexpr uint32 AssetVersion = 1;
+    static constexpr uint32 AssetVersion = 2;
 
     USkeletalMesh() = default;
     ~USkeletalMesh() override;

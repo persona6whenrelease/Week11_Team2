@@ -573,6 +573,7 @@
     <ClCompile Include="Source\Engine\Scripting\LuaSaveGameBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaScriptSubsystem.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaShapeBindings.cpp" />
+    <ClCompile Include="Source\Engine\Scripting\LuaSkeletalMeshBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaSoundLibrary.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaSpringArmComponentBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaStaticMeshBindings.cpp" />

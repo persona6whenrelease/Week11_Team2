@@ -15,6 +15,7 @@
 #include "Component/SceneComponent.h"
 #include "Component/PrimitiveComponent.h"
 #include "Component/StaticMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/SpringArmComponent.h"
 
 namespace
@@ -183,6 +184,20 @@ void RegisterActorComponentBinding(sol::state& Lua)
 				return sol::nil;
 			}
 			FLuaStaticMeshComponentHandle Handle;
+			Handle.UUID = Mesh->GetUUID();
+			return sol::make_object(LuaView, Handle);
+		},
+
+		"AsSkeletalMesh",
+		[](const FLuaActorComponentHandle& Self, sol::this_state State) -> sol::object
+		{
+			sol::state_view LuaView(State);
+			USkeletalMeshComponent* Mesh = Cast<USkeletalMeshComponent>(Self.Resolve());
+			if (!Mesh)
+			{
+				return sol::nil;
+			}
+			FLuaSkeletalMeshComponentHandle Handle;
 			Handle.UUID = Mesh->GetUUID();
 			return sol::make_object(LuaView, Handle);
 		},

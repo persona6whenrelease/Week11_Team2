@@ -41,10 +41,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
         return AnimToPlay;
     }
 
-    void SetAnimationMode(EAnimationMode InAnimationMode)
-    {
-        AnimationMode = InAnimationMode;
-    }
+    void SetAnimationMode(EAnimationMode InAnimationMode);
     EAnimationMode GetAnimationMode() const
     {
         return AnimationMode;
@@ -103,6 +100,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
         BakedAnimPlaybackSpeed = InSpeed;
         if (AnimInstance) AnimInstance->SetPlaybackSpeed(InSpeed);
     }
+    UAnimInstance* GetAnimInstance() const { return AnimInstance; }
 	void RefreshAnimationPose();
 
   protected:

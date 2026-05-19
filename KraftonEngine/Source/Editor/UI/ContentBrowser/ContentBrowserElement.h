@@ -18,6 +18,7 @@ public:
 
 	void SetContent(FContentItem InContent) { ContentItem = InContent; }
 	std::wstring GetFileName() { return ContentItem.Path.filename(); }
+	std::filesystem::path GetFilePath() const { return ContentItem.Path; }
 	void StartRename(ContentBrowserContext& Context);
 
 protected:

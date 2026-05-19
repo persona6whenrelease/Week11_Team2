@@ -8,6 +8,7 @@
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
+#include "Object/Object.h"
 
 #include <utility>
 
@@ -52,9 +53,25 @@ void USkeletalMesh::Serialize(FArchive &Ar)
     }
     Ar << Materials;
 
+    TArray<FBoneInfo> Bones;
+    if (Ar.IsSaving() && Skeleton)
+    {
+        Bones = Skeleton->GetBones();
+    }
+    Ar << Bones;
+
     if (Ar.IsLoading())
     {
         Skeleton = nullptr;
+        if (!Bones.empty())
+        {
+            USkeleton* NewSkeleton = UObjectManager::Get().CreateObject<USkeleton>();
+            if (NewSkeleton)
+            {
+                NewSkeleton->SetBones(std::move(Bones));
+                Skeleton = NewSkeleton;
+            }
+        }
         RebuildSectionMaterialIndices();
     }
 }

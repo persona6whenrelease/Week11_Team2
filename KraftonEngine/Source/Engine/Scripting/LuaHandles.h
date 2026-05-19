@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Component/StaticMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/ActorComponent.h"
 #include "Component/CameraComponent.h"
 #include "Component/SpringArmComponent.h"
@@ -23,6 +24,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Component/ControllerInputComponent.h"
 #include "Component/PawnOrientationComponent.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 
 // Lua가 Object에 직접 접근할 수 없도록 감쌈
 // nullptr일 경우를 대비
@@ -261,6 +263,38 @@ struct FLuaStaticMeshComponentHandle
 	{
 		UObject* Object = UObjectManager::Get().FindByUUID(UUID);
 		return Cast<UStaticMeshComponent>(Object);
+	}
+
+	bool IsValid() const
+	{
+		return Resolve() != nullptr;
+	}
+};
+
+struct FLuaSkeletalMeshComponentHandle
+{
+	uint32 UUID = 0;
+
+	USkeletalMeshComponent* Resolve() const
+	{
+		UObject* Object = UObjectManager::Get().FindByUUID(UUID);
+		return Cast<USkeletalMeshComponent>(Object);
+	}
+
+	bool IsValid() const
+	{
+		return Resolve() != nullptr;
+	}
+};
+
+struct FLuaAnimSequenceHandle
+{
+	uint32 UUID = 0;
+
+	UAnimSequence* Resolve() const
+	{
+		UObject* Object = UObjectManager::Get().FindByUUID(UUID);
+		return Cast<UAnimSequence>(Object);
 	}
 
 	bool IsValid() const

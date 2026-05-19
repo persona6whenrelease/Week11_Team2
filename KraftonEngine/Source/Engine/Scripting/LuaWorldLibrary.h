@@ -10,6 +10,8 @@ class USceneComponent;
 class UShapeComponent;
 class ULuaScriptComponent;
 class UClass;
+class USkeletalMeshComponent;
+class UAnimSequence;
 
 class FLuaWorldLibrary
 {
@@ -139,6 +141,7 @@ public:
 	}
 
 	static UStaticMeshComponent* GetOrAddStaticMeshComponent(AActor* Actor);
+	static USkeletalMeshComponent* GetOrAddSkeletalMeshComponent(AActor* Actor);
 
 	static UActorComponent* FindComponentByTypeName(AActor* Actor, const FString& TypeName);
 	static UActorComponent* FindComponentByTypeName(AActor* Actor, const FString& TypeName, int32 ComponentIndex);
@@ -151,6 +154,8 @@ public:
 	static void RegisterAllowedComponentClass(const FString& TypeName, UClass* Class, bool bCanCreateFromLua);
 
 	static bool SetStaticMesh(UStaticMeshComponent* MeshComponent, const FString& StaticMeshPath);
+	static bool SetSkeletalMesh(USkeletalMeshComponent* MeshComponent, const FString& SkeletalMeshPath);
+	static UAnimSequence* LoadAnimSequence(const FString& AnimSequencePath);
 
 	static bool SetMaterial(UStaticMeshComponent* MeshComponent, int32 ElementIndex, const FString& MaterialPath);
 
