@@ -1320,8 +1320,24 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 		for (auto& kv : Value.ObjectRange())
 		{
 			// JSON key → key buffer
+			// JSON object keys are always strings; parse back to the native type.
 			std::fill(KeyBuf.begin(), KeyBuf.end(), 0);
-			json::JSON KeyJson = json::JSON(kv.first);
+			json::JSON KeyJson;
+			const EPropertyType KeyKind = Prop.TypeDesc->KeyType->Kind;
+			if (KeyKind == EPropertyType::Int)
+			{
+				try { KeyJson = json::JSON(static_cast<long>(std::stol(kv.first))); }
+				catch (...) { KeyJson = json::JSON(0L); }
+			}
+			else if (KeyKind == EPropertyType::Float)
+			{
+				try { KeyJson = json::JSON(std::stod(kv.first)); }
+				catch (...) { KeyJson = json::JSON(0.0); }
+			}
+			else
+			{
+				KeyJson = json::JSON(kv.first);
+			}
 			FPropertyDescriptor KDesc;
 			KDesc.TypeDesc = Prop.TypeDesc->KeyType;
 			KDesc.ValuePtr = KeyBuf.data();
