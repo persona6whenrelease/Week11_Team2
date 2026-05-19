@@ -23,10 +23,13 @@
 #include "Component/Movement/PawnMovementComponent.h"
 #include "Component/ControllerInputComponent.h"
 #include "Component/StaticMeshComponent.h"
+#include "Component/SkeletalMeshComponent.h"
 #include "Component/SpringArmComponent.h"
 #include "Component/TextRenderComponent.h"
 
+#include "Asset/Animation/Core/AnimInstance.h"
 #include "Asset/Import/MeshManager.h"
+#include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Mesh/StaticMesh/StaticMesh.h"
 
 #include "Asset/Material/Material.h"
@@ -231,6 +234,32 @@ UStaticMeshComponent* FLuaWorldLibrary::GetOrAddStaticMeshComponent(AActor* Acto
 	return MeshComponent;
 }
 
+USkeletalMeshComponent* FLuaWorldLibrary::GetOrAddSkeletalMeshComponent(AActor* Actor)
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
+	if (USkeletalMeshComponent* Existing = FindComponent<USkeletalMeshComponent>(Actor))
+	{
+		return Existing;
+	}
+
+	EnsureRootComponent(Actor);
+
+	USkeletalMeshComponent* MeshComponent = Actor->AddComponent<USkeletalMeshComponent>();
+	if (!MeshComponent)
+	{
+		UE_LOG("[Lua] Failed to add SkeletalMeshComponent.");
+		return nullptr;
+	}
+
+	MeshComponent->AttachToComponent(Actor->GetRootComponent());
+	PostComponentAdded(Actor, MeshComponent);
+	return MeshComponent;
+}
+
 bool FLuaWorldLibrary::SetStaticMesh(UStaticMeshComponent* MeshComponent, const FString& StaticMeshPath)
 {
 	if (!MeshComponent)
@@ -265,6 +294,40 @@ bool FLuaWorldLibrary::SetStaticMesh(UStaticMeshComponent* MeshComponent, const 
 
 	MeshComponent->SetStaticMesh(Mesh);
 	return true;
+}
+
+bool FLuaWorldLibrary::SetSkeletalMesh(USkeletalMeshComponent* MeshComponent, const FString& SkeletalMeshPath)
+{
+	if (!MeshComponent)
+	{
+		UE_LOG("[Lua] SetSkeletalMesh failed: invalid SkeletalMeshComponent.");
+		return false;
+	}
+
+	USkeletalMesh* Mesh = FMeshManager::LoadSkeletalMesh(SkeletalMeshPath);
+	if (!Mesh)
+	{
+		UE_LOG("[Lua] SetSkeletalMesh failed: cannot load skeletal mesh = %s", SkeletalMeshPath.c_str());
+		return false;
+	}
+
+	MeshComponent->SetSkeletalMesh(Mesh);
+	if (UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance())
+	{
+		AnimInstance->InitializeAnimation(Mesh ? Mesh->GetSkeleton() : nullptr);
+		MeshComponent->RefreshAnimationPose();
+	}
+	return true;
+}
+
+UAnimSequence* FLuaWorldLibrary::LoadAnimSequence(const FString& AnimSequencePath)
+{
+	if (AnimSequencePath.empty() || AnimSequencePath == "None")
+	{
+		return nullptr;
+	}
+
+	return FMeshManager::ResolveAnimSequenceReference(AnimSequencePath);
 }
 
 bool FLuaWorldLibrary::SetMaterial(UStaticMeshComponent* MeshComponent, int32 ElementIndex, const FString& MaterialPath)
@@ -554,6 +617,8 @@ namespace
 			{ "scene", USceneComponent::StaticClass(), true },
 			{ "luascript", ULuaScriptComponent::StaticClass(), true },
 			{ "staticmesh", UStaticMeshComponent::StaticClass(), true },
+			{ "skeletalmesh", USkeletalMeshComponent::StaticClass(), true },
+			{ "skinnedmesh", USkeletalMeshComponent::StaticClass(), true },
 			{ "textrender", UTextRenderComponent::StaticClass(), true },
 			{ "springarm", USpringArmComponent::StaticClass(), true },
 			{ "shape", UShapeComponent::StaticClass(), false },

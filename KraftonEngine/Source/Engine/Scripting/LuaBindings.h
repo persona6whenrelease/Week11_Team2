@@ -13,6 +13,7 @@ void RegisterLuaScriptComponentBinding(sol::state& Lua);
 void RegisterSceneComponentBinding(sol::state& Lua);
 void RegisterPrimitiveComponentBinding(sol::state& Lua);
 void RegisterStaticMeshComponentBinding(sol::state& Lua);
+void RegisterSkeletalMeshComponentBinding(sol::state& Lua);
 void RegisterCameraComponentBinding(sol::state& Lua);
 void RegisterSpringArmComponentBinding(sol::state& Lua);
 void RegisterPawnOrientationComponentBinding(sol::state& Lua);
