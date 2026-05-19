@@ -609,6 +609,50 @@ def _build_generated_cpp(types: list[ReflectedType], source_include: str, reflec
     return "\n".join(out) + "\n"
 
 
+# EPropertyType 값 중 GetTypeHash 표현식을 알 수 있는 것들
+_HASHABLE_ETYPES = {
+    'EPropertyType::Bool':   lambda name: f"GetTypeHash(v.{name})",
+    'EPropertyType::ByteBool': lambda name: f"GetTypeHash(static_cast<uint8>(v.{name}))",
+    'EPropertyType::Int':    lambda name: f"GetTypeHash(v.{name})",
+    'EPropertyType::Float':  lambda name: f"GetTypeHash(v.{name})",
+    'EPropertyType::String': lambda name: f"GetTypeHash(v.{name})",
+    'EPropertyType::Name':   lambda name: f"GetTypeHash(v.{name}.ToString())",
+    'EPropertyType::Enum':   lambda name: f"GetTypeHash(static_cast<int32>(v.{name}))",
+}
+
+
+def _cpp_emit_get_type_hash(out: list, t: ReflectedType, reflected_types: dict):
+    """Emit a free-function GetTypeHash(const T&) for a USTRUCT.
+
+    Combines all hashable scalar properties via HashCombine.
+    Properties whose types are not trivially hashable (Vec3, Struct, Array …)
+    are skipped — they still contribute to equality but not to the hash, which
+    is safe (only violates the *better-distribution* contract, not correctness).
+    """
+    lines = []
+    for prop in t.properties:
+        etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
+        expr_fn = _HASHABLE_ETYPES.get(etype)
+        if expr_fn:
+            lines.append(f"    seed = HashCombine(seed, {expr_fn(prop.name)});")
+
+    out += [
+        f"size_t GetTypeHash(const {t.name}& v)",
+        "{",
+        "    size_t seed = 0;",
+    ]
+    if lines:
+        out += lines
+    else:
+        # No hashable fields — return a constant; still valid for unordered containers.
+        out.append(f'    (void)v;  // no hashable fields in {t.name}')
+    out += [
+        "    return seed;",
+        "}",
+        "",
+    ]
+
+
 def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
     flags = _specifiers_to_flags(t.specifiers)
 
@@ -720,6 +764,11 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             f"}}();",
             "",
         ]
+
+    # Emit GetTypeHash for USTRUCT so it can be used as TSet element / TMap key.
+    # Only struct kinds get this — classes are reference types, not value-hashed.
+    if t.kind == 'struct':
+        _cpp_emit_get_type_hash(out, t, reflected_types)
 
     if t.functions:
         out += [
