@@ -645,19 +645,6 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 	case EPropertyType::Enum:
 		return JSON(*static_cast<int32*>(Prop.ValuePtr));
 
-	case EPropertyType::Vec3Array: {
-		const TArray<FVector>* Arr = static_cast<const TArray<FVector>*>(Prop.ValuePtr);
-		JSON outer = json::Array();
-		for (const FVector& v : *Arr) {
-			JSON inner = json::Array();
-			inner.append(static_cast<double>(v.X));
-			inner.append(static_cast<double>(v.Y));
-			inner.append(static_cast<double>(v.Z));
-			outer.append(inner);
-		}
-		return outer;
-	}
-
 	case EPropertyType::Array: {
 		JSON outer = json::Array();
 		if (!Prop.ArraySizeGetter)
@@ -1226,23 +1213,6 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 	case EPropertyType::Enum:
 		*static_cast<int32*>(Prop.ValuePtr) = Value.ToInt();
 		break;
-
-	case EPropertyType::Vec3Array: {
-		TArray<FVector>* Arr = static_cast<TArray<FVector>*>(Prop.ValuePtr);
-		Arr->clear();
-		for (auto& elem : Value.ArrayRange()) {
-			FVector v(0, 0, 0);
-			int i = 0;
-			for (auto& c : elem.ArrayRange()) {
-				if (i == 0) v.X = static_cast<float>(c.ToFloat());
-				else if (i == 1) v.Y = static_cast<float>(c.ToFloat());
-				else if (i == 2) v.Z = static_cast<float>(c.ToFloat());
-				++i;
-			}
-			Arr->push_back(v);
-		}
-		break;
-	}
 
 	case EPropertyType::Array: {
 		if (!Prop.ArrayResizeFunc || !Prop.ArraySizeGetter)

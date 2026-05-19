@@ -257,9 +257,6 @@ const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 			return "unknown[]";
 		}
 
-	case EPropertyType::Vec3Array:
-		return "FVector[]";
-
 	default:
 		return "unknown";
 	}
@@ -424,19 +421,6 @@ sol::object FLuaPropertyBridge::GetProperty(sol::this_state State, UActorCompone
 				break;
 			}
 		}
-		return sol::make_object(Lua, Table);
-	}
-
-	case EPropertyType::Vec3Array:
-	{
-		TArray<FVector>* Values = static_cast<TArray<FVector>*>(Desc->ValuePtr);
-		sol::table Table = Lua.create_table();
-
-		for (size_t Index = 0; Index < Values->size(); ++Index)
-		{
-			Table[static_cast<int>(Index + 1)] = (*Values)[Index];
-		}
-
 		return sol::make_object(Lua, Table);
 	}
 
@@ -630,36 +614,6 @@ bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& 
 					return false;
 				}
 			}
-			break;
-		}
-
-		case EPropertyType::Vec3Array:
-		{
-			const std::size_t MaxLuaVec3ArraySize = 1024;
-			sol::table Table = Value.as<sol::table>();
-			const std::size_t Count = Table.size();
-
-			if (Count > MaxLuaVec3ArraySize)
-			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: Vec3Array too large. property = %s, count = %zu", Desc->Name.c_str(), Count);
-				return false;
-			}
-
-			TArray<FVector> NewValues;
-
-			for (std::size_t Index = 1; Index <= Count; ++Index)
-			{
-				sol::object Item = Table[static_cast<int>(Index)];
-				if (!Item.valid() || Item.get_type() == sol::type::nil)
-				{
-					UE_LOG("[Lua] SetProperty failed: Vec3Array contains nil. property = %s, index = %zu", Desc->Name.c_str(), Index);
-					return false;
-				}
-
-				NewValues.push_back(Item.as<FVector>());
-			}
-
-			*static_cast<TArray<FVector>*>(Desc->ValuePtr) = NewValues;
 			break;
 		}
 

@@ -246,10 +246,6 @@ namespace
 			*static_cast<int32*>(DstProp.ValuePtr) = *static_cast<int32*>(SrcProp.ValuePtr);
 			return true;
 
-		case EPropertyType::Vec3Array:
-			*static_cast<TArray<FVector>*>(DstProp.ValuePtr) = *static_cast<TArray<FVector>*>(SrcProp.ValuePtr);
-			return true;
-
 		case EPropertyType::Array:
 		{
 			if (SrcProp.InnerType != DstProp.InnerType
@@ -1846,38 +1842,6 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 				if (bSelected) ImGui::SetItemDefaultFocus();
 			}
 			ImGui::EndCombo();
-		}
-		break;
-	}
-	case EPropertyType::Vec3Array:
-	{
-		TArray<FVector>* Arr = static_cast<TArray<FVector>*>(Prop.ValuePtr);
-
-		ImGui::TextUnformatted(Prop.Name.c_str());
-
-		int32 RemoveIdx = -1;
-		for (int32 i = 0; i < (int32)Arr->size(); ++i)
-		{
-			ImGui::PushID(i);
-			char Label[16];
-			snprintf(Label, sizeof(Label), "[%d]", i);
-			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
-			if (ImGui::DragFloat3(Label, &(*Arr)[i].X, 1.0f))
-				bChanged = true;
-			ImGui::SameLine();
-			if (ImGui::SmallButton("x"))
-				RemoveIdx = i;
-			ImGui::PopID();
-		}
-		if (RemoveIdx >= 0)
-		{
-			Arr->erase(Arr->begin() + RemoveIdx);
-			bChanged = true;
-		}
-		if (ImGui::Button("+ Add Point"))
-		{
-			Arr->push_back(FVector(0.0f, 0.0f, 0.0f));
-			bChanged = true;
 		}
 		break;
 	}

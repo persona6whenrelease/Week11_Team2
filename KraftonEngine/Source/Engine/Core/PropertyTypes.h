@@ -26,7 +26,6 @@ enum class EPropertyType : uint8_t
 	MaterialSlot,  // FMaterialSlot — 머티리얼 경로
 	Enum,
 	Array,
-	Vec3Array,
 	Struct,
 	ActorRef,
 };

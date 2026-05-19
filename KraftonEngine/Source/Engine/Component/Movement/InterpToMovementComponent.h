@@ -73,7 +73,7 @@ private:
 
 private:
 	EInterpBehaviour	InterpBehaviour = EInterpBehaviour::OneShot;
-	FPROPERTY(DisplayName="Control Points", Type=Vec3Array)
+	FPROPERTY(DisplayName="Control Points")
 	TArray<FVector>		ControlPoints;
 	uint32				CurrentPointID = 0;
 	uint32				NextPointID = 0;
