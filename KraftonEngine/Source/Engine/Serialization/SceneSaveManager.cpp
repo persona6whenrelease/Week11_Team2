@@ -701,7 +701,8 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 			VDesc.TypeDesc = Prop.TypeDesc->ValueType;
 			VDesc.ValuePtr = const_cast<void*>(Vals[i]);
 			JSON KeyJson = SerializePropertyValue(KDesc);
-			std::string KeyStr = KeyJson.IsString() ? KeyJson.ToString()
+			std::string KeyStr = (KeyJson.JSONType() == json::JSON::Class::String)
+				? KeyJson.ToString()
 				: KeyJson.dump();
 			outer[KeyStr] = SerializePropertyValue(VDesc);
 		}

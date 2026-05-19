@@ -319,6 +319,8 @@ def _cpp_type_to_eproperty(cpp_type: str, reflected_types: Optional[dict[str, st
             return 'EPropertyType::Struct'
         if kind == 'class':
             return 'EPropertyType::ObjectRef'
+        if kind == 'enum':
+            return 'EPropertyType::Enum'
     return _CPP_TO_EPROPERTY.get(clean, 'EPropertyType::Int')
 
 
