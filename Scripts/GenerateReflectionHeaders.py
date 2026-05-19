@@ -313,8 +313,12 @@ _CPP_TO_EPROPERTY = {
 
 def _cpp_type_to_eproperty(cpp_type: str, reflected_types: Optional[dict[str, str]] = None) -> str:
     clean = cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
-    if reflected_types and reflected_types.get(clean) == 'struct':
-        return 'EPropertyType::Struct'
+    if reflected_types:
+        kind = reflected_types.get(clean)
+        if kind == 'struct':
+            return 'EPropertyType::Struct'
+        if kind == 'class':
+            return 'EPropertyType::ObjectRef'
     return _CPP_TO_EPROPERTY.get(clean, 'EPropertyType::Int')
 
 
@@ -537,10 +541,18 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                 else:
                     inner_node_name = f"{t.name}_PropType_{index}_Element"
                     clean_inner_type = _clean_cpp_type(inner_type)
-                    inner_struct_type = f"&{clean_inner_type}::StaticClassInstance" if inner_etype == 'EPropertyType::Struct' else 'nullptr'
+                    if inner_etype == 'EPropertyType::Struct':
+                        inner_struct_type = f"&{clean_inner_type}::StaticClassInstance"
+                        inner_object_class = 'nullptr'
+                    elif inner_etype == 'EPropertyType::ObjectRef':
+                        inner_struct_type = 'nullptr'
+                        inner_object_class = f"&{clean_inner_type}::StaticClassInstance"
+                    else:
+                        inner_struct_type = 'nullptr'
+                        inner_object_class = 'nullptr'
                     out.append(
                         f"    static const FPropertyTypeDesc {inner_node_name}"
-                        f"{{ {inner_etype}, {inner_struct_type}, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                        f"{{ {inner_etype}, {inner_struct_type}, nullptr, 0, {inner_object_class}, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
                     )
                     outer_node_name = f"{t.name}_PropType_{index}"
                     out.append(
@@ -561,6 +573,14 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                     out.append(
                         f"    static const FPropertyTypeDesc {node_name}"
                         f"{{ {etype}, &{clean_type}::StaticClassInstance, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                    )
+                    type_desc_ref = f"&{node_name}"
+                elif etype == 'EPropertyType::ObjectRef':
+                    clean_type = _clean_cpp_type(prop.cpp_type)
+                    node_name = f"{t.name}_PropType_{index}"
+                    out.append(
+                        f"    static const FPropertyTypeDesc {node_name}"
+                        f"{{ EPropertyType::ObjectRef, nullptr, nullptr, 0, &{clean_type}::StaticClassInstance, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
                     )
                     type_desc_ref = f"&{node_name}"
                 else:
