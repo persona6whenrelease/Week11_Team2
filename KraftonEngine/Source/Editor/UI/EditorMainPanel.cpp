@@ -313,6 +313,35 @@ void FEditorMainPanel::RenderMainMenuBar()
 		ProjectSettingsWidget.bOpen = true;
 	}
 
+	if (EditorEngine && ImGui::BeginMenu("Stat"))
+	{
+		FOverlayStatSystem& OverlayStats = EditorEngine->GetOverlayStatSystem();
+
+		if (ImGui::MenuItem("FPS", nullptr, OverlayStats.IsShowingFPS()))
+		{
+			OverlayStats.ToggleFPS();
+		}
+		if (ImGui::MenuItem("Memory", nullptr, OverlayStats.IsShowingMemory()))
+		{
+			OverlayStats.ToggleMemory();
+		}
+		if (ImGui::MenuItem("Shadow", nullptr, OverlayStats.IsShowingShadow()))
+		{
+			OverlayStats.ToggleShadow();
+		}
+		if (ImGui::MenuItem("Skinning", nullptr, OverlayStats.IsShowingSkinning()))
+		{
+			OverlayStats.ToggleSkinning();
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("None"))
+		{
+			OverlayStats.HideAll();
+		}
+
+		ImGui::EndMenu();
+	}
+
 	if (ImGui::MenuItem("Shortcut"))
 	{
 		bShowShortcutOverlay = !bShowShortcutOverlay;
