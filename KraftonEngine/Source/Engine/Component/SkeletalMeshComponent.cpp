@@ -8,6 +8,8 @@
 #include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Object/Object.h"
 #include "Object/ObjectFactory.h"
+#include "Profiling/PlatformTime.h"
+#include "Profiling/SkinningStats.h"
 
 #include <cmath>
 
@@ -137,7 +139,11 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 
 	AnimInstance->Update(DeltaTime);
+    const uint64 PoseSamplingStartCycles = FPlatformTime::Cycles64();
 	AnimInstance->EvaluateGraph();
+#if STATS
+    FSkinningStats::AddPoseSamplingTime(FPlatformTime::ToMilliseconds(FPlatformTime::Cycles64() - PoseSamplingStartCycles) * 0.001);
+#endif
 
 	// 시퀀스 평가 결과를 적용. override 마스크가 켜진 본은 사용자 값을 유지
 	ApplyEvaluatedPose(AnimInstance->GetOutputLocalPose());
@@ -153,6 +159,10 @@ void USkeletalMeshComponent::RefreshAnimationPose()
 		return;
 	}
 
+    const uint64 PoseSamplingStartCycles = FPlatformTime::Cycles64();
 	AnimInstance->EvaluateGraph();
+#if STATS
+    FSkinningStats::AddPoseSamplingTime(FPlatformTime::ToMilliseconds(FPlatformTime::Cycles64() - PoseSamplingStartCycles) * 0.001);
+#endif
 	ApplyEvaluatedPose(AnimInstance->GetOutputLocalPose());
 }

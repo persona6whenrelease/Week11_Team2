@@ -481,8 +481,10 @@
     <ClCompile Include="Source\Engine\Platform\CrashDump.cpp" />
     <ClCompile Include="Source\Engine\Platform\DirectoryWatcher.cpp" />
     <ClCompile Include="Source\Engine\Platform\Paths.cpp" />
+    <ClCompile Include="Source\Engine\Profiling\FrameProfiler.cpp" />
     <ClCompile Include="Source\Engine\Profiling\GPUProfiler.cpp" />
     <ClCompile Include="Source\Engine\Profiling\MemoryStats.cpp" />
+    <ClCompile Include="Source\Engine\Profiling\SkinningStats.cpp" />
     <ClCompile Include="Source\Engine\Profiling\ShadowStats.cpp" />
     <ClCompile Include="Source\Engine\Profiling\StartupProfiler.cpp" />
     <ClCompile Include="Source\Engine\Profiling\Stats.cpp" />
@@ -803,6 +805,7 @@
     <ClInclude Include="Source\Engine\Profiling\GPUProfiler.h" />
     <ClInclude Include="Source\Engine\Profiling\MemoryStats.h" />
     <ClInclude Include="Source\Engine\Profiling\PlatformTime.h" />
+    <ClInclude Include="Source\Engine\Profiling\SkinningStats.h" />
     <ClInclude Include="Source\Engine\Profiling\ShadowStats.h" />
     <ClInclude Include="Source\Engine\Profiling\StartupProfiler.h" />
     <ClInclude Include="Source\Engine\Profiling\Stats.h" />

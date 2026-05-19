@@ -48,6 +48,7 @@ public:
 	static ESkinningGlobalMode GetGlobalSkinningMode();
 	static const char* GetGlobalSkinningModeName();
 	bool ShouldUseGPUSkinning() const;
+	bool EnsureGPUSkinningCacheReady(uint32 FrameId);
 	void RefreshSkinningForCurrentPose();
 	
 	// === Animation Bone Transform ===
@@ -108,6 +109,7 @@ protected:
 	TArray<FVertexPNCTT_Skinned> SkinnedSourceVertices; // GPU 경로 입력 (bind pose + bone 정보, 한 번만 생성)
 	TArray<FMatrix> LocalBonePoseMatrices;
 	TArray<FMatrix> MeshSpaceBoneMatrices;
+	TArray<FMatrix> SkinningMatrices;
 	TArray<bool> BoneOverrideMask; // true = 사용자가 수정.
 	FMeshBuffer RuntimeMeshBuffer;
 

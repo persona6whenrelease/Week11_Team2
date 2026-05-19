@@ -6,6 +6,7 @@
 #include "Viewport/Viewport.h"
 #include "Component/CameraComponent.h"
 #include "GameFramework/World.h"
+#include "Profiling/FrameProfiler.h"
 
 FObjViewerRenderPipeline::FObjViewerRenderPipeline(UObjViewerEngine* InEngine, FRenderer& InRenderer)
 	: Engine(InEngine)
@@ -18,12 +19,15 @@ FObjViewerRenderPipeline::~FObjViewerRenderPipeline()
 
 void FObjViewerRenderPipeline::Execute(float DeltaTime, FRenderer& Renderer)
 {
+	FFrameProfiler::BeginRenderFrame();
+
 	// 오프스크린 RT에 3D 씬 렌더
 	RenderPreviewViewport(Renderer);
 
 	// 스왑체인 백버퍼 → ImGui 합성 → Present
 	Renderer.BeginFrame();
 	Engine->RenderUI(DeltaTime);
+	FFrameProfiler::EndRenderFrame();
 	Renderer.EndFrame();
 }
 

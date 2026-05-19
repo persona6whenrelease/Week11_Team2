@@ -63,8 +63,11 @@ void FSkeletalMeshSceneProxy::UpdatePerViewport(const FFrameContext& Frame)
 	// GPU Skinning 상태/리소스 매 프레임 동기화
 	if (SkinnedComp)
 	{
-		bUseGPUSkinning = SkinnedComp->IsUsingGPUSkinning();
-		SkinCacheSRV    = SkinnedComp->GetSkinCacheSRV();
+		const bool bWantsGPUSkinning = SkinnedComp->IsUsingGPUSkinning();
+		const uint32 FrameId = Frame.LODContext.LODUpdateFrame;
+		const bool bGPUCacheReady = bWantsGPUSkinning && SkinnedComp->EnsureGPUSkinningCacheReady(FrameId);
+		bUseGPUSkinning = bGPUCacheReady;
+		SkinCacheSRV    = bGPUCacheReady ? SkinnedComp->GetSkinCacheSRV() : nullptr;
 	}
 	else
 	{
