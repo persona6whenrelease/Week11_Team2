@@ -465,7 +465,3 @@ CMakeLists.txt
 
 # override
 !KraftonEngine/Source/Engine/Asset/Import/OBJ
-
-*.fbx
-*.png
-*.mat
