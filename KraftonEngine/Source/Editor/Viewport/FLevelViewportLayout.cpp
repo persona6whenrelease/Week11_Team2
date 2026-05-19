@@ -1226,6 +1226,44 @@ void FLevelViewportLayout::RenderViewportUI(float DeltaTime)
 					}
 				}
 			}
+			else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AnimSequenceAssetContentItem"))
+			{
+				FContentItem ContentItem = *reinterpret_cast<const FContentItem*>(payload->Data);
+				const FString AssetPath = FPaths::ToUtf8(ContentItem.Path.wstring());
+
+				EAssetType AssetType = EAssetType::Unknown;
+				if (!TryReadAssetType(AssetPath, AssetType))
+				{
+					UE_LOG("[Viewport] Failed to read asset type for drag-drop: %s", AssetPath.c_str());
+				}
+				else if (AssetType == EAssetType::SkeletalMesh)
+				{
+					USkeletalMesh* SkeletalMesh = FMeshManager::LoadSkeletalMesh(AssetPath);
+					if (!SkeletalMesh)
+					{
+						UE_LOG("[Viewport] Failed to load skeletal mesh for drag-drop: %s", AssetPath.c_str());
+					}
+					else
+					{
+						AActor* NewActor = Cast<AActor>(FObjectFactory::Get().Create(AActor::StaticClass()->GetName(), Editor->GetWorld()));
+						USkeletalMeshComponent* SkeletalMeshComponent = NewActor->AddComponent<USkeletalMeshComponent>();
+						NewActor->SetRootComponent(SkeletalMeshComponent);
+						SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+						Editor->GetWorld()->AddActor(NewActor);
+
+						FVector SpawnLocation(0, 0, 0);
+						FPoint MP = { ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y };
+						if (TryComputePlacementLocation(GetActiveViewportSlotIndex(), MP, SpawnLocation))
+						{
+							NewActor->SetActorLocation(SpawnLocation);
+						}
+						if (SelectionManager)
+						{
+							SelectionManager->Select(NewActor);
+						}
+					}
+				}
+			}
 			else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FBXContentItem"))
 			{
 				FContentItem ContentItem = *reinterpret_cast<const FContentItem*>(payload->Data);
