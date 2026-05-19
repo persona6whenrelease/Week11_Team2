@@ -28,6 +28,9 @@ struct ContentBrowserContext final
 	bool bRenameFocusNeeded = false;
 	char RenameBuffer[512] = {};
 
+	bool bPendingDeleteConfirm = false;
+	std::shared_ptr<ContentBrowserElement> PendingDeleteElement;
+
 	ImVec2 GetContentGridSlotPos() const
 	{
 		const int32 SafeColumnCount = ContentGridColumnCount > 0 ? ContentGridColumnCount : 1;

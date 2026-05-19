@@ -392,6 +392,49 @@ void FEditorContentBrowserWidget::DrawContents()
 		}
 	}
 
+	if (BrowserContext.bPendingDeleteConfirm)
+	{
+		ImGui::OpenPopup("Delete?");
+		BrowserContext.bPendingDeleteConfirm = false;
+	}
+
+	if (ImGui::BeginPopupModal("Delete?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		if (BrowserContext.PendingDeleteElement)
+		{
+			const std::string FileName = FPaths::ToUtf8(BrowserContext.PendingDeleteElement->GetFileName());
+			ImGui::Text("'%s'", FileName.c_str());
+			ImGui::Text("Are you sure you want to delete this?");
+		}
+		ImGui::Spacing();
+		if (ImGui::Button("Delete", ImVec2(80, 0)))
+		{
+			if (BrowserContext.PendingDeleteElement)
+			{
+				const std::filesystem::path TargetPath = BrowserContext.PendingDeleteElement->GetFilePath();
+				std::error_code Ec;
+				std::filesystem::remove_all(TargetPath, Ec);
+				if (!Ec)
+				{
+					if (BrowserContext.SelectedElement == BrowserContext.PendingDeleteElement)
+					{
+						BrowserContext.SelectedElement = nullptr;
+					}
+					BrowserContext.bIsNeedRefresh = true;
+				}
+				BrowserContext.PendingDeleteElement = nullptr;
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(80, 0)))
+		{
+			BrowserContext.PendingDeleteElement = nullptr;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
 	if (ImGui::BeginPopupContextWindow("ContentBrowserContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 	{
 		if (ImGui::MenuItem("Create Lua Script"))
