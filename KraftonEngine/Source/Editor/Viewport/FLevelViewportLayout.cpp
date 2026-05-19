@@ -1386,6 +1386,13 @@ void FLevelViewportLayout::RenderViewportUI(float DeltaTime)
 
 		// PIE의 게임 뷰포트는 에디터 창 전체가 아니라 활성 뷰포트 패널 안에 표시된다.
 		// 따라서 입력/향후 RmlUi 렌더가 같은 좌표계를 쓰도록 실제 표시 Rect를 매 프레임 동기화한다.
+		if (Editor && ActiveViewportClient)
+		{
+			// Draw while the viewport window is still current so the foreground draw list
+			// stays bound to the same ImGui platform viewport as the viewport panel.
+			Editor->GetOverlayStatSystem().RenderImGui(*Editor, ActiveViewportClient->GetViewportScreenRect());
+		}
+
 		if (Editor && Editor->IsPlayingInEditor() && ActiveViewportClient)
 		{
 			if (UGameViewportClient* GameViewportClient = Editor->GetGameViewportClient())
