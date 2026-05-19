@@ -91,10 +91,12 @@ namespace
 		OutElementProp.ValuePtr = bMutable
 			? ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex)
 			: const_cast<void*>(ArrayProp.ArrayElementConstGetter(ArrayProp.ValuePtr, ElementIndex));
+		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
 		OutElementProp.ArraySizeGetter = nullptr;
 		OutElementProp.ArrayResizeFunc = nullptr;
 		OutElementProp.ArrayElementGetter = nullptr;
 		OutElementProp.ArrayElementConstGetter = nullptr;
+		OutElementProp.InnerStructType = nullptr;
 		return OutElementProp.ValuePtr != nullptr;
 	}
 }

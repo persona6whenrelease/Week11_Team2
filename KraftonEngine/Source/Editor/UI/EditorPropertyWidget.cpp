@@ -182,10 +182,12 @@ namespace
 		OutElementProp.Type = ArrayProp.InnerType;
 		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
 		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
+		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
 		OutElementProp.ArraySizeGetter = nullptr;
 		OutElementProp.ArrayResizeFunc = nullptr;
 		OutElementProp.ArrayElementGetter = nullptr;
 		OutElementProp.ArrayElementConstGetter = nullptr;
+		OutElementProp.InnerStructType = nullptr;
 		return OutElementProp.ValuePtr != nullptr;
 	}
 

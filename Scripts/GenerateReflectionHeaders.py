@@ -498,22 +498,26 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                 array_resize_func = 'nullptr'
                 array_element_getter = 'nullptr'
                 array_element_const_getter = 'nullptr'
+                inner_struct_type = 'nullptr'
             else:
                 if inner_type:
                     inner_etype = _cpp_type_to_eproperty(inner_type, reflected_types)
-                    if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum', 'EPropertyType::Struct'):
+                    if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum'):
                         etype = 'EPropertyType::Int'
                         inner_etype = 'EPropertyType::Int'
                         array_size_getter = 'nullptr'
                         array_resize_func = 'nullptr'
                         array_element_getter = 'nullptr'
                         array_element_const_getter = 'nullptr'
+                        inner_struct_type = 'nullptr'
                     else:
                         etype = 'EPropertyType::Array'
                         array_size_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetSize'
                         array_resize_func = f'&TArrayPropertyOps<{prop.cpp_type}>::Resize'
                         array_element_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetElement'
                         array_element_const_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetConstElement'
+                        clean_inner_type = inner_type.replace('const', '').replace('*', '').replace('&', '').strip()
+                        inner_struct_type = f"&{clean_inner_type}::StaticClassInstance" if inner_etype == 'EPropertyType::Struct' else 'nullptr'
                 else:
                     etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
                     inner_etype = 'EPropertyType::Int'
@@ -521,6 +525,7 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
                     array_resize_func = 'nullptr'
                     array_element_getter = 'nullptr'
                     array_element_const_getter = 'nullptr'
+                    inner_struct_type = 'nullptr'
             clean_type = prop.cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
             struct_type = f"&{clean_type}::StaticClassInstance" if etype == 'EPropertyType::Struct' else 'nullptr'
             offset    = f"reinterpret_cast<void*>(offsetof({t.name}, {prop.name}))"
@@ -532,7 +537,7 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             out.append(
                 f'        FPropertyDescriptor{{ {disp_name}, {etype}, {offset},'
                 f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val}, "", 0, {struct_type},'
-                f' {inner_etype}, {array_size_getter}, {array_resize_func}, {array_element_getter}, {array_element_const_getter} }},'
+                f' {inner_etype}, {array_size_getter}, {array_resize_func}, {array_element_getter}, {array_element_const_getter}, {inner_struct_type} }},'
             )
         out += [
             "    };",

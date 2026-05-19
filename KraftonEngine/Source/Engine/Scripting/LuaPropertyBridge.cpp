@@ -134,11 +134,266 @@ namespace
 		OutElementProp.Type = ArrayProp.InnerType;
 		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
 		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
+		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
 		OutElementProp.ArraySizeGetter = nullptr;
 		OutElementProp.ArrayResizeFunc = nullptr;
 		OutElementProp.ArrayElementGetter = nullptr;
 		OutElementProp.ArrayElementConstGetter = nullptr;
+		OutElementProp.InnerStructType = nullptr;
 		return OutElementProp.ValuePtr != nullptr;
+	}
+
+	void CollectReflectedStructProperties(const UClass* StructType, void* StructValue, TArray<FPropertyDescriptor>& OutProps)
+	{
+		if (!StructType || !StructValue)
+		{
+			return;
+		}
+
+		TArray<const UClass*> Chain;
+		for (const UClass* C = StructType; C; C = C->GetSuperClass())
+		{
+			Chain.push_back(C);
+		}
+
+		for (int32 Index = static_cast<int32>(Chain.size()) - 1; Index >= 0; --Index)
+		{
+			for (const FPropertyDescriptor& Desc : Chain[Index]->GetOwnProperties())
+			{
+				FPropertyDescriptor Inst = Desc;
+				Inst.ValuePtr = reinterpret_cast<char*>(StructValue) + reinterpret_cast<size_t>(Desc.ValuePtr);
+				OutProps.push_back(Inst);
+			}
+		}
+	}
+
+	sol::object MakeLuaObjectForProperty(sol::state_view Lua, const FPropertyDescriptor& Desc)
+	{
+		switch (Desc.Type)
+		{
+		case EPropertyType::Bool:
+			return sol::make_object(Lua, *static_cast<bool*>(Desc.ValuePtr));
+
+		case EPropertyType::ByteBool:
+			return sol::make_object(Lua, *static_cast<uint8*>(Desc.ValuePtr) != 0);
+
+		case EPropertyType::Int:
+			return sol::make_object(Lua, *static_cast<int32*>(Desc.ValuePtr));
+
+		case EPropertyType::Float:
+			return sol::make_object(Lua, *static_cast<float*>(Desc.ValuePtr));
+
+		case EPropertyType::Vec3:
+			return sol::make_object(Lua, *static_cast<FVector*>(Desc.ValuePtr));
+
+		case EPropertyType::Vec4:
+		case EPropertyType::Color4:
+			return sol::make_object(Lua, *static_cast<FVector4*>(Desc.ValuePtr));
+
+		case EPropertyType::Rotator:
+			return sol::make_object(Lua, *static_cast<FRotator*>(Desc.ValuePtr));
+
+		case EPropertyType::String:
+		case EPropertyType::StaticMeshRef:
+		case EPropertyType::SkeletalMeshRef:
+		case EPropertyType::SceneComponentRef:
+			return sol::make_object(Lua, *static_cast<FString*>(Desc.ValuePtr));
+
+		case EPropertyType::Name:
+			return sol::make_object(Lua, static_cast<FName*>(Desc.ValuePtr)->ToString());
+
+		case EPropertyType::MaterialSlot:
+			return sol::make_object(Lua, static_cast<FMaterialSlot*>(Desc.ValuePtr)->Path);
+
+		case EPropertyType::Enum:
+			return sol::make_object(Lua, *reinterpret_cast<int32*>(Desc.ValuePtr));
+
+		case EPropertyType::Array:
+		{
+			if (!Desc.ArraySizeGetter)
+			{
+				return sol::nil;
+			}
+
+			sol::table Table = Lua.create_table();
+			const size_t Count = Desc.ArraySizeGetter(Desc.ValuePtr);
+			for (size_t Index = 0; Index < Count; ++Index)
+			{
+				FPropertyDescriptor ElementDesc;
+				if (!BuildArrayElementDescriptor(Desc, Index, ElementDesc))
+				{
+					continue;
+				}
+				Table[static_cast<int>(Index + 1)] = MakeLuaObjectForProperty(Lua, ElementDesc);
+			}
+			return sol::make_object(Lua, Table);
+		}
+
+		case EPropertyType::Struct:
+		{
+			sol::table Table = Lua.create_table();
+			TArray<FPropertyDescriptor> ChildProps;
+			CollectReflectedStructProperties(Desc.StructType, Desc.ValuePtr, ChildProps);
+			for (const FPropertyDescriptor& ChildProp : ChildProps)
+			{
+				Table[ChildProp.Name] = MakeLuaObjectForProperty(Lua, ChildProp);
+			}
+			return sol::make_object(Lua, Table);
+		}
+
+		default:
+			return sol::nil;
+		}
+	}
+
+	bool AssignPropertyFromLuaObject(const FPropertyDescriptor& Desc, const sol::object& Value)
+	{
+		switch (Desc.Type)
+		{
+		case EPropertyType::Bool:
+			*static_cast<bool*>(Desc.ValuePtr) = Value.as<bool>();
+			return true;
+
+		case EPropertyType::ByteBool:
+			*static_cast<uint8*>(Desc.ValuePtr) = Value.as<bool>() ? 1 : 0;
+			return true;
+
+		case EPropertyType::Int:
+			*static_cast<int32*>(Desc.ValuePtr) = ClampIntForDescriptor(Desc, Value.as<int32>());
+			return true;
+
+		case EPropertyType::Float:
+			*static_cast<float*>(Desc.ValuePtr) = ClampFloatForDescriptor(Desc, Value.as<float>());
+			return true;
+
+		case EPropertyType::Vec3:
+			*static_cast<FVector*>(Desc.ValuePtr) = Value.as<FVector>();
+			return true;
+
+		case EPropertyType::Vec4:
+		case EPropertyType::Color4:
+			*static_cast<FVector4*>(Desc.ValuePtr) = Value.as<FVector4>();
+			return true;
+
+		case EPropertyType::Rotator:
+			*static_cast<FRotator*>(Desc.ValuePtr) = Value.as<FRotator>();
+			return true;
+
+		case EPropertyType::String:
+			*static_cast<FString*>(Desc.ValuePtr) = Value.as<FString>();
+			return true;
+
+		case EPropertyType::StaticMeshRef:
+		case EPropertyType::SkeletalMeshRef:
+		case EPropertyType::SceneComponentRef:
+		{
+			const FString NewValue = Value.as<FString>();
+			if (IsLuaPathProperty(Desc.Type) && !IsSafeLuaAssetPath(NewValue))
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe asset/reference path. property = %s, value = %s", Desc.Name.c_str(), NewValue.c_str());
+				return false;
+			}
+
+			*static_cast<FString*>(Desc.ValuePtr) = NewValue;
+			return true;
+		}
+
+		case EPropertyType::Name:
+			*static_cast<FName*>(Desc.ValuePtr) = FName(Value.as<FString>());
+			return true;
+
+		case EPropertyType::MaterialSlot:
+		{
+			const FString NewPath = Value.as<FString>();
+			if (!IsSafeLuaAssetPath(NewPath))
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe material path. property = %s, value = %s", Desc.Name.c_str(), NewPath.c_str());
+				return false;
+			}
+
+			static_cast<FMaterialSlot*>(Desc.ValuePtr)->Path = NewPath;
+			return true;
+		}
+
+		case EPropertyType::Enum:
+		{
+			const int32 NewValue = Value.as<int32>();
+			if (Desc.EnumCount > 0 && (NewValue < 0 || NewValue >= static_cast<int32>(Desc.EnumCount)))
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: enum value out of range. property = %s, value = %d", Desc.Name.c_str(), NewValue);
+				return false;
+			}
+
+			*reinterpret_cast<int32*>(Desc.ValuePtr) = NewValue;
+			return true;
+		}
+
+		case EPropertyType::Array:
+		{
+			const std::size_t MaxLuaArraySize = 1024;
+			if (!Desc.ArrayResizeFunc)
+			{
+				return false;
+			}
+
+			sol::table Table = Value.as<sol::table>();
+			const std::size_t Count = Table.size();
+			if (Count > MaxLuaArraySize)
+			{
+				UE_LOG("[LuaSecurity] SetProperty blocked: array too large. property = %s, count = %zu", Desc.Name.c_str(), Count);
+				return false;
+			}
+
+			Desc.ArrayResizeFunc(Desc.ValuePtr, Count);
+			for (std::size_t Index = 1; Index <= Count; ++Index)
+			{
+				sol::object Item = Table[static_cast<int>(Index)];
+				if (!Item.valid() || Item.get_type() == sol::type::nil)
+				{
+					UE_LOG("[Lua] SetProperty failed: array contains nil. property = %s, index = %zu", Desc.Name.c_str(), Index);
+					return false;
+				}
+
+				FPropertyDescriptor ElementDesc;
+				if (!BuildArrayElementDescriptor(Desc, Index - 1, ElementDesc)
+					|| !AssignPropertyFromLuaObject(ElementDesc, Item))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		case EPropertyType::Struct:
+		{
+			sol::table Table = Value.as<sol::table>();
+			TArray<FPropertyDescriptor> ChildProps;
+			CollectReflectedStructProperties(Desc.StructType, Desc.ValuePtr, ChildProps);
+			for (FPropertyDescriptor& ChildProp : ChildProps)
+			{
+				sol::optional<sol::object> MaybeItem = Table[ChildProp.Name];
+				if (!MaybeItem.has_value())
+				{
+					continue;
+				}
+
+				sol::object Item = MaybeItem.value();
+				if (!Item.valid() || Item.get_type() == sol::type::nil)
+				{
+					continue;
+				}
+
+				if (!AssignPropertyFromLuaObject(ChildProp, Item))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		default:
+			return false;
+		}
 	}
 }
 
@@ -253,9 +508,14 @@ const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 		case EPropertyType::String:
 		case EPropertyType::Name:
 			return "string[]";
+		case EPropertyType::Struct:
+			return "table[]";
 		default:
 			return "unknown[]";
 		}
+
+	case EPropertyType::Struct:
+		return "table";
 
 	default:
 		return "unknown";
@@ -333,99 +593,8 @@ sol::object FLuaPropertyBridge::GetProperty(sol::this_state State, UActorCompone
 
 	switch (Desc->Type)
 	{
-	case EPropertyType::Bool:
-		return sol::make_object(Lua, *static_cast<bool*>(Desc->ValuePtr));
-
-	case EPropertyType::ByteBool:
-		return sol::make_object(Lua, *static_cast<uint8*>(Desc->ValuePtr) != 0);
-
-	case EPropertyType::Int:
-		return sol::make_object(Lua, *static_cast<int32*>(Desc->ValuePtr));
-
-	case EPropertyType::Float:
-		return sol::make_object(Lua, *static_cast<float*>(Desc->ValuePtr));
-
-	case EPropertyType::Vec3:
-		return sol::make_object(Lua, *static_cast<FVector*>(Desc->ValuePtr));
-
-	case EPropertyType::Vec4:
-	case EPropertyType::Color4:
-		return sol::make_object(Lua, *static_cast<FVector4*>(Desc->ValuePtr));
-
-	case EPropertyType::Rotator:
-		return sol::make_object(Lua, *static_cast<FRotator*>(Desc->ValuePtr));
-
-	case EPropertyType::String:
-	case EPropertyType::StaticMeshRef:
-	case EPropertyType::SkeletalMeshRef:
-	case EPropertyType::SceneComponentRef:
-		return sol::make_object(Lua, *static_cast<FString*>(Desc->ValuePtr));
-
-	case EPropertyType::Name:
-		return sol::make_object(Lua, static_cast<FName*>(Desc->ValuePtr)->ToString());
-
-	case EPropertyType::MaterialSlot:
-		return sol::make_object(Lua, static_cast<FMaterialSlot*>(Desc->ValuePtr)->Path);
-
-	case EPropertyType::Enum:
-		return sol::make_object(Lua, *reinterpret_cast<int32*>(Desc->ValuePtr));
-
-	case EPropertyType::Array:
-	{
-		if (!Desc->ArraySizeGetter)
-		{
-			return sol::nil;
-		}
-
-		sol::table Table = Lua.create_table();
-		const size_t Count = Desc->ArraySizeGetter(Desc->ValuePtr);
-		for (size_t Index = 0; Index < Count; ++Index)
-		{
-			FPropertyDescriptor ElementDesc;
-			if (!BuildArrayElementDescriptor(*Desc, Index, ElementDesc))
-			{
-				continue;
-			}
-			switch (ElementDesc.Type)
-			{
-			case EPropertyType::Bool:
-				Table[static_cast<int>(Index + 1)] = *static_cast<bool*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::ByteBool:
-				Table[static_cast<int>(Index + 1)] = (*static_cast<uint8*>(ElementDesc.ValuePtr) != 0);
-				break;
-			case EPropertyType::Int:
-				Table[static_cast<int>(Index + 1)] = *static_cast<int32*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::Float:
-				Table[static_cast<int>(Index + 1)] = *static_cast<float*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::Vec3:
-				Table[static_cast<int>(Index + 1)] = *static_cast<FVector*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::Vec4:
-			case EPropertyType::Color4:
-				Table[static_cast<int>(Index + 1)] = *static_cast<FVector4*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::Rotator:
-				Table[static_cast<int>(Index + 1)] = *static_cast<FRotator*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::String:
-				Table[static_cast<int>(Index + 1)] = *static_cast<FString*>(ElementDesc.ValuePtr);
-				break;
-			case EPropertyType::Name:
-				Table[static_cast<int>(Index + 1)] = static_cast<FName*>(ElementDesc.ValuePtr)->ToString();
-				break;
-			default:
-				Table[static_cast<int>(Index + 1)] = sol::nil;
-				break;
-			}
-		}
-		return sol::make_object(Lua, Table);
-	}
-
 	default:
-		return sol::nil;
+		return MakeLuaObjectForProperty(Lua, *Desc);
 	}
 }
 
@@ -458,166 +627,8 @@ bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& 
 
 	try
 	{
-		switch (Desc->Type)
+		if (!AssignPropertyFromLuaObject(*Desc, Value))
 		{
-		case EPropertyType::Bool:
-			*static_cast<bool*>(Desc->ValuePtr) = Value.as<bool>();
-			break;
-
-		case EPropertyType::ByteBool:
-			*static_cast<uint8*>(Desc->ValuePtr) = Value.as<bool>() ? 1 : 0;
-			break;
-
-		case EPropertyType::Int:
-		{
-			const int32 NewValue = ClampIntForDescriptor(*Desc, Value.as<int32>());
-			*static_cast<int32*>(Desc->ValuePtr) = NewValue;
-			break;
-		}
-
-		case EPropertyType::Float:
-		{
-			const float NewValue = ClampFloatForDescriptor(*Desc, Value.as<float>());
-			*static_cast<float*>(Desc->ValuePtr) = NewValue;
-			break;
-		}
-
-		case EPropertyType::Vec3:
-			*static_cast<FVector*>(Desc->ValuePtr) = Value.as<FVector>();
-			break;
-
-		case EPropertyType::Vec4:
-		case EPropertyType::Color4:
-			*static_cast<FVector4*>(Desc->ValuePtr) = Value.as<FVector4>();
-			break;
-
-		case EPropertyType::Rotator:
-			*static_cast<FRotator*>(Desc->ValuePtr) = Value.as<FRotator>();
-			break;
-
-		case EPropertyType::String:
-		{
-			*static_cast<FString*>(Desc->ValuePtr) = Value.as<FString>();
-			break;
-		}
-
-		case EPropertyType::StaticMeshRef:
-		case EPropertyType::SkeletalMeshRef:
-		case EPropertyType::SceneComponentRef:
-		{
-			const FString NewValue = Value.as<FString>();
-			if (IsLuaPathProperty(Desc->Type) && !IsSafeLuaAssetPath(NewValue))
-			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe asset/reference path. property = %s, value = %s", Desc->Name.c_str(), NewValue.c_str());
-				return false;
-			}
-
-			*static_cast<FString*>(Desc->ValuePtr) = NewValue;
-			break;
-		}
-
-		case EPropertyType::Name:
-			*static_cast<FName*>(Desc->ValuePtr) = FName(Value.as<FString>());
-			break;
-
-		case EPropertyType::MaterialSlot:
-		{
-			const FString NewPath = Value.as<FString>();
-			if (!IsSafeLuaAssetPath(NewPath))
-			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe material path. property = %s, value = %s", Desc->Name.c_str(), NewPath.c_str());
-				return false;
-			}
-
-			static_cast<FMaterialSlot*>(Desc->ValuePtr)->Path = NewPath;
-			break;
-		}
-
-		case EPropertyType::Enum:
-		{
-			const int32 NewValue = Value.as<int32>();
-
-			if (Desc->EnumCount > 0 && (NewValue < 0 || NewValue >= static_cast<int32>(Desc->EnumCount)))
-			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: enum value out of range. property = %s, value = %d", Desc->Name.c_str(), NewValue);
-				return false;
-			}
-
-			*reinterpret_cast<int32*>(Desc->ValuePtr) = NewValue;
-			break;
-		}
-
-		case EPropertyType::Array:
-		{
-			const std::size_t MaxLuaArraySize = 1024;
-			if (!Desc->ArrayResizeFunc)
-			{
-				return false;
-			}
-
-			sol::table Table = Value.as<sol::table>();
-			const std::size_t Count = Table.size();
-			if (Count > MaxLuaArraySize)
-			{
-				UE_LOG("[LuaSecurity] SetProperty blocked: array too large. property = %s, count = %zu", Desc->Name.c_str(), Count);
-				return false;
-			}
-
-			Desc->ArrayResizeFunc(Desc->ValuePtr, Count);
-			for (std::size_t Index = 1; Index <= Count; ++Index)
-			{
-				sol::object Item = Table[static_cast<int>(Index)];
-				if (!Item.valid() || Item.get_type() == sol::type::nil)
-				{
-					UE_LOG("[Lua] SetProperty failed: array contains nil. property = %s, index = %zu", Desc->Name.c_str(), Index);
-					return false;
-				}
-
-				FPropertyDescriptor ElementDesc;
-				if (!BuildArrayElementDescriptor(*Desc, Index - 1, ElementDesc))
-				{
-					return false;
-				}
-
-				switch (ElementDesc.Type)
-				{
-				case EPropertyType::Bool:
-					*static_cast<bool*>(ElementDesc.ValuePtr) = Item.as<bool>();
-					break;
-				case EPropertyType::ByteBool:
-					*static_cast<uint8*>(ElementDesc.ValuePtr) = Item.as<bool>() ? 1 : 0;
-					break;
-				case EPropertyType::Int:
-					*static_cast<int32*>(ElementDesc.ValuePtr) = ClampIntForDescriptor(ElementDesc, Item.as<int32>());
-					break;
-				case EPropertyType::Float:
-					*static_cast<float*>(ElementDesc.ValuePtr) = ClampFloatForDescriptor(ElementDesc, Item.as<float>());
-					break;
-				case EPropertyType::Vec3:
-					*static_cast<FVector*>(ElementDesc.ValuePtr) = Item.as<FVector>();
-					break;
-				case EPropertyType::Vec4:
-				case EPropertyType::Color4:
-					*static_cast<FVector4*>(ElementDesc.ValuePtr) = Item.as<FVector4>();
-					break;
-				case EPropertyType::Rotator:
-					*static_cast<FRotator*>(ElementDesc.ValuePtr) = Item.as<FRotator>();
-					break;
-				case EPropertyType::String:
-					*static_cast<FString*>(ElementDesc.ValuePtr) = Item.as<FString>();
-					break;
-				case EPropertyType::Name:
-					*static_cast<FName*>(ElementDesc.ValuePtr) = FName(Item.as<FString>());
-					break;
-				default:
-					UE_LOG("[Lua] SetProperty failed: unsupported array element type = %s", Desc->Name.c_str());
-					return false;
-				}
-			}
-			break;
-		}
-
-		default:
 			UE_LOG("[Lua] SetProperty failed: unsupported property type = %s", PropertyName.c_str());
 			return false;
 		}

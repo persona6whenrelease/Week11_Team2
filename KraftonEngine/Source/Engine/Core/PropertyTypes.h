@@ -71,12 +71,13 @@ struct FPropertyDescriptor
 	// Reflected USTRUCT metadata for composite value properties.
 	const UClass* StructType = nullptr;
 
-	// Generic array metadata for TArray<primitive>-style reflected properties.
+	// Generic array metadata for reflected TArray properties.
 	EPropertyType InnerType = EPropertyType::Int;
 	FArraySizeGetter ArraySizeGetter = nullptr;
 	FArrayResizeFunc ArrayResizeFunc = nullptr;
 	FArrayElementGetter ArrayElementGetter = nullptr;
 	FArrayElementConstGetter ArrayElementConstGetter = nullptr;
+	const UClass* InnerStructType = nullptr;
 };
 
 template<typename ArrayT>
