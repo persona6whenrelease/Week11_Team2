@@ -169,7 +169,45 @@ UStaticMesh *FMeshManager::LoadObjStaticMesh(const FString        &PathFileName,
 
 USkeletalMesh *FMeshManager::LoadSkeletalMesh(const FString &PathFileName)
 {
+    if (HasAssetExtension(PathFileName))
+    {
+        return LoadSkeletalMeshFromFile(PathFileName);
+    }
     return FFBXManager::LoadSkeletalMesh(PathFileName);
+}
+
+USkeletalMesh *FMeshManager::LoadSkeletalMeshFromFile(const FString &PathFileName)
+{
+    if (PathFileName.empty() || PathFileName == "None")
+    {
+        return nullptr;
+    }
+
+    FWindowsBinReader Reader(PathFileName);
+    if (!Reader.IsValid())
+    {
+        UE_LOG("[MeshManager] LoadSkeletalMeshFromFile: failed to open reader. Path=%s",
+               PathFileName.c_str());
+        return nullptr;
+    }
+
+    USkeletalMesh *Mesh = UObjectManager::Get().CreateObject<USkeletalMesh>();
+    if (!Mesh)
+    {
+        UE_LOG("[MeshManager] LoadSkeletalMeshFromFile: failed to create USkeletalMesh");
+        return nullptr;
+    }
+
+    Mesh->Serialize(Reader);
+    if (!Mesh->GetSkeletalMeshAsset())
+    {
+        UE_LOG("[MeshManager] LoadSkeletalMeshFromFile: deserialized mesh is invalid. Path=%s",
+               PathFileName.c_str());
+        UObjectManager::Get().DestroyObject(Mesh);
+        return nullptr;
+    }
+
+    return Mesh;
 }
 
 UAnimSequence *FMeshManager::ResolveAnimSequenceReference(const FString &PathFileName)
@@ -186,6 +224,11 @@ UAnimSequence *FMeshManager::ResolveAnimSequenceReference(const FString &PathFil
     }
     if (HasAssetExtension(PathFileName))
     {
+        EAssetType AssetType = EAssetType::Unknown;
+        if (TryReadAssetType(PathFileName, AssetType) && AssetType != EAssetType::AnimSequence)
+        {
+            return nullptr;
+        }
         return LoadAnimSequenceFromFile(PathFileName);
     }
     return FFBXManager::ResolveAnimSequenceReference(PathFileName);
@@ -220,6 +263,64 @@ bool FMeshManager::SaveAnimSequenceToFile(const UAnimSequence *Sequence, const F
     }
 
     const_cast<UAnimSequence *>(Sequence)->Serialize(Writer);
+    return true;
+}
+
+bool FMeshManager::IsAnimSequenceCompatibleWithMesh(const UAnimSequence *Sequence,
+                                                    const USkeletalMesh *Mesh)
+{
+    if (!Sequence || !Mesh)
+    {
+        return false;
+    }
+
+    const UAnimDataModel *DataModel = Sequence->GetDataModel();
+    if (!DataModel || DataModel->GetBoneAnimationTracks().empty())
+    {
+        return false;
+    }
+
+    const USkeleton *Skeleton = Mesh->GetSkeleton();
+    if (!Skeleton || Skeleton->GetBones().empty())
+    {
+        return false;
+    }
+
+    const FName RootTrackName = DataModel->GetBoneAnimationTracks()[0].Name;
+    const FString RootTrackStr = RootTrackName.ToString();
+    for (const FBoneInfo &Bone : Skeleton->GetBones())
+    {
+        if (Bone.Name == RootTrackStr)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool FMeshManager::SaveSkeletalMeshToFile(const USkeletalMesh *Mesh, const FString &PathFileName)
+{
+    if (!Mesh)
+    {
+        UE_LOG("[MeshManager] SaveSkeletalMeshToFile: null mesh");
+        return false;
+    }
+    if (PathFileName.empty())
+    {
+        UE_LOG("[MeshManager] SaveSkeletalMeshToFile: empty path");
+        return false;
+    }
+
+    FWindowsBinWriter Writer(PathFileName);
+    if (!Writer.IsValid())
+    {
+        UE_LOG("[MeshManager] SaveSkeletalMeshToFile: failed to open writer. Path=%s",
+               PathFileName.c_str());
+        return false;
+    }
+
+    const_cast<USkeletalMesh *>(Mesh)->Serialize(Writer);
     return true;
 }
 
