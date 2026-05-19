@@ -242,7 +242,7 @@ void USkinnedMeshComponent::PostDuplicate()
 void USkinnedMeshComponent::GetEditableProperties(TArray<FPropertyDescriptor> &OutProps)
 {
     UPrimitiveComponent::GetEditableProperties(OutProps);
-    OutProps.push_back({"Skeletal Mesh", EPropertyType::SkeletalMeshRef, &SkeletalMeshPath});
+    OutProps.push_back({"Skeletal Mesh", &SkeletalMeshPath, 0.0f, 0.0f, 0.1f, "Default", "", 0, GetBuiltinPropertyType(EPropertyType::SkeletalMeshRef)});
     AppendMaterialSlotProperties(OutProps);
 }
 

@@ -72,31 +72,25 @@ namespace
 	{
 		if (bMutable)
 		{
-			if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+			if (!ArrayProp.GetArrayElementGetter() || !ArrayProp.ValuePtr)
 			{
 				return false;
 			}
 		}
 		else
 		{
-			if (!ArrayProp.ArrayElementConstGetter || !ArrayProp.ValuePtr)
+			if (!ArrayProp.GetArrayElementConstGetter() || !ArrayProp.ValuePtr)
 			{
 				return false;
 			}
 		}
 
 		OutElementProp = ArrayProp;
-		OutElementProp.Type = ArrayProp.InnerType;
+		OutElementProp.TypeDesc = ArrayProp.GetElementType();
 		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
 		OutElementProp.ValuePtr = bMutable
-			? ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex)
-			: const_cast<void*>(ArrayProp.ArrayElementConstGetter(ArrayProp.ValuePtr, ElementIndex));
-		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
-		OutElementProp.ArraySizeGetter = nullptr;
-		OutElementProp.ArrayResizeFunc = nullptr;
-		OutElementProp.ArrayElementGetter = nullptr;
-		OutElementProp.ArrayElementConstGetter = nullptr;
-		OutElementProp.InnerStructType = nullptr;
+			? ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex)
+			: const_cast<void*>(ArrayProp.GetArrayElementConstGetter()(ArrayProp.ValuePtr, ElementIndex));
 		return OutElementProp.ValuePtr != nullptr;
 	}
 }
@@ -589,7 +583,7 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 {
 	using namespace json;
 
-	switch (Prop.Type) {
+	switch (Prop.GetKind()) {
 	case EPropertyType::Bool:
 		return JSON(*static_cast<bool*>(Prop.ValuePtr));
 
@@ -649,12 +643,12 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 
 	case EPropertyType::Array: {
 		JSON outer = json::Array();
-		if (!Prop.ArraySizeGetter)
+		if (!Prop.GetArraySizeGetter())
 		{
 			return outer;
 		}
 
-		const size_t Count = Prop.ArraySizeGetter(Prop.ValuePtr);
+		const size_t Count = Prop.GetArraySizeGetter()(Prop.ValuePtr);
 		for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
 		{
 			FPropertyDescriptor ElementProp;
@@ -670,7 +664,7 @@ json::JSON FSceneSaveManager::SerializePropertyValue(const FPropertyDescriptor& 
 	case EPropertyType::Struct: {
 		JSON obj = json::Object();
 		TArray<FPropertyDescriptor> ChildProps;
-		CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+		CollectReflectedStructProperties(Prop.GetStructType(), Prop.ValuePtr, ChildProps);
 		for (const FPropertyDescriptor& ChildProp : ChildProps)
 		{
 			obj[ChildProp.Name] = SerializePropertyValue(ChildProp);
@@ -1150,7 +1144,7 @@ void FSceneSaveManager::DeserializeProperties(UActorComponent* Comp, json::JSON&
 
 void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json::JSON& Value)
 {
-	switch (Prop.Type) {
+	switch (Prop.GetKind()) {
 	case EPropertyType::Bool:
 		*static_cast<bool*>(Prop.ValuePtr) = Value.ToBool();
 		break;
@@ -1217,7 +1211,7 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 		break;
 
 	case EPropertyType::Array: {
-		if (!Prop.ArrayResizeFunc || !Prop.ArraySizeGetter)
+		if (!Prop.GetArrayResizeFunc() || !Prop.GetArraySizeGetter())
 		{
 			break;
 		}
@@ -1229,7 +1223,7 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 			++Count;
 		}
 
-		Prop.ArrayResizeFunc(Prop.ValuePtr, Count);
+		Prop.GetArrayResizeFunc()(Prop.ValuePtr, Count);
 		size_t ElementIndex = 0;
 		for (auto& ElementValue : Value.ArrayRange())
 		{
@@ -1245,7 +1239,7 @@ void FSceneSaveManager::DeserializePropertyValue(FPropertyDescriptor& Prop, json
 
 	case EPropertyType::Struct: {
 		TArray<FPropertyDescriptor> ChildProps;
-		CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+		CollectReflectedStructProperties(Prop.GetStructType(), Prop.ValuePtr, ChildProps);
 		for (FPropertyDescriptor& ChildProp : ChildProps)
 		{
 			if (!Value.hasKey(ChildProp.Name.c_str()))

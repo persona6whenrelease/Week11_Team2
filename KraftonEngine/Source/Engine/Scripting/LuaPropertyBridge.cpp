@@ -125,21 +125,15 @@ namespace
 
 	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp)
 	{
-		if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+		if (!ArrayProp.GetArrayElementGetter() || !ArrayProp.ValuePtr)
 		{
 			return false;
 		}
 
 		OutElementProp = ArrayProp;
-		OutElementProp.Type = ArrayProp.InnerType;
+		OutElementProp.TypeDesc = ArrayProp.GetElementType();
 		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
-		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
-		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
-		OutElementProp.ArraySizeGetter = nullptr;
-		OutElementProp.ArrayResizeFunc = nullptr;
-		OutElementProp.ArrayElementGetter = nullptr;
-		OutElementProp.ArrayElementConstGetter = nullptr;
-		OutElementProp.InnerStructType = nullptr;
+		OutElementProp.ValuePtr = ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex);
 		return OutElementProp.ValuePtr != nullptr;
 	}
 
@@ -169,7 +163,7 @@ namespace
 
 	sol::object MakeLuaObjectForProperty(sol::state_view Lua, const FPropertyDescriptor& Desc)
 	{
-		switch (Desc.Type)
+		switch (Desc.GetKind())
 		{
 		case EPropertyType::Bool:
 			return sol::make_object(Lua, *static_cast<bool*>(Desc.ValuePtr));
@@ -210,13 +204,13 @@ namespace
 
 		case EPropertyType::Array:
 		{
-			if (!Desc.ArraySizeGetter)
+			if (!Desc.GetArraySizeGetter())
 			{
 				return sol::nil;
 			}
 
 			sol::table Table = Lua.create_table();
-			const size_t Count = Desc.ArraySizeGetter(Desc.ValuePtr);
+			const size_t Count = Desc.GetArraySizeGetter()(Desc.ValuePtr);
 			for (size_t Index = 0; Index < Count; ++Index)
 			{
 				FPropertyDescriptor ElementDesc;
@@ -233,7 +227,7 @@ namespace
 		{
 			sol::table Table = Lua.create_table();
 			TArray<FPropertyDescriptor> ChildProps;
-			CollectReflectedStructProperties(Desc.StructType, Desc.ValuePtr, ChildProps);
+			CollectReflectedStructProperties(Desc.GetStructType(), Desc.ValuePtr, ChildProps);
 			for (const FPropertyDescriptor& ChildProp : ChildProps)
 			{
 				Table[ChildProp.Name] = MakeLuaObjectForProperty(Lua, ChildProp);
@@ -248,7 +242,7 @@ namespace
 
 	bool AssignPropertyFromLuaObject(const FPropertyDescriptor& Desc, const sol::object& Value)
 	{
-		switch (Desc.Type)
+		switch (Desc.GetKind())
 		{
 		case EPropertyType::Bool:
 			*static_cast<bool*>(Desc.ValuePtr) = Value.as<bool>();
@@ -288,7 +282,7 @@ namespace
 		case EPropertyType::SceneComponentRef:
 		{
 			const FString NewValue = Value.as<FString>();
-			if (IsLuaPathProperty(Desc.Type) && !IsSafeLuaAssetPath(NewValue))
+			if (IsLuaPathProperty(Desc.GetKind()) && !IsSafeLuaAssetPath(NewValue))
 			{
 				UE_LOG("[LuaSecurity] SetProperty blocked: unsafe asset/reference path. property = %s, value = %s", Desc.Name.c_str(), NewValue.c_str());
 				return false;
@@ -318,7 +312,7 @@ namespace
 		case EPropertyType::Enum:
 		{
 			const int32 NewValue = Value.as<int32>();
-			if (Desc.EnumCount > 0 && (NewValue < 0 || NewValue >= static_cast<int32>(Desc.EnumCount)))
+			if (Desc.GetEnumCount() > 0 && (NewValue < 0 || NewValue >= static_cast<int32>(Desc.GetEnumCount())))
 			{
 				UE_LOG("[LuaSecurity] SetProperty blocked: enum value out of range. property = %s, value = %d", Desc.Name.c_str(), NewValue);
 				return false;
@@ -331,7 +325,7 @@ namespace
 		case EPropertyType::Array:
 		{
 			const std::size_t MaxLuaArraySize = 1024;
-			if (!Desc.ArrayResizeFunc)
+			if (!Desc.GetArrayResizeFunc())
 			{
 				return false;
 			}
@@ -344,7 +338,7 @@ namespace
 				return false;
 			}
 
-			Desc.ArrayResizeFunc(Desc.ValuePtr, Count);
+			Desc.GetArrayResizeFunc()(Desc.ValuePtr, Count);
 			for (std::size_t Index = 1; Index <= Count; ++Index)
 			{
 				sol::object Item = Table[static_cast<int>(Index)];
@@ -368,7 +362,7 @@ namespace
 		{
 			sol::table Table = Value.as<sol::table>();
 			TArray<FPropertyDescriptor> ChildProps;
-			CollectReflectedStructProperties(Desc.StructType, Desc.ValuePtr, ChildProps);
+			CollectReflectedStructProperties(Desc.GetStructType(), Desc.ValuePtr, ChildProps);
 			for (FPropertyDescriptor& ChildProp : ChildProps)
 			{
 				sol::optional<sol::object> MaybeItem = Table[ChildProp.Name];
@@ -455,7 +449,7 @@ const FPropertyDescriptor* FLuaPropertyBridge::FindDescriptor(const TArray<FProp
 
 const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 {
-	switch (Desc.Type)
+	switch (Desc.GetKind())
 	{
 	case EPropertyType::Bool:
 	case EPropertyType::ByteBool:
@@ -489,7 +483,11 @@ const char* FLuaPropertyBridge::ToLuaTypeName(const FPropertyDescriptor& Desc)
 		return "int";
 
 	case EPropertyType::Array:
-		switch (Desc.InnerType)
+		if (!Desc.GetElementType())
+		{
+			return "unknown[]";
+		}
+		switch (Desc.GetElementType()->Kind)
 		{
 		case EPropertyType::Bool:
 		case EPropertyType::ByteBool:
@@ -545,13 +543,13 @@ sol::table FLuaPropertyBridge::ListProperties(sol::this_state State, UActorCompo
 		Item["max"] = Desc.Max;
 		Item["speed"] = Desc.Speed;
 
-		if (Desc.Type == EPropertyType::Enum && Desc.EnumNames && Desc.EnumCount > 0)
+		if (Desc.GetKind() == EPropertyType::Enum && Desc.GetEnumNames() && Desc.GetEnumCount() > 0)
 		{
 			sol::table EnumNames = Lua.create_table();
 
-			for (uint32 EnumIndex = 0; EnumIndex < Desc.EnumCount; ++EnumIndex)
+			for (uint32 EnumIndex = 0; EnumIndex < Desc.GetEnumCount(); ++EnumIndex)
 			{
-				EnumNames[EnumIndex + 1] = Desc.EnumNames[EnumIndex];
+				EnumNames[EnumIndex + 1] = Desc.GetEnumNames()[EnumIndex];
 			}
 
 			Item["enumNames"] = EnumNames;
@@ -591,11 +589,7 @@ sol::object FLuaPropertyBridge::GetProperty(sol::this_state State, UActorCompone
 		return sol::nil;
 	}
 
-	switch (Desc->Type)
-	{
-	default:
-		return MakeLuaObjectForProperty(Lua, *Desc);
-	}
+	return MakeLuaObjectForProperty(Lua, *Desc);
 }
 
 bool FLuaPropertyBridge::SetProperty(UActorComponent* Component, const FString& PropertyName, const sol::object& Value)

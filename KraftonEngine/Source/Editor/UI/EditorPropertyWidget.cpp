@@ -173,32 +173,45 @@ namespace
 
 	bool BuildArrayElementDescriptor(const FPropertyDescriptor& ArrayProp, size_t ElementIndex, FPropertyDescriptor& OutElementProp)
 	{
-		if (!ArrayProp.ArrayElementGetter || !ArrayProp.ValuePtr)
+		if (!ArrayProp.GetArrayElementGetter() || !ArrayProp.ValuePtr)
 		{
 			return false;
 		}
 
 		OutElementProp = ArrayProp;
-		OutElementProp.Type = ArrayProp.InnerType;
-		OutElementProp.ValuePtr = ArrayProp.ArrayElementGetter(ArrayProp.ValuePtr, ElementIndex);
+		OutElementProp.TypeDesc = ArrayProp.GetElementType();
+		OutElementProp.ValuePtr = ArrayProp.GetArrayElementGetter()(ArrayProp.ValuePtr, ElementIndex);
 		OutElementProp.Name = "[" + std::to_string(ElementIndex) + "]";
-		OutElementProp.StructType = (ArrayProp.InnerType == EPropertyType::Struct) ? ArrayProp.InnerStructType : nullptr;
-		OutElementProp.ArraySizeGetter = nullptr;
-		OutElementProp.ArrayResizeFunc = nullptr;
-		OutElementProp.ArrayElementGetter = nullptr;
-		OutElementProp.ArrayElementConstGetter = nullptr;
-		OutElementProp.InnerStructType = nullptr;
 		return OutElementProp.ValuePtr != nullptr;
+	}
+
+	bool ArePropertyTypesCompatible(const FPropertyTypeDesc* A, const FPropertyTypeDesc* B)
+	{
+		if (A == B)
+		{
+			return true;
+		}
+		if (!A || !B || A->Kind != B->Kind)
+		{
+			return false;
+		}
+		if (A->StructType != B->StructType || A->EnumCount != B->EnumCount)
+		{
+			return false;
+		}
+		return ArePropertyTypesCompatible(A->ElementType, B->ElementType)
+			&& ArePropertyTypesCompatible(A->KeyType, B->KeyType)
+			&& ArePropertyTypesCompatible(A->ValueType, B->ValueType);
 	}
 
 	bool CopyPropertyValueRecursive(const FPropertyDescriptor& SrcProp, FPropertyDescriptor& DstProp)
 	{
-		if (SrcProp.Type != DstProp.Type || !SrcProp.ValuePtr || !DstProp.ValuePtr)
+		if (!ArePropertyTypesCompatible(SrcProp.TypeDesc, DstProp.TypeDesc) || !SrcProp.ValuePtr || !DstProp.ValuePtr)
 		{
 			return false;
 		}
 
-		switch (DstProp.Type)
+		switch (DstProp.GetKind())
 		{
 		case EPropertyType::Bool:
 			*static_cast<bool*>(DstProp.ValuePtr) = *static_cast<bool*>(SrcProp.ValuePtr);
@@ -250,15 +263,14 @@ namespace
 
 		case EPropertyType::Array:
 		{
-			if (SrcProp.InnerType != DstProp.InnerType
-				|| !SrcProp.ArraySizeGetter || !DstProp.ArraySizeGetter
-				|| !SrcProp.ArrayResizeFunc || !DstProp.ArrayResizeFunc)
+			if (!SrcProp.GetArraySizeGetter() || !DstProp.GetArraySizeGetter()
+				|| !SrcProp.GetArrayResizeFunc() || !DstProp.GetArrayResizeFunc())
 			{
 				return false;
 			}
 
-			const size_t Count = SrcProp.ArraySizeGetter(SrcProp.ValuePtr);
-			DstProp.ArrayResizeFunc(DstProp.ValuePtr, Count);
+			const size_t Count = SrcProp.GetArraySizeGetter()(SrcProp.ValuePtr);
+			DstProp.GetArrayResizeFunc()(DstProp.ValuePtr, Count);
 			for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
 			{
 				FPropertyDescriptor SrcElement;
@@ -275,15 +287,15 @@ namespace
 
 		case EPropertyType::Struct:
 		{
-			if (SrcProp.StructType != DstProp.StructType)
+			if (SrcProp.GetStructType() != DstProp.GetStructType())
 			{
 				return false;
 			}
 
 			TArray<FPropertyDescriptor> SrcChildren;
 			TArray<FPropertyDescriptor> DstChildren;
-			CollectReflectedStructProperties(SrcProp.StructType, SrcProp.ValuePtr, SrcChildren);
-			CollectReflectedStructProperties(DstProp.StructType, DstProp.ValuePtr, DstChildren);
+			CollectReflectedStructProperties(SrcProp.GetStructType(), SrcProp.ValuePtr, SrcChildren);
+			CollectReflectedStructProperties(DstProp.GetStructType(), DstProp.ValuePtr, DstChildren);
 			if (SrcChildren.size() != DstChildren.size())
 			{
 				return false;
@@ -1357,7 +1369,7 @@ void FEditorPropertyWidget::RenderComponentProperties(AActor* Actor, const TArra
 			bAnyChanged = true;
 			PropagatePropertyChange(Props[i].Name, SelectedActors);
 
-			if (Props[i].Type == EPropertyType::StaticMeshRef || Props[i].Type == EPropertyType::SkeletalMeshRef)
+			if (Props[i].GetKind() == EPropertyType::StaticMeshRef || Props[i].GetKind() == EPropertyType::SkeletalMeshRef)
 				break;
 		}
 	}
@@ -1400,7 +1412,7 @@ void FEditorPropertyWidget::PropagatePropertyChange(const FString& PropName, con
 
 			for (auto& DstProp : DstProps)
 			{
-				if (DstProp.Name != PropName || DstProp.Type != SrcProp->Type) continue;
+				if (DstProp.Name != PropName || !ArePropertyTypesCompatible(DstProp.TypeDesc, SrcProp->TypeDesc)) continue;
 
 				if (!CopyPropertyValueRecursive(*SrcProp, DstProp))
 				{
@@ -1422,7 +1434,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 	const char* EffectivePostEditPropertyName = PostEditPropertyName ? PostEditPropertyName : Prop.Name.c_str();
 	bool bChanged = false;
 
-	switch (Prop.Type)
+	switch (Prop.GetKind())
 	{
 	case EPropertyType::Bool:
 	{
@@ -1828,15 +1840,15 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 	}
 	case EPropertyType::Enum:
 	{
-		if (!Prop.EnumNames || Prop.EnumCount == 0) break;
+		if (!Prop.GetEnumNames() || Prop.GetEnumCount() == 0) break;
 		int32* Val = static_cast<int32*>(Prop.ValuePtr);
-		const char* Preview = ((uint32)*Val < Prop.EnumCount) ? Prop.EnumNames[*Val] : "Unknown";
+		const char* Preview = ((uint32)*Val < Prop.GetEnumCount()) ? Prop.GetEnumNames()[*Val] : "Unknown";
 		if (ImGui::BeginCombo(Prop.Name.c_str(), Preview))
 		{
-			for (uint32 i = 0; i < Prop.EnumCount; ++i)
+			for (uint32 i = 0; i < Prop.GetEnumCount(); ++i)
 			{
 				bool bSelected = (*Val == (int32)i);
-				if (ImGui::Selectable(Prop.EnumNames[i], bSelected))
+				if (ImGui::Selectable(Prop.GetEnumNames()[i], bSelected))
 				{
 					*Val = (int32)i;
 					bChanged = true;
@@ -1849,7 +1861,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 	}
 	case EPropertyType::Array:
 	{
-		if (!Prop.ArraySizeGetter || !Prop.ArrayResizeFunc || !Prop.ArrayElementGetter)
+		if (!Prop.GetArraySizeGetter() || !Prop.GetArrayResizeFunc() || !Prop.GetArrayElementGetter())
 		{
 			ImGui::TextDisabled("%s (unsupported array metadata)", Prop.Name.c_str());
 			break;
@@ -1857,7 +1869,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 
 		ImGui::TextUnformatted(Prop.Name.c_str());
 
-		const size_t Count = Prop.ArraySizeGetter(Prop.ValuePtr);
+		const size_t Count = Prop.GetArraySizeGetter()(Prop.ValuePtr);
 		int32 RemoveIdx = -1;
 		for (size_t ElementIndex = 0; ElementIndex < Count; ++ElementIndex)
 		{
@@ -1895,13 +1907,13 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 					CopyPropertyValueRecursive(SrcElement, DstElement);
 				}
 			}
-			Prop.ArrayResizeFunc(Prop.ValuePtr, NewCount);
+			Prop.GetArrayResizeFunc()(Prop.ValuePtr, NewCount);
 			bChanged = true;
 		}
 
 		if (ImGui::Button("+ Add Element"))
 		{
-			Prop.ArrayResizeFunc(Prop.ValuePtr, Count + 1);
+			Prop.GetArrayResizeFunc()(Prop.ValuePtr, Count + 1);
 			bChanged = true;
 		}
 		break;
@@ -1912,7 +1924,7 @@ bool FEditorPropertyWidget::RenderPropertyWidget(TArray<FPropertyDescriptor>& Pr
 		if (ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			TArray<FPropertyDescriptor> ChildProps;
-			CollectReflectedStructProperties(Prop.StructType, Prop.ValuePtr, ChildProps);
+			CollectReflectedStructProperties(Prop.GetStructType(), Prop.ValuePtr, ChildProps);
 			for (int32 ChildIndex = 0; ChildIndex < static_cast<int32>(ChildProps.size()); ++ChildIndex)
 			{
 				if (RenderPropertyWidget(ChildProps, ChildIndex, EffectivePostEditPropertyName))

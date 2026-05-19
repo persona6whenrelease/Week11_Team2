@@ -77,8 +77,8 @@ void UMeshComponent::AppendMaterialSlotProperties(TArray<FPropertyDescriptor>& O
 	{
 		FPropertyDescriptor Desc;
 		Desc.Name = "Element " + std::to_string(i);
-		Desc.Type = EPropertyType::MaterialSlot;
 		Desc.ValuePtr = &MaterialSlots[i];
+		Desc.TypeDesc = GetBuiltinPropertyType(EPropertyType::MaterialSlot);
 		OutProps.push_back(Desc);
 	}
 }

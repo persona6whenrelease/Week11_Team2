@@ -7,6 +7,11 @@
 
 class UClass;
 
+using FArraySizeGetter = size_t (*)(const void*);
+using FArrayResizeFunc = void (*)(void*, size_t);
+using FArrayElementGetter = void* (*)(void*, size_t);
+using FArrayElementConstGetter = const void* (*)(const void*, size_t);
+
 // 에디터에서 자동 위젯 매핑에 사용되는 프로퍼티 타입
 enum class EPropertyType : uint8_t
 {
@@ -42,16 +47,34 @@ inline FArchive& operator<<(FArchive& Ar, FMaterialSlot& Slot)
 	return Ar;
 }
 
+struct FPropertyTypeDesc
+{
+	EPropertyType Kind = EPropertyType::Int;
+
+	// Kind == Struct
+	const UClass* StructType = nullptr;
+
+	// Kind == Enum
+	const char** EnumNames = nullptr;
+	uint32 EnumCount = 0;
+
+	// Kind == Array
+	FArraySizeGetter ArraySizeGetter = nullptr;
+	FArrayResizeFunc ArrayResizeFunc = nullptr;
+	FArrayElementGetter ArrayElementGetter = nullptr;
+	FArrayElementConstGetter ArrayElementConstGetter = nullptr;
+	const FPropertyTypeDesc* ElementType = nullptr;
+
+	// Reserved for future container support.
+	const FPropertyTypeDesc* KeyType = nullptr;
+	const FPropertyTypeDesc* ValueType = nullptr;
+};
+
 // 컴포넌트가 노출하는 편집 가능한 프로퍼티 디스크립터
 struct FPropertyDescriptor
 {
-	using FArraySizeGetter = size_t (*)(const void*);
-	using FArrayResizeFunc = void (*)(void*, size_t);
-	using FArrayElementGetter = void* (*)(void*, size_t);
-	using FArrayElementConstGetter = const void* (*)(const void*, size_t);
 
 	std::string   Name;
-	EPropertyType Type;
 	void*         ValuePtr;
 
 	// float 범위 힌트 (DragFloat 등에서 사용)
@@ -59,26 +82,145 @@ struct FPropertyDescriptor
 	float Max   = 0.0f;
 	float Speed = 0.1f;
 
-	// Enum Metadata
-	const char** EnumNames = nullptr;
-	uint32		 EnumCount = 0;
-
 	// Optional editor metadata. Existing property initializers can ignore these.
 	std::string Category = "Default";
 	std::string Tooltip;
 	uint32 Flags = 0;
 
-	// Reflected USTRUCT metadata for composite value properties.
-	const UClass* StructType = nullptr;
+	const FPropertyTypeDesc* TypeDesc = nullptr;
 
-	// Generic array metadata for reflected TArray properties.
-	EPropertyType InnerType = EPropertyType::Int;
-	FArraySizeGetter ArraySizeGetter = nullptr;
-	FArrayResizeFunc ArrayResizeFunc = nullptr;
-	FArrayElementGetter ArrayElementGetter = nullptr;
-	FArrayElementConstGetter ArrayElementConstGetter = nullptr;
-	const UClass* InnerStructType = nullptr;
+	EPropertyType GetKind() const
+	{
+		return TypeDesc ? TypeDesc->Kind : EPropertyType::Int;
+	}
+
+	const UClass* GetStructType() const
+	{
+		return TypeDesc ? TypeDesc->StructType : nullptr;
+	}
+
+	const char** GetEnumNames() const
+	{
+		return TypeDesc ? TypeDesc->EnumNames : nullptr;
+	}
+
+	uint32 GetEnumCount() const
+	{
+		return TypeDesc ? TypeDesc->EnumCount : 0;
+	}
+
+	const FPropertyTypeDesc* GetElementType() const
+	{
+		return TypeDesc ? TypeDesc->ElementType : nullptr;
+	}
+
+	FArraySizeGetter GetArraySizeGetter() const
+	{
+		return TypeDesc ? TypeDesc->ArraySizeGetter : nullptr;
+	}
+
+	FArrayResizeFunc GetArrayResizeFunc() const
+	{
+		return TypeDesc ? TypeDesc->ArrayResizeFunc : nullptr;
+	}
+
+	FArrayElementGetter GetArrayElementGetter() const
+	{
+		return TypeDesc ? TypeDesc->ArrayElementGetter : nullptr;
+	}
+
+	FArrayElementConstGetter GetArrayElementConstGetter() const
+	{
+		return TypeDesc ? TypeDesc->ArrayElementConstGetter : nullptr;
+	}
 };
+
+inline const FPropertyTypeDesc* GetBuiltinPropertyType(EPropertyType Kind)
+{
+	switch (Kind)
+	{
+	case EPropertyType::Bool:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Bool };
+		return &Type;
+	}
+	case EPropertyType::ByteBool:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::ByteBool };
+		return &Type;
+	}
+	case EPropertyType::Int:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Int };
+		return &Type;
+	}
+	case EPropertyType::Float:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Float };
+		return &Type;
+	}
+	case EPropertyType::Vec3:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Vec3 };
+		return &Type;
+	}
+	case EPropertyType::Vec4:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Vec4 };
+		return &Type;
+	}
+	case EPropertyType::Rotator:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Rotator };
+		return &Type;
+	}
+	case EPropertyType::String:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::String };
+		return &Type;
+	}
+	case EPropertyType::Name:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Name };
+		return &Type;
+	}
+	case EPropertyType::SceneComponentRef:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::SceneComponentRef };
+		return &Type;
+	}
+	case EPropertyType::Color4:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Color4 };
+		return &Type;
+	}
+	case EPropertyType::StaticMeshRef:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::StaticMeshRef };
+		return &Type;
+	}
+	case EPropertyType::SkeletalMeshRef:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::SkeletalMeshRef };
+		return &Type;
+	}
+	case EPropertyType::MaterialSlot:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::MaterialSlot };
+		return &Type;
+	}
+	case EPropertyType::ActorRef:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::ActorRef };
+		return &Type;
+	}
+	default:
+	{
+		static const FPropertyTypeDesc Type{ EPropertyType::Int };
+		return &Type;
+	}
+	}
+}
 
 template<typename ArrayT>
 struct TArrayPropertyOps

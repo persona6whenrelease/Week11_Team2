@@ -327,6 +327,10 @@ def _parse_tarray_inner_type(cpp_type: str) -> Optional[str]:
     return m.group(1).strip()
 
 
+def _clean_cpp_type(cpp_type: str) -> str:
+    return cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
+
+
 # ---------------------------------------------------------------------------
 # .generated.h writer
 # ---------------------------------------------------------------------------
@@ -486,48 +490,74 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
     if t.properties:
         out += [
             f"const std::vector<FPropertyDescriptor>& {t.name}::GetReflectedProperties() {{",
-            "    static std::vector<FPropertyDescriptor> Props = {",
+            "    // Static type nodes mirror the reflected type graph and keep metadata address-stable.",
         ]
-        for prop in t.properties:
-            # 'Type=X' in meta overrides C++ type inference (e.g. Type=MaterialSlot)
+        prop_infos = []
+        for index, prop in enumerate(t.properties):
             inner_type = _parse_tarray_inner_type(prop.cpp_type)
+            type_desc_ref = None
+
             if 'Type' in prop.meta:
                 etype = f"EPropertyType::{prop.meta['Type']}"
-                inner_etype = 'EPropertyType::Int'
-                array_size_getter = 'nullptr'
-                array_resize_func = 'nullptr'
-                array_element_getter = 'nullptr'
-                array_element_const_getter = 'nullptr'
-                inner_struct_type = 'nullptr'
-            else:
-                if inner_type:
-                    inner_etype = _cpp_type_to_eproperty(inner_type, reflected_types)
-                    if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum'):
-                        etype = 'EPropertyType::Int'
-                        inner_etype = 'EPropertyType::Int'
-                        array_size_getter = 'nullptr'
-                        array_resize_func = 'nullptr'
-                        array_element_getter = 'nullptr'
-                        array_element_const_getter = 'nullptr'
-                        inner_struct_type = 'nullptr'
-                    else:
-                        etype = 'EPropertyType::Array'
-                        array_size_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetSize'
-                        array_resize_func = f'&TArrayPropertyOps<{prop.cpp_type}>::Resize'
-                        array_element_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetElement'
-                        array_element_const_getter = f'&TArrayPropertyOps<{prop.cpp_type}>::GetConstElement'
-                        clean_inner_type = inner_type.replace('const', '').replace('*', '').replace('&', '').strip()
-                        inner_struct_type = f"&{clean_inner_type}::StaticClassInstance" if inner_etype == 'EPropertyType::Struct' else 'nullptr'
+                if etype == 'EPropertyType::Struct':
+                    clean_type = _clean_cpp_type(prop.cpp_type)
+                    node_name = f"{t.name}_PropType_{index}"
+                    out.append(
+                        f"    static const FPropertyTypeDesc {node_name}"
+                        f"{{ {etype}, &{clean_type}::StaticClassInstance, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                    )
+                    type_desc_ref = f"&{node_name}"
+                elif etype == 'EPropertyType::Enum':
+                    node_name = f"{t.name}_PropType_{index}"
+                    out.append(
+                        f"    static const FPropertyTypeDesc {node_name}"
+                        f"{{ {etype}, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                    )
+                    type_desc_ref = f"&{node_name}"
                 else:
-                    etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
-                    inner_etype = 'EPropertyType::Int'
-                    array_size_getter = 'nullptr'
-                    array_resize_func = 'nullptr'
-                    array_element_getter = 'nullptr'
-                    array_element_const_getter = 'nullptr'
-                    inner_struct_type = 'nullptr'
-            clean_type = prop.cpp_type.replace('const', '').replace('*', '').replace('&', '').strip()
-            struct_type = f"&{clean_type}::StaticClassInstance" if etype == 'EPropertyType::Struct' else 'nullptr'
+                    type_desc_ref = f"GetBuiltinPropertyType({etype})"
+            elif inner_type:
+                inner_etype = _cpp_type_to_eproperty(inner_type, reflected_types)
+                if inner_etype in ('EPropertyType::Array', 'EPropertyType::Enum'):
+                    type_desc_ref = "GetBuiltinPropertyType(EPropertyType::Int)"
+                else:
+                    inner_node_name = f"{t.name}_PropType_{index}_Element"
+                    clean_inner_type = _clean_cpp_type(inner_type)
+                    inner_struct_type = f"&{clean_inner_type}::StaticClassInstance" if inner_etype == 'EPropertyType::Struct' else 'nullptr'
+                    out.append(
+                        f"    static const FPropertyTypeDesc {inner_node_name}"
+                        f"{{ {inner_etype}, {inner_struct_type}, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                    )
+                    outer_node_name = f"{t.name}_PropType_{index}"
+                    out.append(
+                        f"    static const FPropertyTypeDesc {outer_node_name}"
+                        f"{{ EPropertyType::Array, nullptr, nullptr, 0,"
+                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetSize,"
+                        f" &TArrayPropertyOps<{prop.cpp_type}>::Resize,"
+                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetElement,"
+                        f" &TArrayPropertyOps<{prop.cpp_type}>::GetConstElement,"
+                        f" &{inner_node_name}, nullptr, nullptr }};"
+                    )
+                    type_desc_ref = f"&{outer_node_name}"
+            else:
+                etype = _cpp_type_to_eproperty(prop.cpp_type, reflected_types)
+                if etype == 'EPropertyType::Struct':
+                    clean_type = _clean_cpp_type(prop.cpp_type)
+                    node_name = f"{t.name}_PropType_{index}"
+                    out.append(
+                        f"    static const FPropertyTypeDesc {node_name}"
+                        f"{{ {etype}, &{clean_type}::StaticClassInstance, nullptr, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }};"
+                    )
+                    type_desc_ref = f"&{node_name}"
+                else:
+                    type_desc_ref = f"GetBuiltinPropertyType({etype})"
+
+            prop_infos.append((prop, type_desc_ref))
+
+        out += [
+            "    static std::vector<FPropertyDescriptor> Props = {",
+        ]
+        for prop, type_desc_ref in prop_infos:
             offset    = f"reinterpret_cast<void*>(offsetof({t.name}, {prop.name}))"
             min_val   = prop.meta.get('min',   '0.0f')
             max_val   = prop.meta.get('max',   '0.0f')
@@ -535,9 +565,8 @@ def _cpp_class(out: list, t: ReflectedType, reflected_types: dict[str, str]):
             cat_val   = prop.meta.get('Category', '"Default"')
             disp_name = prop.meta.get('DisplayName', f'"{prop.name}"')
             out.append(
-                f'        FPropertyDescriptor{{ {disp_name}, {etype}, {offset},'
-                f' {min_val}, {max_val}, {speed_val}, nullptr, 0, {cat_val}, "", 0, {struct_type},'
-                f' {inner_etype}, {array_size_getter}, {array_resize_func}, {array_element_getter}, {array_element_const_getter}, {inner_struct_type} }},'
+                f'        FPropertyDescriptor{{ {disp_name}, {offset},'
+                f' {min_val}, {max_val}, {speed_val}, {cat_val}, "", 0, {type_desc_ref} }},'
             )
         out += [
             "    };",
