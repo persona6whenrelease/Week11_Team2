@@ -76,6 +76,7 @@ public:
 		Cube,
 		Sphere,
 		Cylinder,
+		SkeletalMeshActor,
 		Decal,
 		HeightFog,
 		AmbientLight,

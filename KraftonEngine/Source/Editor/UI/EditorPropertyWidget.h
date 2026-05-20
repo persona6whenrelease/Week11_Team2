@@ -13,7 +13,7 @@ public:
 	void SetShowEditorOnlyComponents(bool bEnable) { bShowEditorOnlyComponents = bEnable; }
 	bool IsShowingEditorOnlyComponents() const { return bShowEditorOnlyComponents; }
 	static FString OpenObjFileDialog();
-	static FString OpenFbxFileDialog();
+	static FString OpenSkeletalMeshAssetFileDialog();
 	static FString OpenLuaScriptFileDialog();
 
 private:
