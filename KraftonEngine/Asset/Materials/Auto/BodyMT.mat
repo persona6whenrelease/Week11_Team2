@@ -12,7 +12,7 @@
   "RenderPass" : "Opaque",
   "ShaderPath" : "Shaders/Geometry/UberLit.hlsl",
   "Textures" : {
-    "DiffuseTexture" : "Asset/FBX/Mario/Mario2.fbm/Mario64Body_alb.png",
+    "DiffuseTexture" : "Asset/FBX/Mario2/textures/Mario64Body_alb.png",
     "EmissiveTexture" : "Asset/FBX/textures/ZAKU-E.png",
     "NormalTexture" : "Asset/FBX/MixamoFBX/Capoeira.fbm/Ch03_1001_Normal.png",
     "SpecularTexture" : "Asset/FBX/MixamoFBX/Capoeira.fbm/Ch03_1001_Specular.png"

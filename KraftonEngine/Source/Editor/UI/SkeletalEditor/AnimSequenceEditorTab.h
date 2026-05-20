@@ -50,6 +50,8 @@ private:
 	UAnimSequence* AnimSequence = nullptr;
 	int32 BakedClipIndex = -1; // PreviewMeshComponent에 setBakedAnimClipIndex로 설정한 값
 	FString FbxPath;           // mode bar 점프용 원본 FBX 경로
+	TArray<FString> AssetBrowserAnimSequencePaths;
+	TArray<UAnimSequence*> AssetBrowserAnimSequences;
 
 	float CurrentTime = 0.0f;
 	bool  bPlaying = false;
