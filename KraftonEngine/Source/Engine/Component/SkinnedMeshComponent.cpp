@@ -786,7 +786,13 @@ void USkinnedMeshComponent::SetBoneWeightHeatmapState(bool bEnabled, int32 BoneI
 	
 	ApplyVertexDebugColors();
 	
-	if (RuntimeMeshBuffer.IsValid())
+	if (ShouldUseGPUSkinning())
+	{
+		BuildSkinnedSourceVertices();
+		ReleaseGPUSkinningResources();
+		PrepareGPUSkinningData();
+	}
+	else if (RuntimeMeshBuffer.IsValid())
 	{
 		UploadSkinnedVertices();
 	}
