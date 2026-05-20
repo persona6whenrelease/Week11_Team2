@@ -1,7 +1,9 @@
-local Base = require("Game/MarioControllerSingleNodeBase")
+local Config = require("Game/MarioControllerConfig")
+local Base = require("Game/MarioControllerAnimGraphBase")
 
 local Controller = Base.Create({
-    logTag = "MarioSingleNode",
+    logTag = "MarioStateMachineNoBlend",
+    blendProfile = Config.BLEND.NO_BLEND,
     getOwner = function()
         return owner or obj
     end,

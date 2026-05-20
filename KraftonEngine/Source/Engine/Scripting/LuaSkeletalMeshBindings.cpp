@@ -398,7 +398,11 @@ namespace
 					Root->States,
 					ReadNameField(TransitionTable, "to")
 				);
-				Transition.BlendDuration = ReadFloatField(TransitionTable, "blend_duration", 0.0f);
+				Transition.BlendDuration = ReadFloatField(
+					TransitionTable,
+					"blend_duration",
+					Transition.BlendDuration
+				);
 
 				if (Transition.FromStateIndex < 0 || Transition.ToStateIndex < 0)
 				{
@@ -841,7 +845,15 @@ void RegisterSkeletalMeshComponentBinding(sol::state& Lua)
 				return false;
 			}
 
-			return BuildStateMachineFromLua(Component, StateMachine, Config);
+			if (!BuildStateMachineFromLua(Component, StateMachine, Config))
+			{
+				return false;
+			}
+
+			// State machine graphs are expected to tick immediately after setup.
+			Component->Play(true);
+			Component->RefreshAnimationPose();
+			return true;
 		},
 
 		"GetStateBool",
