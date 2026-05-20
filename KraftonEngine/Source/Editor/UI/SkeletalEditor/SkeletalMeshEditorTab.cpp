@@ -269,6 +269,7 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 {
 	SetSourcePath(FbxPath);
 	CurrentFbxPath = FbxPath;
+	PreviewSkeletalMesh = nullptr;
 	CurrentSceneAsset = FMeshManager::LoadFbxScene(FbxPath);
 	CurrentSequenceIndex = -1;
 	SelectedResourceIndex = -1;
@@ -299,6 +300,32 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 	return true;
 }
 
+bool FSkeletalMeshEditorTab::OpenSkeletalMeshAsset(const FString& AssetPath)
+{
+	SetSourcePath(AssetPath);
+	CurrentFbxPath = AssetPath;
+	CurrentSceneAsset = nullptr;
+	CurrentSequenceIndex = -1;
+	SelectedResourceIndex = 0;
+	SelectedBoneIndex = -1;
+	PreviewSkeletalMesh = FMeshManager::LoadSkeletalMeshFromFile(AssetPath);
+
+	if (!PreviewSkeletalMesh)
+	{
+		StatusMessage = "Failed to load SkeletalMesh asset";
+		return false;
+	}
+
+	PreviewScene.SetPreviewMesh(PreviewSkeletalMesh);
+	if (PreviewScene.PreviewMeshComponent)
+	{
+		PreviewScene.PreviewMeshComponent->SetAnimation(nullptr);
+	}
+
+	StatusMessage = "SkeletalMesh asset loaded";
+	return true;
+}
+
 void FSkeletalMeshEditorTab::RenderResourcePanel()
 {
 	FSkeletalMeshViewerViewportClient* PreviewViewportClient = PreviewScene.PreviewViewportClient;
@@ -310,7 +337,11 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 
 		if (!CurrentSceneAsset)
 		{
-			ImGui::TextDisabled("%s", StatusMessage.c_str());
+			const FString Label = (PreviewSkeletalMesh && PreviewSkeletalMesh->GetSkeletalMeshAsset() &&
+				!PreviewSkeletalMesh->GetSkeletalMeshAsset()->PathFileName.empty())
+				? PreviewSkeletalMesh->GetSkeletalMeshAsset()->PathFileName
+				: FString("SkeletalMesh Asset");
+			ImGui::Selectable(Label.c_str(), true);
 		}
 		else
 		{
@@ -969,7 +1000,7 @@ USkeletalMesh* FSkeletalMeshEditorTab::GetSelectedSkeletalMesh() const
 {
 	if (!CurrentSceneAsset)
 	{
-		return nullptr;
+		return PreviewSkeletalMesh;
 	}
 
 	const TArray<USkeletalMesh*>& SkeletalMeshes = CurrentSceneAsset->GetSkeletalMeshes();

@@ -23,6 +23,7 @@
 #include "Editor/UI/ImGuiSetting.h"
 #include "Editor/UI/NotificationToast.h"
 #include "Core/Notification.h"
+#include "Asset/Import/MeshManager.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -43,6 +44,7 @@ const FDebugPlaceActorOption GDebugPlaceActorOptions[] = {
 	{ "Cube", FLevelViewportLayout::EViewportPlaceActorType::Cube },
 	{ "Sphere", FLevelViewportLayout::EViewportPlaceActorType::Sphere },
 	{ "Cylinder", FLevelViewportLayout::EViewportPlaceActorType::Cylinder },
+	{ "Skeletal Mesh Actor", FLevelViewportLayout::EViewportPlaceActorType::SkeletalMeshActor },
 	{ "Decal", FLevelViewportLayout::EViewportPlaceActorType::Decal },
 	{ "Height Fog", FLevelViewportLayout::EViewportPlaceActorType::HeightFog },
 	{ "Ambient Light", FLevelViewportLayout::EViewportPlaceActorType::AmbientLight },
@@ -119,6 +121,11 @@ bool FEditorMainPanel::OpenCurveAsset(const FString& CurvePath)
 bool FEditorMainPanel::OpenSkeletalMeshViewerAsset(const FString& FbxPath)
 {
 	FEditorSettings::Get().UI.bSkeletalMeshViewer = true;
+	EAssetType AssetType = EAssetType::Unknown;
+	if (TryReadAssetType(FbxPath, AssetType) && AssetType == EAssetType::SkeletalMesh)
+	{
+		return SkeletalMeshViewerWidget.OpenSkeletalMeshAsset(FbxPath);
+	}
 	return SkeletalMeshViewerWidget.OpenFbxAsset(FbxPath);
 }
 

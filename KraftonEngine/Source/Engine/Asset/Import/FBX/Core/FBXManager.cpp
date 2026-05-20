@@ -106,6 +106,54 @@ namespace
         return Text;
     }
 
+    FString TryResolveStandaloneSkeletalMeshAssetFromFbxPath(const FString& SourcePath)
+    {
+        const auto IsStandaloneSkeletalAsset = [](const std::filesystem::path& AssetDiskPath) -> bool
+        {
+            const FString AssetPath = FPaths::ToUtf8(AssetDiskPath.generic_wstring());
+            EAssetType AssetType = EAssetType::Unknown;
+            return TryReadAssetType(AssetPath, AssetType) && AssetType == EAssetType::SkeletalMesh;
+        };
+
+        std::filesystem::path CandidatePath(ResolveDiskPath(SourcePath));
+        CandidatePath.replace_extension(L".asset");
+        if (IsStandaloneSkeletalAsset(CandidatePath))
+        {
+            return FPaths::ToUtf8(CandidatePath.generic_wstring());
+        }
+
+        const std::wstring TargetFileName = CandidatePath.filename().wstring();
+        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"FBX";
+        std::error_code ErrorCode;
+        for (std::filesystem::recursive_directory_iterator It(SearchRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode), End;
+             It != End;
+             It.increment(ErrorCode))
+        {
+            if (ErrorCode)
+            {
+                ErrorCode.clear();
+                continue;
+            }
+
+            if (!It->is_regular_file())
+            {
+                continue;
+            }
+
+            if (It->path().filename().wstring() != TargetFileName)
+            {
+                continue;
+            }
+
+            if (IsStandaloneSkeletalAsset(It->path()))
+            {
+                return FPaths::ToUtf8(It->path().generic_wstring());
+            }
+        }
+
+        return FString();
+    }
+
     int64 GetFileTimestamp(const FString &Path)
     {
         const std::filesystem::path DiskPath(ResolveDiskPath(Path));
@@ -578,6 +626,14 @@ USkeletalMesh *FFBXManager::ResolveSkeletalMeshReference(const FString &PathFile
     if (!ParseFbxSceneSubAssetReference(PathFileName, "#Skeleton_", SourcePath, SourceSkeletonId))
     {
         return nullptr;
+    }
+
+    const FString FallbackAssetPath = TryResolveStandaloneSkeletalMeshAssetFromFbxPath(SourcePath);
+    if (!FallbackAssetPath.empty())
+    {
+        UE_LOG("[FBXManager] Resolved skeletal mesh reference to standalone asset. Ref=%s Asset=%s",
+               PathFileName.c_str(), FallbackAssetPath.c_str());
+        return FMeshManager::LoadSkeletalMeshFromFile(FallbackAssetPath);
     }
 
     UFBXSceneAsset *SceneAsset = LoadFbxScene(SourcePath);

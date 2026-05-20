@@ -1,0 +1,138 @@
+{
+  "Actors" : [{
+      "ActorUUID" : 155,
+      "ClassName" : "AActor",
+      "NonSceneComponents" : [{
+          "ClassName" : "ULuaScriptComponent",
+          "Properties" : {
+            "ScriptPath" : "Game/MarioControllerAnimGraph.lua",
+            "bEditorOnly" : false,
+            "bTickEnable" : true
+          }
+        }],
+      "RootComponent" : {
+        "Children" : [],
+        "ClassName" : "USkeletalMeshComponent",
+        "Properties" : {
+          "Animation" : "None",
+          "Animation Mode" : 0,
+          "Blocks Movement" : true,
+          "Cast Shadow" : true,
+          "Element 0" : {
+            "Path" : "Asset/Materials/Auto/HairMT.mat"
+          },
+          "Element 1" : {
+            "Path" : "Asset/Materials/Auto/CapMT.mat"
+          },
+          "Element 2" : {
+            "Path" : "Asset/Materials/Auto/FaceMT.mat"
+          },
+          "Element 3" : {
+            "Path" : "Asset/Materials/Auto/HairMT.001.mat"
+          },
+          "Element 4" : {
+            "Path" : "Asset/Materials/Auto/HandMT.mat"
+          },
+          "Element 5" : {
+            "Path" : "Asset/Materials/Auto/EyeMT.mat"
+          },
+          "Element 6" : {
+            "Path" : "Asset/Materials/Auto/BodyMT.mat"
+          },
+          "Generate Overlap Events" : true,
+          "Skeletal Mesh" : "C:\\Users\\Yona\\Documents\\Week11_Team2\\KraftonEngine\\Asset\\Mario2\\Mario2.fbx#Skeleton_0",
+          "Two Sided Shadow" : false,
+          "Use GPU Skinning" : true,
+          "Visible" : true,
+          "bEditorOnly" : false,
+          "bTickEnable" : true
+        }
+      },
+      "Tags" : [],
+      "bVisible" : true
+    }, {
+      "ActorUUID" : 485,
+      "ClassName" : "ACameraActor",
+      "NonSceneComponents" : [],
+      "RootComponent" : {
+        "Children" : [],
+        "ClassName" : "UCameraComponent",
+        "Properties" : {
+          "Back Distance" : 5.000000,
+          "Enable Look Ahead" : false,
+          "Eye Height" : 1.600000,
+          "First Person Use Control Rotation" : true,
+          "Follow Offset" : [-5.100000, -5.200000, 5.500000],
+          "Follow Subject Auto" : false,
+          "Follow Target" : 155,
+          "Height" : 2.000000,
+          "Look Ahead Distance" : 1.000000,
+          "Look Ahead Lag Speed" : 8.000000,
+          "Side Offset" : 0.000000,
+          "Stabilize Vertical In Orthographic" : true,
+          "Use Control Rotation Yaw" : true,
+          "Use Target Forward" : true,
+          "Vertical Dead Zone" : 0.400000,
+          "Vertical Follow Strength" : 0.150000,
+          "Vertical Lag Speed" : 2.000000,
+          "View Offset" : [-5.000000, 5.000000, 5.000000],
+          "bEditorOnly" : false,
+          "bTickEnable" : true
+        }
+      },
+      "Tags" : [],
+      "bVisible" : true
+    }, {
+      "ActorUUID" : 559,
+      "ClassName" : "APlayerController",
+      "NonSceneComponents" : [{
+          "ClassName" : "UControllerInputComponent",
+          "Properties" : {
+            "Look Sensitivity" : 0.080000,
+            "Max Pitch" : 89.000000,
+            "Min Pitch" : -89.000000,
+            "Move Speed" : 10.000000,
+            "Sprint Multiplier" : 2.500000,
+            "bEditorOnly" : false,
+            "bTickEnable" : true
+          }
+        }],
+      "PlayerController" : {
+        "ActiveCameraComponentPath" : "Root",
+        "ActiveCameraOwnerUUID" : 485,
+        "ControlRotation" : [-0.000000, 0.000000, 0.000000]
+      },
+      "RootComponent" : {
+        "Children" : [],
+        "ClassName" : "UStaticMeshComponent",
+        "Properties" : {
+          "Blocks Movement" : true,
+          "Cast Shadow" : true,
+          "Generate Overlap Events" : true,
+          "Static Mesh" : "None",
+          "Two Sided Shadow" : false,
+          "Visible" : true,
+          "bEditorOnly" : false,
+          "bTickEnable" : true
+        }
+      },
+      "Tags" : [],
+      "bVisible" : true
+    }],
+  "ClassName" : "UWorld",
+  "ContextHandle" : "Default",
+  "ContextName" : "Default",
+  "Name" : "Mario",
+  "PerspectiveCamera" : {
+    "AspectRatio" : 2.435203,
+    "FOV" : 1.047198,
+    "FarClip" : 1000.000000,
+    "Location" : [23.209362, -0.152470, 13.500209],
+    "NearClip" : 0.100000,
+    "OrthoWidth" : 10.000000,
+    "Orthographic" : false,
+    "Rotation" : [-0.000000, 23.714670, 176.700897]
+  },
+  "Version" : 2,
+  "WorldType" : "Editor"
+}
