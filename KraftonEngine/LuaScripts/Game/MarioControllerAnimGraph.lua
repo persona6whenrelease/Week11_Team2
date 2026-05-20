@@ -47,6 +47,7 @@ local TURN_SPEED = 720.0
 local BOOL = {
     IS_MOVING = "IsMoving",
     IS_RUNNING = "IsRunning",
+    IS_GROUNDED = "IsGrounded",
     DO_JUMP1 = "DoJump1",
     DO_JUMP2 = "DoJump2",
     DO_JUMP3 = "DoJump3",
@@ -124,6 +125,9 @@ end
 --   점프는 상위 노드에서 분리한다.
 -- ─────────────────────────────────────────────────────────────
 local function ConfigureStateMachine()
+    local locomotionBlend = 0.3
+    local jumpBlend = 0.08
+
     return M.skelMesh:SetupStateMachineGraph({
         initial_state = "LOCOMOTION",
         states = {
@@ -138,24 +142,24 @@ local function ConfigureStateMachine()
                         { name = "RUN", sequence = M.anims.RUN, looping = true },
                     },
                     transitions = {
-                        { from = "WAIT", to = "WALK", conditions = {
+                        { from = "WAIT", to = "WALK", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_MOVING, value = true },
                             { kind = "bool", name = BOOL.IS_RUNNING, value = false },
                         } },
-                        { from = "WAIT", to = "RUN", conditions = {
+                        { from = "WAIT", to = "RUN", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_MOVING, value = true },
                             { kind = "bool", name = BOOL.IS_RUNNING, value = true },
                         } },
-                        { from = "WALK", to = "WAIT", conditions = {
+                        { from = "WALK", to = "WAIT", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_MOVING, value = false },
                         } },
-                        { from = "WALK", to = "RUN", conditions = {
+                        { from = "WALK", to = "RUN", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_RUNNING, value = true },
                         } },
-                        { from = "RUN", to = "WAIT", conditions = {
+                        { from = "RUN", to = "WAIT", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_MOVING, value = false },
                         } },
-                        { from = "RUN", to = "WALK", conditions = {
+                        { from = "RUN", to = "WALK", blend_duration = locomotionBlend, conditions = {
                             { kind = "bool", name = BOOL.IS_MOVING, value = true },
                             { kind = "bool", name = BOOL.IS_RUNNING, value = false },
                         } },
@@ -167,18 +171,31 @@ local function ConfigureStateMachine()
             { name = "JUMP3", sequence = M.anims.JUMP3, looping = false },
         },
         transitions = {
-            { from = "LOCOMOTION", to = "JUMP1", conditions = { { kind = "bool", name = BOOL.DO_JUMP1, value = true } } },
-            { from = "LOCOMOTION", to = "JUMP2", conditions = { { kind = "bool", name = BOOL.DO_JUMP2, value = true } } },
-            { from = "LOCOMOTION", to = "JUMP3", conditions = { { kind = "bool", name = BOOL.DO_JUMP3, value = true } } },
+            { from = "LOCOMOTION", to = "JUMP1", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.DO_JUMP1, value = true },
+            } },
+            { from = "LOCOMOTION", to = "JUMP2", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.DO_JUMP2, value = true },
+            } },
+            { from = "LOCOMOTION", to = "JUMP3", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.DO_JUMP3, value = true },
+            } },
 
-            { from = "JUMP1", to = "LOCOMOTION", blend_duration = 0.05, conditions = {
-                { kind = "time", time = M.anims.JUMP1.PlayLength },
+            { from = "JUMP1", to = "JUMP2", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.DO_JUMP2, value = true },
             } },
-            { from = "JUMP2", to = "LOCOMOTION", blend_duration = 0.05, conditions = {
-                { kind = "time", time = M.anims.JUMP2.PlayLength },
+            { from = "JUMP2", to = "JUMP3", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.DO_JUMP3, value = true },
             } },
-            { from = "JUMP3", to = "LOCOMOTION", blend_duration = 0.05, conditions = {
-                { kind = "time", time = M.anims.JUMP3.PlayLength },
+
+            { from = "JUMP1", to = "LOCOMOTION", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.IS_GROUNDED, value = true },
+            } },
+            { from = "JUMP2", to = "LOCOMOTION", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.IS_GROUNDED, value = true },
+            } },
+            { from = "JUMP3", to = "LOCOMOTION", blend_duration = jumpBlend, conditions = {
+                { kind = "bool", name = BOOL.IS_GROUNDED, value = true },
             } },
         }
     })
@@ -242,6 +259,7 @@ local function Bootstrap()
     ResetJumpBools()
     SetBool(BOOL.IS_MOVING, false)
     SetBool(BOOL.IS_RUNNING, false)
+    SetBool(BOOL.IS_GROUNDED, true)
 
     M.initialized = true
     print("[MarioStateMachine] ready")
@@ -381,6 +399,7 @@ end
 local function UpdateStateMachineBools(hasMove, isRunning)
     SetBool(BOOL.IS_MOVING, hasMove)
     SetBool(BOOL.IS_RUNNING, hasMove and isRunning or false)
+    SetBool(BOOL.IS_GROUNDED, M.isGrounded)
 end
 
 -- ─────────────────────────────────────────────────────────────
