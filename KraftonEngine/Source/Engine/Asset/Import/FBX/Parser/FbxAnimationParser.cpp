@@ -66,7 +66,8 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                                                   const FFbxSkeletonMeta& SkeletonMeta,
                                                   const TArray<FBoneInfo>& SkeletonBones,
                                                   TArray<UAnimSequence*>& OutAnimSequences,
-                                                  float SampleRate) const
+                                                  float SampleRate,
+                                                  const TArray<int32>* AnimFilterIndices) const
 {
     OutAnimSequences.clear();
 
@@ -103,6 +104,20 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
     const int32 AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
     for (int32 StackIndex = 0; StackIndex < AnimStackCount; ++StackIndex)
     {
+        // Skip stacks that are not in the filter list
+        if (AnimFilterIndices && !AnimFilterIndices->empty())
+        {
+            bool bSelected = false;
+            for (int32 Idx : *AnimFilterIndices)
+            {
+                if (Idx == StackIndex) { bSelected = true; break; }
+            }
+            if (!bSelected)
+            {
+                continue;
+            }
+        }
+
         FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(StackIndex);
         if (!AnimStack)
         {
@@ -151,7 +166,16 @@ void FFbxAnimationParser::ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
         UAnimSequence* Sequence = UObjectManager::Get().CreateObject<UAnimSequence>();
         UAnimDataModel* DataModel = UObjectManager::Get().CreateObject<UAnimDataModel>(Sequence);
 
-        const FString SequenceName = AnimStack->GetName() ? AnimStack->GetName() : "Anim";
+        // Strip redundant hierarchy prefix (e.g. "Armature|Armature|Armature|Dash" → "Dash")
+        FString SequenceName = AnimStack->GetName() ? AnimStack->GetName() : "Anim";
+        {
+            const auto Pos = SequenceName.rfind('|');
+            if (Pos != FString::npos)
+            {
+                SequenceName = SequenceName.substr(Pos + 1);
+            }
+        }
+        if (SequenceName.empty()) SequenceName = "Anim";
         Sequence->SetSequenceName(SequenceName);
         Sequence->SetDataModel(DataModel);
 

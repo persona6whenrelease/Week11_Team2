@@ -8,6 +8,7 @@
 #include "Asset/Material/MaterialManager.h"
 #include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Core/FBXManager.h"
 #include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "Core/Log.h"
 #include "Object/Object.h"
@@ -16,6 +17,8 @@
 #include "Render/Snapshot/SnapShotRenderer.h"
 #include "Resource/ResourceManager.h"
 #include "Runtime/Engine.h"
+#include "Runtime/LoadingScreen.h"
+#include "Engine/Runtime/WindowsWindow.h"
 
 #include <algorithm>
 
@@ -642,7 +645,32 @@ void FBXElement::OnDoubleLeftClicked(ContentBrowserContext& Context)
 		return;
 	}
 
-	Context.EditorEngine->OpenSkeletalMeshViewerAsset(FPaths::ToUtf8(ContentItem.Path.wstring()));
+	// Show the FBX import options dialog instead of opening the viewer directly.
+	// Only .asset files are opened in the editor; .fbx goes through the import dialog first.
+	const FString FbxPath = FPaths::ToUtf8(ContentItem.Path.wstring());
+
+	// Peek animation info — show overlay spinner since FBX SDK read can take a few seconds
+	FLoadingScreen PeekLoadingScreen;
+	FWindowsWindow* Win = Context.EditorEngine ? Context.EditorEngine->GetWindow() : nullptr;
+	if (Win) PeekLoadingScreen.Begin(Win->GetHWND(), true);
+	if (Win) PeekLoadingScreen.Update(L"Reading FBX info...");
+
+	FFBXPeekInfo PeekInfo;
+	FMeshManager::GetFbxPeekInfo(FbxPath, PeekInfo);
+
+	if (Win) PeekLoadingScreen.End();
+
+	Context.PendingFbxImportPath = ContentItem.Path.wstring();
+	Context.FbxAnimationNames.clear();
+	for (const FString& Name : PeekInfo.AnimationNames)
+	{
+		Context.FbxAnimationNames.push_back(Name);
+	}
+	Context.FbxNativeFPS = PeekInfo.NativeFPS;
+	Context.FbxImportFPSMode = 0;
+	Context.FbxImportCustomFPS = 30.0f;
+	Context.FbxAnimSelected.assign(PeekInfo.AnimationNames.size(), true);
+	Context.bShowFbxImportDialog = true;
 }
 
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> FBXElement::GetElementIcon(ContentBrowserContext& Context)

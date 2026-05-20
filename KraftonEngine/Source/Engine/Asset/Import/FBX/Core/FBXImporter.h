@@ -17,6 +17,7 @@
 #include "Asset/Mesh/StaticMesh/StaticMeshAsset.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveMath.h"
+#include "Asset/Import/FBX/Core/FBXManager.h"  // FFBXPeekInfo, FFBXImportOptions, FFBXProgressCallback
 
 enum class EFBXLightType
 {
@@ -102,7 +103,15 @@ class FBXImporter
     /**
      * FBX 파일 하나를 로드하고 씬 내부의 메시/스켈레톤/애니메이션 데이터를 추출한다.
      */
-    bool ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset);
+    bool ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset,
+                        const FFBXImportOptions &Options = {},
+                        FFBXProgressCallback     ProgressCb = nullptr);
+
+    /**
+     * 경량 FBX 읽기: animation stack 이름과 native frame rate만 반환한다.
+     * 메시/스켈레톤/애니메이션 파싱을 건너뛰므로 전체 임포트보다 빠르다.
+     */
+    static bool PeekFbxInfo(const FString &InFilePath, FFBXPeekInfo &OutInfo);
 
   private:
     bool InitializeSdk();
@@ -113,6 +122,8 @@ class FBXImporter
     bool FinalizeAsset();
     void ShutdownSdk();
 
+    void ReportProgress(int Percent, const wchar_t* Status) const;
+
   private:
     void ClearState();
     /**
@@ -122,7 +133,8 @@ class FBXImporter
     void DestroyScene();
 
   private:
-    FFbxImportMeta ImportMeta;
+    FFbxImportMeta        ImportMeta;
+    FFBXProgressCallback  ProgressCallback;
 
   private:
     FbxManager *Manager = nullptr;

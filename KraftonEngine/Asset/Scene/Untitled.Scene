@@ -221,7 +221,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/DirectionalLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/DirectionalLight.mat"
               },
               "Rotation" : [-0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],

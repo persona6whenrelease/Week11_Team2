@@ -56,28 +56,28 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_metalInto.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_metalInto.mat"
         },
         "Element 1" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_luz_lamp.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_luz_lamp.mat"
         },
         "Element 2" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_plasticblanc2.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_plasticblanc2.mat"
         },
         "Element 3" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_plasticnegret.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_plasticnegret.mat"
         },
         "Element 4" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_plasticblanc.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_plasticblanc.mat"
         },
         "Element 5" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_metal_lamp.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_metal_lamp.mat"
         },
         "Element 6" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_cristal_blanco.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_cristal_blanco.mat"
         },
         "Element 7" : {
-          "Path" : "Asset/Materials/Auto/streetlamp_negrobombi.mat"
+          "Path" : "Asset/Runtime/Material/Auto/streetlamp_negrobombi.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [-2.247747, -1.993313, -0.500000],

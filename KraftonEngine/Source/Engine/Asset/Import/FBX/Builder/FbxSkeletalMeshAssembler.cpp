@@ -69,12 +69,6 @@ bool FFbxSkeletalMeshAssembler::Assemble(
                static_cast<uint32>(SkeletalMesh.Sections.size()),
                static_cast<uint32>(SkeletalMesh.Bones.size()));
 
-        for (size_t BoneIdx = 0; BoneIdx < SkeletalMesh.Bones.size(); ++BoneIdx)
-        {
-            const FBoneInfo &B = SkeletalMesh.Bones[BoneIdx];
-            UE_LOG("[FBXImporter]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
-                   B.Name.c_str());
-        }
 
         const int32 AssetIndex = static_cast<int32>(OutSkeletalMeshAssets.size());
         OutSkeletalMeshAssets.push_back(SkeletalMesh);

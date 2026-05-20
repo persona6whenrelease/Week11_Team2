@@ -11,6 +11,7 @@
 #include "Core/CoreTypes.h"
 #include "Asset/AssetTypes.h"
 #include "Asset/Mesh/Common/MeshCommonTypes.h"
+#include "Asset/Import/FBX/Core/FBXManager.h"  // FFBXPeekInfo, FFBXImportOptions, FFBXProgressCallback
 
 struct FImportOptions;
 struct ID3D11Device;
@@ -71,7 +72,12 @@ class FMeshManager
      */
     static UAnimSequence *LoadAnimSequenceFromFile(const FString &PathFileName);
 
-    static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
+    // Lightweight peek: get animation names and native FPS without a full import.
+    static bool GetFbxPeekInfo(const FString &PathFileName, FFBXPeekInfo &OutInfo);
+
+    static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName,
+                                        FFBXProgressCallback ProgressCb = nullptr,
+                                        const FFBXImportOptions *Options  = nullptr);
     static FString GetFbxSourcePathFromSubAssetPath(const FString &AssetPath);
     static UFBXSceneAsset *LoadFbxSceneForSkeletonAssetPath(const FString &SkeletonAssetPath);
     static UFBXSceneAsset *LoadFbxSceneForSkeletalMesh(const USkeletalMesh *Mesh);

@@ -24,7 +24,7 @@
           "Properties" : {
             "Cast Shadow" : true,
             "Element 0" : {
-              "Path" : "Asset/Materials/Auto/BasicShapeMaterial.mat"
+              "Path" : "Asset/Runtime/Material/Auto/BasicShapeMaterial.mat"
             },
             "Location" : [0.000000, 0.000000, 1.020537],
             "Rotation" : [-0.000000, 0.000000, 0.000000],
@@ -40,7 +40,7 @@
       "Properties" : {
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/BasicShapeMaterial.mat"
+          "Path" : "Asset/Runtime/Material/Auto/BasicShapeMaterial.mat"
         },
         "Location" : [9.195351, -4.820687, 2.000000],
         "Rotation" : [-0.000000, 0.000000, 0.000000],
