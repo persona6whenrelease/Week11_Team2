@@ -18,6 +18,7 @@ public:
 	FSkeletalMeshEditorTab(UEditorEngine* InEditorEngine, int32 InTabId);
 
 	bool OpenFbxAsset(const FString& FbxPath);
+	bool OpenSkeletalMeshAsset(const FString& AssetPath);
 
 	void SetOpenAnimEditorCallback(FOpenAnimEditorCallback Cb) { OpenAnimEditorCallback = std::move(Cb); }
 
