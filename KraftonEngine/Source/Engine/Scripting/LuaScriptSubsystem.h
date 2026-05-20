@@ -64,7 +64,7 @@ private:
 	bool ExecuteScriptFile(sol::state_view LuaView, const FString& NormalizedPath);
 	bool ExecuteScriptFile(sol::state_view LuaView, const FString& NormalizedPath, sol::environment* Environment, sol::object* OutResult = nullptr);
 	bool CompileFile(sol::state_view LuaView, const FString& NormalizedPath);
-	bool ReloadScriptsAtomically(const TSet<FString>& ReloadTargets);
+	bool ReloadScriptsAtomically(const TSet<FString>& ReloadTargets, bool bForceRebindComponents = false);
 
 	FString ResolveScriptPath(const FString& Path) const;
 	FString ResolveModulePath(const FString& ModuleName) const;
@@ -125,6 +125,7 @@ private:
 	TArray<FString> LoadedScriptOrder;
 	TMap<FString, TSet<FString>> ScriptIncludes;
 	TMap<FString, TSet<FString>> IncludeDependents;
+	TMap<uint32, TSet<FString>> ComponentScriptIncludes;
 	TMap<FString, FString> ModulePaths;
 	TArray<FLuaDependencyContext> DependencyContextStack;
 	TMap<uint32, FLuaComponentBinding> ComponentBindings;

@@ -178,6 +178,7 @@ void FLuaScriptSubsystem::Shutdown()
 	LoadedScriptOrder.clear();
 	ScriptIncludes.clear();
 	IncludeDependents.clear();
+	ComponentScriptIncludes.clear();
 	ModulePaths.clear();
 	DependencyContextStack.clear();
 	bInitialized = false;
@@ -360,7 +361,11 @@ bool FLuaScriptSubsystem::BindComponent(ULuaScriptComponent* Component, const FS
 
 	sol::protected_function ScriptFunction = LoadResult;
 	sol::set_environment(Env, ScriptFunction);
+	TSet<FString> NewIncludes;
+	TMap<FString, FString> NewModulePaths;
+	DependencyContextStack.push_back({ NormalizedPath, &NewIncludes, &NewModulePaths });
 	sol::protected_function_result ExecResult = ScriptFunction();
+	DependencyContextStack.pop_back();
 	if (!ExecResult.valid())
 	{
 		sol::error Error = ExecResult;
@@ -389,6 +394,7 @@ bool FLuaScriptSubsystem::BindComponent(ULuaScriptComponent* Component, const FS
 	}
 	ComponentBindings.erase(Binding.ComponentUUID);
 	ComponentBindings.emplace(Binding.ComponentUUID, std::move(Binding));
+	ComponentScriptIncludes[Component->GetUUID()] = std::move(NewIncludes);
 	return true;
 }
 
@@ -404,6 +410,7 @@ void FLuaScriptSubsystem::UnbindComponent(const ULuaScriptComponent* Component)
 		GEngine->GetTaskScheduler().CancelTasks(Component->GetUUID());
 	}
 	ComponentBindings.erase(Component->GetUUID());
+	ComponentScriptIncludes.erase(Component->GetUUID());
 }
 
 void FLuaScriptSubsystem::CallComponentBeginPlay(ULuaScriptComponent* Component)
@@ -794,6 +801,7 @@ float FLuaScriptSubsystem::ExtractYieldDelay(lua_State* ThreadState) const
 void FLuaScriptSubsystem::OnScriptsChanged(const TSet<FString>& ChangedFiles)
 {
 	TSet<FString> ReloadTargets;
+	bool bRequiresComponentRebind = false;
 
 	for (const FString& File : ChangedFiles)
 	{
@@ -821,24 +829,48 @@ void FLuaScriptSubsystem::OnScriptsChanged(const TSet<FString>& ChangedFiles)
 			bFoundTrackedTarget = true;
 		}
 
+		for (const auto& [ComponentUUID, Binding] : ComponentBindings)
+		{
+			if (Binding.ScriptPath == NormalizedPath)
+			{
+				bRequiresComponentRebind = true;
+				bFoundTrackedTarget = true;
+				break;
+			}
+
+			auto ComponentIncludesIt = ComponentScriptIncludes.find(ComponentUUID);
+			if (ComponentIncludesIt != ComponentScriptIncludes.end() &&
+				ComponentIncludesIt->second.find(NormalizedPath) != ComponentIncludesIt->second.end())
+			{
+				bRequiresComponentRebind = true;
+				bFoundTrackedTarget = true;
+				break;
+			}
+		}
+
 		if (!bFoundTrackedTarget)
 		{
 			ReloadTargets.insert(NormalizedPath);
 		}
 	}
 
-	if (ReloadTargets.empty())
+	if (ReloadTargets.empty() && !bRequiresComponentRebind)
 	{
 		return;
 	}
 
 	UE_LOG("[LuaHotReload] Reloading %zu Lua script(s)...", ReloadTargets.size());
-	if (ReloadScriptsAtomically(ReloadTargets))
+	if (ReloadScriptsAtomically(ReloadTargets, bRequiresComponentRebind))
 	{
 		for (const FString& Target : ReloadTargets)
 		{
 			UE_LOG("[LuaHotReload] OK: %s", Target.c_str());
 			FNotificationManager::Get().AddNotification("Lua Reloaded: " + Target, ENotificationType::Success, 3.0f);
+		}
+		if (bRequiresComponentRebind && ReloadTargets.empty())
+		{
+			UE_LOG("[LuaHotReload] OK: Rebound Lua components after include/module change");
+			FNotificationManager::Get().AddNotification("Lua Reloaded: rebound dependent components", ENotificationType::Success, 3.0f);
 		}
 	}
 	else
@@ -1094,9 +1126,9 @@ bool FLuaScriptSubsystem::CompileFile(sol::state_view LuaView, const FString& No
 	return true;
 }
 
-bool FLuaScriptSubsystem::ReloadScriptsAtomically(const TSet<FString>& ReloadTargets)
+bool FLuaScriptSubsystem::ReloadScriptsAtomically(const TSet<FString>& ReloadTargets, bool bForceRebindComponents)
 {
-	if (ReloadTargets.empty())
+	if (ReloadTargets.empty() && !bForceRebindComponents)
 	{
 		return true;
 	}
@@ -1141,6 +1173,7 @@ bool FLuaScriptSubsystem::ReloadScriptsAtomically(const TSet<FString>& ReloadTar
 	ScriptIncludes = std::move(NewScriptIncludes);
 	ModulePaths = std::move(NewModulePaths);
 	RebuildIncludeDependents();
+	ComponentScriptIncludes.clear();
 
 		for (const auto& [ComponentUUID, ScriptPath] : ComponentBindingsToRestore)
 	{
