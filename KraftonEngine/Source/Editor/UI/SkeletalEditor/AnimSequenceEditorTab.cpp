@@ -2,6 +2,7 @@
 #include "Editor/UI/SkeletalEditor/SkeletonTreeUtil.h"
 
 #include "Component/SkeletalMeshComponent.h"
+#include "Core/Log.h"
 #include "Editor/UI/EditorFileUtils.h"
 #include "Editor/Viewport/SkeletalMeshViewerViewportClient.h"
 #include "Asset/Animation/Core/AnimSequence.h"
@@ -142,6 +143,38 @@ namespace
 			FMatrix::MakeTranslationMatrix(Location);
 	}
 
+	// 에디터에서 Sound notify의 SoundId picker를 사용하려면 SoundManager에 효과음이 사전 등록되어 있어야 한다.
+	// LoadCrossyAudio는 game 모드에서만 호출되므로, 에디터 진입 시점에 Asset/Sound/ 디렉토리를 자동 스캔하여
+	// 모든 .wav를 LoadEffect로 등록한다. process 수명 동안 1회만 실행.
+	void EnsureEditorSoundsLoaded()
+	{
+		static bool bLoaded = false;
+		if (bLoaded) return;
+		bLoaded = true;
+
+		const std::wstring SoundDir = FPaths::Combine(FPaths::AssetDir(), L"Sound/");
+		std::error_code Ec;
+		std::filesystem::directory_iterator It(SoundDir, Ec);
+		if (Ec) return;
+
+		for (const auto& Entry : It)
+		{
+			if (!Entry.is_regular_file()) continue;
+			const auto& Path = Entry.path();
+			if (Path.extension() != L".wav") continue;
+
+			const FSoundId Id = Path.stem().string();
+			try
+			{
+				FSoundManager::Get().LoadEffect(Id, Path.wstring());
+			}
+			catch (const std::exception& E)
+			{
+				UE_LOG("[AnimSequenceEditor] Failed to pre-load sound '%s': %s", Id.c_str(), E.what());
+			}
+		}
+	}
+
 	// timeline notify 마커의 type별 자동 색상. Sound=청색, CameraShake=주황, None(legacy)=회색.
 	ImU32 GetNotifyTypeColor(EAnimNotifyType Type)
 	{
@@ -187,6 +220,8 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* InPreviewMesh, UAnimSequence* InSequence)
 {
 	if (!InSequence) return false;
+
+	EnsureEditorSoundsLoaded();
 
 	PreviewMesh = InPreviewMesh;
 	AnimSequence = InSequence;
