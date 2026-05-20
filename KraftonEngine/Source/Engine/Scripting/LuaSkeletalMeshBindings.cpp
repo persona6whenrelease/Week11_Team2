@@ -7,6 +7,8 @@
 #include "LuaWorldLibrary.h"
 
 #include "Asset/Animation/Core/AnimInstance.h"
+#include "Asset/Animation/Core/AnimGraph.h"
+#include "Asset/Animation/Core/AnimGraph_StateMachine.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/AnimStateMachineInstance.h"
 #include "Asset/Import/MeshManager.h"
@@ -138,6 +140,335 @@ namespace
 		return SceneAsset
 			? FMeshManager::GetAnimSequenceCountForSkeletalMesh(SceneAsset, Component->GetSkeletalMesh())
 			: 0;
+	}
+
+	FName ReadNameField(const sol::table& Table, const char* PrimaryKey, const char* SecondaryKey = nullptr)
+	{
+		sol::optional<FString> Primary = Table[PrimaryKey];
+		if (Primary && !Primary->empty())
+		{
+			return FName(Primary.value());
+		}
+
+		if (SecondaryKey)
+		{
+			sol::optional<FString> Secondary = Table[SecondaryKey];
+			if (Secondary && !Secondary->empty())
+			{
+				return FName(Secondary.value());
+			}
+		}
+
+		return FName();
+	}
+
+	bool ReadBoolField(const sol::table& Table, const char* Key, bool DefaultValue)
+	{
+		sol::optional<bool> Value = Table[Key];
+		return Value.value_or(DefaultValue);
+	}
+
+	float ReadFloatField(const sol::table& Table, const char* Key, float DefaultValue)
+	{
+		sol::optional<float> Value = Table[Key];
+		return Value.value_or(DefaultValue);
+	}
+
+	int32 FindStateIndexByName(const TArray<FAnimState>& States, const FName& StateName)
+	{
+		if (!StateName.IsValid())
+		{
+			return -1;
+		}
+
+		for (int32 Index = 0; Index < static_cast<int32>(States.size()); ++Index)
+		{
+			if (States[Index].Name == StateName)
+			{
+				return Index;
+			}
+		}
+
+		return -1;
+	}
+
+	UAnimSequence* ResolveSequenceFromObject(const sol::object& Value)
+	{
+		if (!Value.valid())
+		{
+			return nullptr;
+		}
+
+		if (Value.is<FLuaAnimSequenceHandle>())
+		{
+			return Value.as<FLuaAnimSequenceHandle>().Resolve();
+		}
+
+		if (Value.is<FString>())
+		{
+			return FLuaWorldLibrary::LoadAnimSequence(Value.as<FString>());
+		}
+
+		if (Value.is<std::string>())
+		{
+			return FLuaWorldLibrary::LoadAnimSequence(Value.as<std::string>());
+		}
+
+		return nullptr;
+	}
+
+	std::unique_ptr<FAnimGraphNode_Base> BuildSequenceNode(USkeleton* Skeleton, UAnimSequence* Sequence)
+	{
+		if (!Skeleton || !Sequence)
+		{
+			return nullptr;
+		}
+
+		auto Node = std::make_unique<FAnimGraphNode_SequencePlayer>();
+		Node->SetSequence(Skeleton, Sequence);
+		return Node;
+	}
+
+	std::unique_ptr<FAnimGraphNode_StateMachine> BuildStateMachineNodeFromLua(
+		USkeleton* Skeleton,
+		const sol::table& Config,
+		FString& OutError);
+
+	bool ParseTransitionCondition(const sol::table& ConditionTable, FAnimTransitionCondition& OutCondition)
+	{
+		sol::optional<FString> KindValue = ConditionTable["kind"];
+		if (!KindValue)
+		{
+			sol::optional<FString> TypeValue = ConditionTable["type"];
+			if (TypeValue)
+			{
+				KindValue = TypeValue.value();
+			}
+		}
+		if (!KindValue)
+		{
+			return false;
+		}
+
+		FString Kind = KindValue.value();
+		std::transform(
+			Kind.begin(),
+			Kind.end(),
+			Kind.begin(),
+			[](unsigned char C)
+			{
+				return static_cast<char>(std::tolower(C));
+			}
+		);
+
+		if (Kind == "bool" || Kind == "boolean" || Kind == "boolvariable")
+		{
+			OutCondition.Kind = EAnimTransitionConditionKind::BoolVariable;
+			OutCondition.VarName = ReadNameField(ConditionTable, "name", "var");
+			OutCondition.bExpectedValue = ReadBoolField(ConditionTable, "value", true);
+			return OutCondition.VarName.IsValid();
+		}
+
+		if (Kind == "time" || Kind == "timeelapsed")
+		{
+			OutCondition.Kind = EAnimTransitionConditionKind::TimeElapsed;
+			OutCondition.TimeThreshold = ReadFloatField(ConditionTable, "value", 0.0f);
+			sol::optional<float> Time = ConditionTable["time"];
+			if (Time)
+			{
+				OutCondition.TimeThreshold = Time.value();
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	std::unique_ptr<FAnimGraphNode_StateMachine> BuildStateMachineNodeFromLua(
+		USkeleton* Skeleton,
+		const sol::table& Config,
+		FString& OutError)
+	{
+		if (!Skeleton)
+		{
+			OutError = "missing skeleton";
+			return nullptr;
+		}
+
+		sol::optional<sol::table> MaybeStates = Config["states"];
+		if (!MaybeStates)
+		{
+			OutError = "config.states is required";
+			return nullptr;
+		}
+
+		auto Root = std::make_unique<FAnimGraphNode_StateMachine>();
+		for (const auto& Entry : MaybeStates.value())
+		{
+			if (Entry.second.get_type() != sol::type::table)
+			{
+				continue;
+			}
+
+			sol::table StateTable = Entry.second.as<sol::table>();
+			FAnimState State;
+			State.Name = ReadNameField(StateTable, "name");
+			if (!State.Name.IsValid())
+			{
+				OutError = "every state needs a name";
+				return nullptr;
+			}
+
+			sol::optional<sol::object> SequenceObject = StateTable["sequence"];
+			if (!SequenceObject)
+			{
+				SequenceObject = StateTable["anim"];
+			}
+
+			UAnimSequence* Sequence = nullptr;
+			if (SequenceObject)
+			{
+				Sequence = ResolveSequenceFromObject(SequenceObject.value());
+				if (Sequence)
+				{
+					State.Sub = BuildSequenceNode(Skeleton, Sequence);
+				}
+			}
+
+			if (!State.Sub)
+			{
+				sol::optional<sol::table> MaybeSubmachine = StateTable["submachine"];
+				if (MaybeSubmachine)
+				{
+					State.Sub = BuildStateMachineNodeFromLua(Skeleton, MaybeSubmachine.value(), OutError);
+				}
+			}
+
+			if (!State.Sub)
+			{
+				if (OutError.empty())
+				{
+					OutError = "state " + State.Name.ToString() + " is missing a valid sequence or submachine";
+				}
+				return nullptr;
+			}
+
+			State.bLooping = ReadBoolField(StateTable, "looping", true);
+			State.bResetTimeOnEnter = ReadBoolField(StateTable, "reset_time_on_enter", true);
+			sol::optional<float> ExplicitLength = StateTable["length"];
+			State.SubLengthHint = ExplicitLength.value_or(Sequence ? Sequence->GetPlayLength() : 0.0f);
+			Root->States.push_back(std::move(State));
+		}
+
+		if (Root->States.empty())
+		{
+			OutError = "at least one state is required";
+			return nullptr;
+		}
+
+		sol::optional<FString> InitialStateName = Config["initial_state"];
+		if (InitialStateName)
+		{
+			const int32 InitialIndex = FindStateIndexByName(Root->States, FName(InitialStateName.value()));
+			if (InitialIndex < 0)
+			{
+				OutError = "unknown initial_state = " + InitialStateName.value();
+				return nullptr;
+			}
+			Root->InitialStateIndex = InitialIndex;
+		}
+
+		sol::optional<sol::table> MaybeTransitions = Config["transitions"];
+		if (MaybeTransitions)
+		{
+			for (const auto& Entry : MaybeTransitions.value())
+			{
+				if (Entry.second.get_type() != sol::type::table)
+				{
+					continue;
+				}
+
+				sol::table TransitionTable = Entry.second.as<sol::table>();
+				FAnimTransition Transition;
+				Transition.FromStateIndex = FindStateIndexByName(
+					Root->States,
+					ReadNameField(TransitionTable, "from")
+				);
+				Transition.ToStateIndex = FindStateIndexByName(
+					Root->States,
+					ReadNameField(TransitionTable, "to")
+				);
+				Transition.BlendDuration = ReadFloatField(TransitionTable, "blend_duration", 0.0f);
+
+				if (Transition.FromStateIndex < 0 || Transition.ToStateIndex < 0)
+				{
+					OutError = "transition has unknown from/to state";
+					return nullptr;
+				}
+
+				sol::optional<sol::table> MaybeConditions = TransitionTable["conditions"];
+				if (!MaybeConditions)
+				{
+					OutError = "every transition needs conditions";
+					return nullptr;
+				}
+
+				for (const auto& ConditionEntry : MaybeConditions.value())
+				{
+					if (ConditionEntry.second.get_type() != sol::type::table)
+					{
+						continue;
+					}
+
+					FAnimTransitionCondition Condition;
+					if (!ParseTransitionCondition(ConditionEntry.second.as<sol::table>(), Condition))
+					{
+						OutError = "unsupported condition in transition";
+						return nullptr;
+					}
+					Transition.Conditions.push_back(Condition);
+				}
+
+				if (Transition.Conditions.empty())
+				{
+					OutError = "transition conditions cannot be empty";
+					return nullptr;
+				}
+
+				Root->Transitions.push_back(std::move(Transition));
+			}
+		}
+
+		return Root;
+	}
+
+	bool BuildStateMachineFromLua(
+		USkeletalMeshComponent* Component,
+		UAnimStateMachineInstance* StateMachine,
+		const sol::table& Config)
+	{
+		if (!Component || !StateMachine)
+		{
+			return false;
+		}
+
+		USkeleton* Skeleton = StateMachine->GetSkeleton();
+		if (!Skeleton)
+		{
+			UE_LOG("[Lua] State machine graph setup failed: missing skeleton.");
+			return false;
+		}
+
+		FString Error;
+		std::unique_ptr<FAnimGraphNode_StateMachine> Root = BuildStateMachineNodeFromLua(Skeleton, Config, Error);
+		if (!Root)
+		{
+			UE_LOG("[Lua] State machine graph setup failed: %s", Error.c_str());
+			return false;
+		}
+
+		StateMachine->SetStateMachineGraph(std::move(Root));
+		return true;
 	}
 }
 
@@ -490,6 +821,27 @@ void RegisterSkeletalMeshComponentBinding(sol::state& Lua)
 
 			StateMachine->SetBoolVariable(FName(Name), Value);
 			return true;
+		},
+
+		"SetupStateMachineGraph",
+		[](const FLuaSkeletalMeshComponentHandle& Self, sol::table Config)
+		{
+			USkeletalMeshComponent* Component = Self.Resolve();
+			if (!Component)
+			{
+				UE_LOG("[Lua] Invalid SkeletalMeshComponent.SetupStateMachineGraph Call.");
+				return false;
+			}
+
+			Component->SetAnimationMode(EAnimationMode::AnimationStateMachine);
+			UAnimStateMachineInstance* StateMachine = Cast<UAnimStateMachineInstance>(Component->GetAnimInstance());
+			if (!StateMachine)
+			{
+				UE_LOG("[Lua] Failed to create animation state machine instance.");
+				return false;
+			}
+
+			return BuildStateMachineFromLua(Component, StateMachine, Config);
 		},
 
 		"GetStateBool",
