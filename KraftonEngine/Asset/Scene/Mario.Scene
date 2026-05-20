@@ -5,7 +5,7 @@
       "NonSceneComponents" : [{
           "ClassName" : "ULuaScriptComponent",
           "Properties" : {
-            "ScriptPath" : "Game/MarioController.lua",
+            "ScriptPath" : "Game/MarioControllerAnimGraph.lua",
             "bEditorOnly" : false,
             "bTickEnable" : true
           }
