@@ -25,6 +25,7 @@
 #include <cwctype>
 #include <filesystem>
 #include <set>
+#include <utility>
 #include <vector>
 
 namespace
@@ -240,9 +241,9 @@ namespace
             return FPaths::ToUtf8(CandidatePath.generic_wstring());
         }
 
-        // 저장된 FBX reference 절대경로가 오래된/잘못된 경로일 수 있으므로 Asset/FBX 아래에서 같은 파일명을 다시 찾는다.
+        // 저장된 FBX reference 절대경로가 오래된/잘못된 경로일 수 있으므로 Asset/Runtime/SkeletalMesh 아래에서 같은 파일명을 다시 찾는다.
         const std::wstring TargetFileName = CandidatePath.filename().wstring();
-        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"FBX";
+        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh";
         std::error_code ErrorCode;
         for (std::filesystem::recursive_directory_iterator It(SearchRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode), End;
              It != End;
@@ -278,7 +279,8 @@ namespace
         static bool bCreated = false;
         if (!bCreated)
         {
-            FPaths::CreateDir(FPaths::RootDir() + L"Asset\\FBXSceneCache\\");
+            std::filesystem::create_directories(
+                std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"FBXScene");
             bCreated = true;
         }
     }
@@ -360,7 +362,7 @@ FString FMeshManager::GetFbxSceneCacheFilePath(const FString &SourcePath)
     const std::filesystem::path SrcPath(bResolvedSource ? SourceDiskPath
                                                         : FPaths::ToWide(SourcePath));
 
-    std::filesystem::path RelPath = std::filesystem::path(L"Asset\\FBXSceneCache") / SrcPath.stem();
+    std::filesystem::path RelPath = std::filesystem::path(L"Asset\\Runtime\\FBXScene") / SrcPath.stem();
     RelPath += L".fbxscene.bin";
     return FPaths::ToUtf8(RelPath.generic_wstring());
 }
@@ -638,9 +640,16 @@ UAnimSequence *FMeshManager::LoadAnimSequenceFromFile(const FString &PathFileNam
     return Sequence;
 }
 
-UFBXSceneAsset *FMeshManager::LoadFbxScene(const FString &PathFileName)
+bool FMeshManager::GetFbxPeekInfo(const FString &PathFileName, FFBXPeekInfo &OutInfo)
 {
-    return FFBXManager::LoadFbxScene(PathFileName);
+    return FFBXManager::GetFbxPeekInfo(PathFileName, OutInfo);
+}
+
+UFBXSceneAsset *FMeshManager::LoadFbxScene(const FString &PathFileName,
+                                            FFBXProgressCallback ProgressCb,
+                                            const FFBXImportOptions *Options)
+{
+    return FFBXManager::LoadFbxScene(PathFileName, std::move(ProgressCb), Options);
 }
 
 FString FMeshManager::GetFbxSourcePathFromSubAssetPath(const FString &AssetPath)

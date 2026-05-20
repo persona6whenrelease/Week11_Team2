@@ -15,22 +15,103 @@
 #include "Editor/Viewport/LevelEditorViewportClient.h"
 #include "Object/ObjectFactory.h"
 #include "Asset/Import/MeshManager.h"
+#include "Asset/Import/FBX/Types/FBXSceneAsset.h"
 #include "Core/ProjectSettings.h"
 #include "Input/InputSystem.h"
 #include "Profiling/FrameProfiler.h"
 #include "GameFramework/AActor.h"
 #include "GameFramework/PlayerController.h"
 #include "Asset/Material/MaterialManager.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMesh.h"
+#include "Asset/Mesh/SkeletalMesh/SkeletalMeshAsset.h"
 #include "Engine/Platform/Paths.h"
+#include "Engine/Runtime/LoadingScreen.h"
 #include "Runtime/ActorPoolSystem.h"
 #include "Runtime/EngineFactory.h"
 #include "GameClient/LinkedRuntimeModules.h"
+#include <cmath>
 #include <filesystem>
 
 REGISTER_FACTORY(UEditorEngine)
 
 namespace
 {
+	std::wstring GetDefaultFbxImportDirectory()
+	{
+		const std::filesystem::path Preferred = std::filesystem::path(FPaths::AssetDir()) / L"FBX";
+		if (std::filesystem::exists(Preferred) && std::filesystem::is_directory(Preferred))
+		{
+			return Preferred.wstring();
+		}
+
+		const std::filesystem::path AssetDir(FPaths::AssetDir());
+		if (std::filesystem::exists(AssetDir) && std::filesystem::is_directory(AssetDir))
+		{
+			return AssetDir.wstring();
+		}
+
+		return FPaths::RootDir();
+	}
+
+	FString TryMakeProjectRelativePath(const std::filesystem::path& AbsolutePath)
+	{
+		const std::filesystem::path RootPath = std::filesystem::path(FPaths::RootDir()).lexically_normal();
+		const std::filesystem::path NormalizedPath = AbsolutePath.lexically_normal();
+		if (!FPaths::IsPathInsideRoot(RootPath, NormalizedPath))
+		{
+			return FString();
+		}
+
+		const std::filesystem::path RelativePath = NormalizedPath.lexically_relative(RootPath);
+		if (RelativePath.empty())
+		{
+			return FString();
+		}
+
+		for (const std::filesystem::path& Part : RelativePath)
+		{
+			if (Part == L"..")
+			{
+				return FString();
+			}
+		}
+
+		return FPaths::ToUtf8(RelativePath.generic_wstring());
+	}
+
+	class FScopedEditorLoadingScreen
+	{
+	public:
+		explicit FScopedEditorLoadingScreen(FWindowsWindow* InWindow, bool bOverlay = false)
+		{
+			if (InWindow)
+			{
+				LoadingScreen.Begin(InWindow->GetHWND(), bOverlay);
+				bActive = true;
+			}
+		}
+
+		~FScopedEditorLoadingScreen()
+		{
+			if (bActive)
+			{
+				LoadingScreen.End();
+			}
+		}
+
+		void Update(const wchar_t* StatusText, int Percent = -1)
+		{
+			if (bActive)
+			{
+				LoadingScreen.Update(StatusText, Percent);
+			}
+		}
+
+	private:
+		FLoadingScreen LoadingScreen;
+		bool bActive = false;
+	};
+
 	UEngine* CreateEditorEngine()
 	{
 		return UObjectManager::Get().CreateObject<UEditorEngine>();
@@ -816,6 +897,202 @@ bool UEditorEngine::LoadSceneFromPath(const FString& InScenePath)
 
 	CurrentLevelFilePath = InScenePath;
 	return true;
+}
+
+bool UEditorEngine::ImportFbxAsSkeletalMeshAssetWithDialog()
+{
+	const std::wstring InitialDir = GetDefaultFbxImportDirectory();
+	const FString SelectedPath = FEditorFileUtils::OpenFileDialog({
+		.Filter = L"FBX Files (*.fbx)\0*.fbx\0All Files (*.*)\0*.*\0",
+		.Title = L"Import FBX as SkeletalMesh Asset",
+		.InitialDirectory = InitialDir.c_str(),
+		.OwnerWindowHandle = Window ? Window->GetHWND() : nullptr,
+		.bFileMustExist = true,
+		.bPathMustExist = true,
+		.bPromptOverwrite = false,
+		.bReturnRelativeToProjectRoot = false,
+	});
+	if (SelectedPath.empty())
+	{
+		return false;
+	}
+
+	const std::filesystem::path SelectedDiskPath = std::filesystem::path(FPaths::ToWide(SelectedPath)).lexically_normal();
+	const FString RelativeFbxPath = TryMakeProjectRelativePath(SelectedDiskPath);
+	if (RelativeFbxPath.empty())
+	{
+		const FString Error = "FBX import only supports files inside the current project folder.";
+		UE_LOG("[EditorEngine] %s Selected=%s", Error.c_str(), SelectedPath.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	FScopedEditorLoadingScreen LoadingScreen(Window, true);
+	auto ProgressCb = [&LoadingScreen](int Percent, const wchar_t* Status)
+	{
+		LoadingScreen.Update(Status, Percent);
+	};
+	UFBXSceneAsset* SceneAsset = FMeshManager::LoadFbxScene(RelativeFbxPath, ProgressCb);
+	if (!SceneAsset)
+	{
+		const FString Error = "Failed to import FBX scene: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	const TArray<USkeletalMesh*>& SkeletalMeshes = SceneAsset->GetSkeletalMeshes();
+	if (SkeletalMeshes.empty() || !SkeletalMeshes[0] || !SkeletalMeshes[0]->GetSkeletalMeshAsset())
+	{
+		const FString Error = "No SkeletalMesh found in FBX: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	std::filesystem::create_directories(
+		std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh");
+	const std::filesystem::path AssetDiskPath =
+		std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh" /
+		(SelectedDiskPath.stem().wstring() + L".asset");
+	const FString RelativeAssetPath = TryMakeProjectRelativePath(AssetDiskPath);
+	if (RelativeAssetPath.empty())
+	{
+		const FString Error = "Failed to build destination asset path for: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	USkeletalMesh* SkeletalMesh = SkeletalMeshes[0];
+	if (FSkeletalMesh* MeshAsset = SkeletalMesh->GetSkeletalMeshAsset())
+	{
+		MeshAsset->PathFileName = RelativeAssetPath;
+	}
+
+	LoadingScreen.Update(L"Saving SkeletalMesh asset...", 100);
+	if (!FMeshManager::SaveSkeletalMeshToFile(SkeletalMesh, RelativeAssetPath))
+	{
+		const FString Error = "Failed to save SkeletalMesh asset: " + RelativeAssetPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	LoadingScreen.Update(L"Opening Skeletal Editor...", 100);
+	RefreshContentBrowser();
+	FNotificationManager::Get().AddNotification(
+		"Imported SkeletalMesh asset: " + RelativeAssetPath,
+		ENotificationType::Success,
+		3.0f);
+	return OpenSkeletalMeshViewerAsset(RelativeAssetPath);
+}
+
+bool UEditorEngine::ImportFbxWithOptions(const FString& FbxPath, const FFBXImportOptions& Options)
+{
+	if (FbxPath.empty())
+	{
+		return false;
+	}
+
+	const std::filesystem::path SelectedDiskPath =
+		std::filesystem::path(FPaths::ToWide(FbxPath)).lexically_normal();
+
+	// Resolve to project-relative path
+	FString RelativeFbxPath = TryMakeProjectRelativePath(SelectedDiskPath);
+	if (RelativeFbxPath.empty())
+	{
+		// Try treating it as already relative
+		RelativeFbxPath = FbxPath;
+	}
+
+	FScopedEditorLoadingScreen LoadingScreen(Window, true);
+	auto ProgressCb = [&LoadingScreen](int Percent, const wchar_t* Status)
+	{
+		LoadingScreen.Update(Status, Percent);
+	};
+
+	UFBXSceneAsset* SceneAsset = FMeshManager::LoadFbxScene(RelativeFbxPath, ProgressCb, &Options);
+	if (!SceneAsset)
+	{
+		const FString Error = "Failed to import FBX scene: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	const TArray<USkeletalMesh*>& SkeletalMeshes = SceneAsset->GetSkeletalMeshes();
+	if (SkeletalMeshes.empty() || !SkeletalMeshes[0] || !SkeletalMeshes[0]->GetSkeletalMeshAsset())
+	{
+		const FString Error = "No SkeletalMesh found in FBX: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	// Build .asset path in Asset/Runtime/SkeletalMesh/
+	std::filesystem::create_directories(
+		std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh");
+	const std::filesystem::path AssetDiskPath =
+		std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh" /
+		(SelectedDiskPath.stem().wstring() + L".asset");
+	const FString RelativeAssetPath = TryMakeProjectRelativePath(AssetDiskPath);
+	if (RelativeAssetPath.empty())
+	{
+		const FString Error = "Failed to build destination asset path for: " + RelativeFbxPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	USkeletalMesh* SkeletalMesh = SkeletalMeshes[0];
+	if (FSkeletalMesh* MeshAsset = SkeletalMesh->GetSkeletalMeshAsset())
+	{
+		MeshAsset->PathFileName = RelativeAssetPath;
+	}
+
+	LoadingScreen.Update(L"Saving SkeletalMesh asset...", 100);
+	if (!FMeshManager::SaveSkeletalMeshToFile(SkeletalMesh, RelativeAssetPath))
+	{
+		const FString Error = "Failed to save SkeletalMesh asset: " + RelativeAssetPath;
+		UE_LOG("[EditorEngine] %s", Error.c_str());
+		FNotificationManager::Get().AddNotification(Error, ENotificationType::Error, 4.0f);
+		return false;
+	}
+
+	// Save selected animations to Asset/Runtime/Animation/
+	std::filesystem::create_directories(
+		std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"Animation");
+	const std::wstring AnimRuntimeDir =
+		(std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"Animation" / L"").wstring();
+	const std::wstring FbxStem = SelectedDiskPath.stem().wstring();
+
+	for (UAnimSequence* Seq : SceneAsset->GetAnimSequences())
+	{
+		if (!Seq) continue;
+		const FString& AnimName = Seq->GetSequenceName();
+		// Read the actual baked FPS from the data model so the suffix is always accurate
+		const UAnimDataModel* SeqModel = Seq->GetDataModel();
+		const float BakedFPS = SeqModel ? SeqModel->GetFrameRate().AsDecimal() : 30.0f;
+		wchar_t FpsSuffix[32];
+		swprintf_s(FpsSuffix, L"_%dfps", static_cast<int>(std::round(BakedFPS)));
+		const std::wstring AnimFileName =
+			FbxStem + L"_" + (AnimName.empty() ? L"Anim" : FPaths::ToWide(AnimName)) + FpsSuffix + L".asset";
+		const FString RelAnimPath = TryMakeProjectRelativePath(
+			std::filesystem::path(AnimRuntimeDir) / AnimFileName);
+		if (!RelAnimPath.empty())
+		{
+			FMeshManager::SaveAnimSequenceToFile(Seq, RelAnimPath);
+		}
+	}
+
+	LoadingScreen.Update(L"Opening Skeletal Editor...", 100);
+	RefreshContentBrowser();
+	FNotificationManager::Get().AddNotification(
+		"Imported SkeletalMesh asset: " + RelativeAssetPath,
+		ENotificationType::Success,
+		3.0f);
+	return OpenSkeletalMeshViewerAsset(RelativeAssetPath);
 }
 
 bool UEditorEngine::LoadSceneWithDialog()

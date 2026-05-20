@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Engine/Runtime/Engine.h"
+#include "Asset/Import/FBX/Core/FBXManager.h"  // FFBXImportOptions
 
 #include "Editor/Viewport/FLevelViewportLayout.h"
 #include "Editor/Subsystem/OverlayStatSystem.h"
@@ -48,6 +49,9 @@ public:
 	void NewScene();
 	bool LoadSceneWithDialog();
 	bool LoadSceneFromPath(const FString& InScenePath);
+	bool ImportFbxAsSkeletalMeshAssetWithDialog();
+	// Import a specific FBX file with user-chosen options (called from the import dialog).
+	bool ImportFbxWithOptions(const FString& FbxPath, const FFBXImportOptions& Options);
 	bool SaveScene();
 	bool SaveSceneAsWithDialog();
 	bool SaveSceneAs(const FString& InSceneName);

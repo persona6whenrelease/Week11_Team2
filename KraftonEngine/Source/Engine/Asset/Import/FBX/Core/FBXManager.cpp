@@ -84,19 +84,113 @@ namespace
      */
     std::wstring ResolveDiskPath(const FString &Path)
     {
+        auto PathExists = [](const std::filesystem::path &Candidate) -> bool
+        {
+            std::error_code ErrorCode;
+            return std::filesystem::exists(Candidate, ErrorCode) && !ErrorCode;
+        };
+
+        auto TryRebaseAbsolutePathToProjectRoot =
+            [&](const std::filesystem::path &InputPath, std::filesystem::path &OutRebasedPath)
+        {
+            if (!InputPath.is_absolute() && !InputPath.has_root_name())
+            {
+                return false;
+            }
+
+            const std::wstring Normalized = InputPath.lexically_normal().generic_wstring();
+            std::wstring Lowered = Normalized;
+            std::transform(Lowered.begin(), Lowered.end(), Lowered.begin(),
+                           [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+            constexpr const wchar_t *RootAnchors[] = {
+                L"asset/",
+                L"data/",
+                L"shaders/",
+                L"luascripts/",
+                L"settings/",
+                L"saves/",
+            };
+
+            for (const wchar_t *Anchor : RootAnchors)
+            {
+                const size_t AnchorPos = Lowered.find(Anchor);
+                if (AnchorPos == std::wstring::npos)
+                {
+                    continue;
+                }
+
+                const std::filesystem::path RelativeSuffix =
+                    std::filesystem::path(Normalized.substr(AnchorPos));
+                const std::filesystem::path Candidate =
+                    (std::filesystem::path(FPaths::RootDir()) / RelativeSuffix).lexically_normal();
+                if (PathExists(Candidate))
+                {
+                    OutRebasedPath = Candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
         std::wstring DiskPath;
         FString      ResolveError;
-        if (!FPaths::TryResolvePackagePath(Path, DiskPath, &ResolveError))
+        if (FPaths::TryResolvePackagePath(Path, DiskPath, &ResolveError))
         {
-            DiskPath = FPaths::ToWide(Path);
+            std::filesystem::path CandidatePath = std::filesystem::path(DiskPath).lexically_normal();
+            if (PathExists(CandidatePath))
+            {
+                return CandidatePath.wstring();
+            }
+
+            std::filesystem::path RebasedPath;
+            if (TryRebaseAbsolutePathToProjectRoot(CandidatePath, RebasedPath))
+            {
+                return RebasedPath.wstring();
+            }
+        }
+        else
+        {
+            std::filesystem::path CandidatePath =
+                std::filesystem::path(FPaths::ToWide(Path)).lexically_normal();
+            if (PathExists(CandidatePath))
+            {
+                return CandidatePath.wstring();
+            }
+
+            std::filesystem::path RebasedPath;
+            if (TryRebaseAbsolutePathToProjectRoot(CandidatePath, RebasedPath))
+            {
+                return RebasedPath.wstring();
+            }
+
+            DiskPath = CandidatePath.wstring();
         }
         return DiskPath;
     }
 
     FString NormalizePackagePath(const FString &Path)
     {
-        std::filesystem::path Normalized(FPaths::ToWide(Path));
-        return FPaths::ToUtf8(Normalized.lexically_normal().generic_wstring());
+        const std::filesystem::path Normalized(ResolveDiskPath(Path));
+        const std::filesystem::path RootPath = std::filesystem::path(FPaths::RootDir()).lexically_normal();
+        const std::filesystem::path RelativePath = Normalized.lexically_relative(RootPath);
+
+        bool bEscapesRoot = RelativePath.empty();
+        if (!bEscapesRoot)
+        {
+            for (const std::filesystem::path &Part : RelativePath)
+            {
+                if (Part == L"..")
+                {
+                    bEscapesRoot = true;
+                    break;
+                }
+            }
+        }
+
+        return bEscapesRoot
+                   ? FPaths::ToUtf8(Normalized.generic_wstring())
+                   : FPaths::ToUtf8(RelativePath.generic_wstring());
     }
 
     std::wstring ToLower(std::wstring Text)
@@ -123,7 +217,7 @@ namespace
         }
 
         const std::wstring TargetFileName = CandidatePath.filename().wstring();
-        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"FBX";
+        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh";
         std::error_code ErrorCode;
         for (std::filesystem::recursive_directory_iterator It(SearchRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode), End;
              It != End;
@@ -447,17 +541,6 @@ namespace
             const TArray<FBoneInfo> *SkeletonBones =
                 SkeletonAsset ? &SkeletonAsset->GetBones() : nullptr;
 
-            UE_LOG("[FBXManager] SkeletalMesh[%d] BoneCount=%u", SkeletalMeshIndex,
-                   SkeletonBones ? static_cast<uint32>(SkeletonBones->size()) : 0u);
-            if (SkeletonBones && !SkeletonBones->empty())
-            {
-                for (size_t BoneIdx = 0; BoneIdx < SkeletonBones->size(); ++BoneIdx)
-                {
-                    const FBoneInfo &B = (*SkeletonBones)[BoneIdx];
-                    UE_LOG("[FBXManager]   Bone[%zu] Parent=%d Name='%s'", BoneIdx, B.ParentIndex,
-                           B.Name.c_str());
-                }
-            }
         }
 
         SceneAsset->SetMeshIdToStaticMeshAssetIndex(std::move(Scene.MeshIdToStaticMeshAssetIndex));
@@ -555,36 +638,112 @@ USkeletalMesh *FFBXManager::LoadSkeletalMesh(const FString &PathFileName)
     return nullptr;
 }
 
-UFBXSceneAsset *FFBXManager::LoadFbxScene(const FString &PathFileName)
+void FFBXManager::InvalidateFbxSceneCache(const FString &PathFileName)
+{
+    const FString CanonicalPath = NormalizePackagePath(PathFileName);
+    FbxSceneCache.erase(CanonicalPath);
+}
+
+bool FFBXManager::GetFbxPeekInfo(const FString &PathFileName, FFBXPeekInfo &OutInfo)
+{
+    OutInfo = {};
+    if (PathFileName.empty() || !IsFbxPath(PathFileName))
+    {
+        return false;
+    }
+
+    const FString CanonicalPath = NormalizePackagePath(PathFileName);
+
+    // If the scene is already in the memory cache, extract animation names from it
+    // but still call PeekFbxInfo for the accurate native FPS
+    auto It = FbxSceneCache.find(CanonicalPath);
+    if (It != FbxSceneCache.end() && It->second)
+    {
+        const UFBXSceneAsset* SceneAsset = It->second;
+        TSet<FString> SeenNames;
+        for (const UAnimSequence* Seq : SceneAsset->GetAnimSequences())
+        {
+            if (!Seq) continue;
+            const FString& SeqName = Seq->GetSequenceName();
+            if (!SeqName.empty() && SeenNames.find(SeqName) == SeenNames.end())
+            {
+                SeenNames.insert(SeqName);
+                OutInfo.AnimationNames.push_back(SeqName);
+            }
+        }
+        // Read accurate native FPS from file even when scene is cached
+        FFBXPeekInfo FpsPeek;
+        if (FBXImporter::PeekFbxInfo(CanonicalPath, FpsPeek))
+        {
+            OutInfo.NativeFPS = FpsPeek.NativeFPS;
+        }
+        return true;
+    }
+
+    // Not in cache: open FBX SDK minimally
+    return FBXImporter::PeekFbxInfo(CanonicalPath, OutInfo);
+}
+
+UFBXSceneAsset *FFBXManager::LoadFbxScene(const FString &PathFileName,
+                                           FFBXProgressCallback ProgressCb,
+                                           const FFBXImportOptions *Options)
 {
     if (PathFileName.empty() || PathFileName == "None" || !IsFbxPath(PathFileName))
     {
         return nullptr;
     }
 
-    const FString CacheKey = NormalizePackagePath(PathFileName);
-    auto          It = FbxSceneCache.find(CacheKey);
-    if (It != FbxSceneCache.end())
+    const FString CanonicalPath = NormalizePackagePath(PathFileName);
+    if (CanonicalPath != PathFileName)
     {
-        LogSceneLoad(CacheKey, It->second, EFBXSceneCacheStatus::MemoryHit);
-        return It->second;
+        UE_LOG("[FBXManager] Rebasing FBX source path. Requested=%s Canonical=%s",
+               PathFileName.c_str(), CanonicalPath.c_str());
+    }
+
+    const FString CacheKey = CanonicalPath;
+
+    // Only use memory cache when no custom options are provided
+    if (!Options)
+    {
+        auto It = FbxSceneCache.find(CacheKey);
+        if (It != FbxSceneCache.end())
+        {
+            LogSceneLoad(CacheKey, It->second, EFBXSceneCacheStatus::MemoryHit);
+            return It->second;
+        }
     }
 
     FFBXScene            Scene;
     EFBXSceneCacheStatus CacheStatus = EFBXSceneCacheStatus::CacheMiss;
-    if (!TryLoadSceneFromCache(PathFileName, Scene, CacheStatus))
+
+    // With custom options we skip the disk cache and always re-import
+    const bool bUseDiskCache = !Options;
+    if (bUseDiskCache && !TryLoadSceneFromCache(CanonicalPath, Scene, CacheStatus))
     {
         FFBXAsset   ImportedAsset;
         FBXImporter Importer;
-        if (!Importer.ImportFbxAsset(PathFileName, ImportedAsset))
+        if (!Importer.ImportFbxAsset(CanonicalPath, ImportedAsset, {}, ProgressCb))
         {
             UE_LOG("[FBXManager] FBX scene import failed. Path=%s Cache=%s", PathFileName.c_str(),
                    ToLogString(CacheStatus));
             return nullptr;
         }
 
-        Scene = ConvertImportedAssetToScene(PathFileName, std::move(ImportedAsset));
+        Scene = ConvertImportedAssetToScene(CanonicalPath, std::move(ImportedAsset));
         SaveSceneToCache(Scene);
+    }
+    else if (!bUseDiskCache)
+    {
+        FFBXAsset   ImportedAsset;
+        FBXImporter Importer;
+        if (!Importer.ImportFbxAsset(CanonicalPath, ImportedAsset, *Options, ProgressCb))
+        {
+            UE_LOG("[FBXManager] FBX scene import (with options) failed. Path=%s", PathFileName.c_str());
+            return nullptr;
+        }
+
+        Scene = ConvertImportedAssetToScene(CanonicalPath, std::move(ImportedAsset));
+        // Save cache only for default imports
     }
 
     UFBXSceneAsset *SceneAsset = CreateSceneAssetFromScene(std::move(Scene));

@@ -10,12 +10,43 @@
 
 #include "Core/CoreTypes.h"
 #include "Asset/Mesh/Common/MeshCommonTypes.h"
+#include <functional>
 
 class USkeletalMesh;
 class UStaticMesh;
 class UAnimSequence;
 class UFBXSceneAsset;
 class UObject;
+
+// FBX import progress callback: (percent 0-100, status text)
+using FFBXProgressCallback = std::function<void(int, const wchar_t*)>;
+
+// Lightweight FBX metadata gathered before full import (animation names, native fps)
+struct FFBXPeekInfo
+{
+    TArray<FString> AnimationNames;
+    float NativeFPS = 30.0f;
+};
+
+// Options passed to the FBX import pipeline
+struct FFBXImportOptions
+{
+    enum class EFPSMode { FPS30, Custom, Optimal };
+    EFPSMode FPSMode    = EFPSMode::FPS30;
+    float    CustomFPS  = 30.0f;
+    // Indices into FFBXPeekInfo::AnimationNames; empty = import all
+    TArray<int32> AnimationFilterIndices;
+
+    float GetEffectiveFPS(float NativeFPS) const
+    {
+        switch (FPSMode)
+        {
+        case EFPSMode::Custom:  return CustomFPS > 0.0f ? CustomFPS : 30.0f;
+        case EFPSMode::Optimal: return NativeFPS > 0.0f ? NativeFPS : 30.0f;
+        default:                return 30.0f;
+        }
+    }
+};
 
 /**
  * FBX 원본 스캔, 씬 캐시, 하위 에셋 참조 해석을 담당하는 매니저이다.
@@ -30,9 +61,17 @@ class FFBXManager
 
   public:
     static USkeletalMesh *LoadSkeletalMesh(const FString &PathFileName);
-    
 
-    static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
+    // Lightweight peek: extracts animation names and native FPS without a full import.
+    // Uses the memory cache if the scene is already loaded; otherwise opens the FBX SDK minimally.
+    static bool GetFbxPeekInfo(const FString &PathFileName, FFBXPeekInfo &OutInfo);
+
+    // Evict a single scene from the memory cache (use before re-importing with different options).
+    static void InvalidateFbxSceneCache(const FString &PathFileName);
+
+    static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName,
+                                        FFBXProgressCallback ProgressCb = nullptr,
+                                        const FFBXImportOptions *Options  = nullptr);
     static UStaticMesh    *ResolveStaticMeshReference(const FString &PathFileName);
     static USkeletalMesh  *ResolveSkeletalMeshReference(const FString &PathFileName);
     static UAnimSequence  *ResolveAnimSequenceReference(const FString &PathFileName);
