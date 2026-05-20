@@ -3,8 +3,6 @@
 #include "Component/StaticMeshComponent.h"
 #include "Editor/EditorEngine.h"
 #include "GameFramework/AActor.h"
-#include "GameFramework/World.h"
-#include "Object/ObjectFactory.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/AssetTypes.h"
 #include "Asset/Material/MaterialManager.h"
@@ -628,21 +626,7 @@ void AnimSequenceAssetElement::OnDoubleLeftClicked(ContentBrowserContext& Contex
 	}
 	else if (AssetType == EAssetType::SkeletalMesh)
 	{
-		USkeletalMesh* SkeletalMesh = FMeshManager::LoadSkeletalMesh(AssetPath);
-		if (!SkeletalMesh)
-		{
-			UE_LOG("[ContentBrowser] AnimSequenceAssetElement: failed to load skeletal mesh. Path=%s",
-			       AssetPath.c_str());
-			return;
-		}
-		UWorld* World = Context.EditorEngine->GetWorld();
-		AActor* NewActor = Cast<AActor>(FObjectFactory::Get().Create(
-			AActor::StaticClass()->GetName(), World));
-		USkeletalMeshComponent* Comp = NewActor->AddComponent<USkeletalMeshComponent>();
-		NewActor->SetRootComponent(Comp);
-		Comp->SetSkeletalMesh(SkeletalMesh);
-		World->AddActor(NewActor);
-		Context.EditorEngine->GetSelectionManager().Select(NewActor);
+		Context.EditorEngine->OpenSkeletalMeshViewerAsset(AssetPath);
 	}
 	else
 	{
