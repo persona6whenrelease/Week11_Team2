@@ -9,7 +9,7 @@
 #define CURRENT_FILE_ID AnimInstance_h_LINE_
 
 // ---- UAnimInstance ----
-#define AnimInstance_h_LINE_25 \
+#define AnimInstance_h_LINE_26 \
     using Super = UObject; \
     static UClass StaticClassInstance; \
     static FClassRegistrar s_Registrar; \

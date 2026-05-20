@@ -55,6 +55,9 @@ int32 FUAnimSequenceDataSource::AddNotify(const FAnimNotifyEntry &Notify)
     Event.NotifyName = FName(Notify.Name);
     Event.TriggerTime = Notify.TriggerTime;
     Event.Duration = Notify.Duration;
+    Event.Type = Notify.Type;
+    Event.SoundId = Notify.SoundId;
+    Event.ShakeParams = Notify.ShakeParams;
     Sequence->AddNotify(Event);
 
     CachedNotifyEntries.push_back(Notify);
@@ -109,6 +112,9 @@ void FUAnimSequenceDataSource::RebuildNotifyCache()
         Entry.Name = Notify.NotifyName.ToString();
         Entry.TriggerTime = Notify.TriggerTime;
         Entry.Duration = Notify.Duration;
+        Entry.Type = Notify.Type;
+        Entry.SoundId = Notify.SoundId;
+        Entry.ShakeParams = Notify.ShakeParams;
         CachedNotifyEntries.push_back(Entry);
     }
 }
@@ -120,4 +126,7 @@ void FUAnimSequenceDataSource::WriteNotifyToAsset(int32 Index, const FAnimNotify
     Event.NotifyName = FName(Notify.Name);
     Event.TriggerTime = Notify.TriggerTime;
     Event.Duration = Notify.Duration;
+    Event.Type = Notify.Type;
+    Event.SoundId = Notify.SoundId;
+    Event.ShakeParams = Notify.ShakeParams;
 }

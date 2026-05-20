@@ -1226,6 +1226,44 @@ void FLevelViewportLayout::RenderViewportUI(float DeltaTime)
 					}
 				}
 			}
+			else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AnimSequenceAssetContentItem"))
+			{
+				FContentItem ContentItem = *reinterpret_cast<const FContentItem*>(payload->Data);
+				const FString AssetPath = FPaths::ToUtf8(ContentItem.Path.wstring());
+
+				EAssetType AssetType = EAssetType::Unknown;
+				if (!TryReadAssetType(AssetPath, AssetType))
+				{
+					UE_LOG("[Viewport] Failed to read asset type for drag-drop: %s", AssetPath.c_str());
+				}
+				else if (AssetType == EAssetType::SkeletalMesh)
+				{
+					USkeletalMesh* SkeletalMesh = FMeshManager::LoadSkeletalMesh(AssetPath);
+					if (!SkeletalMesh)
+					{
+						UE_LOG("[Viewport] Failed to load skeletal mesh for drag-drop: %s", AssetPath.c_str());
+					}
+					else
+					{
+						AActor* NewActor = Cast<AActor>(FObjectFactory::Get().Create(AActor::StaticClass()->GetName(), Editor->GetWorld()));
+						USkeletalMeshComponent* SkeletalMeshComponent = NewActor->AddComponent<USkeletalMeshComponent>();
+						NewActor->SetRootComponent(SkeletalMeshComponent);
+						SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+						Editor->GetWorld()->AddActor(NewActor);
+
+						FVector SpawnLocation(0, 0, 0);
+						FPoint MP = { ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y };
+						if (TryComputePlacementLocation(GetActiveViewportSlotIndex(), MP, SpawnLocation))
+						{
+							NewActor->SetActorLocation(SpawnLocation);
+						}
+						if (SelectionManager)
+						{
+							SelectionManager->Select(NewActor);
+						}
+					}
+				}
+			}
 			else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("FBXContentItem"))
 			{
 				FContentItem ContentItem = *reinterpret_cast<const FContentItem*>(payload->Data);
@@ -2281,8 +2319,10 @@ void FLevelViewportLayout::RenderViewportPlaceActorPopup()
 		ContextMenuState.PendingPopupSlot = -1;
 	}
 
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));
 	if (!ImGui::BeginPopup(PopupId))
 	{
+		ImGui::PopStyleVar();
 		return;
 	}
 
@@ -2307,6 +2347,7 @@ void FLevelViewportLayout::RenderViewportPlaceActorPopup()
 		};
 
 		PlaceActorMenuItem("Empty Actor", EViewportPlaceActorType::EmptyActor);
+		PlaceActorMenuItem("Skeletal Mesh Actor", EViewportPlaceActorType::SkeletalMeshActor);
 		PlaceActorMenuItem("Decal", EViewportPlaceActorType::Decal);
 		PlaceActorMenuItem("Height Fog", EViewportPlaceActorType::HeightFog);
 		PlaceActorMenuItem("Ambient Light", EViewportPlaceActorType::AmbientLight);
@@ -2336,6 +2377,7 @@ void FLevelViewportLayout::RenderViewportPlaceActorPopup()
 	}
 
 	ImGui::EndPopup();
+	ImGui::PopStyleVar();
 }
 
 bool FLevelViewportLayout::TryComputePlacementLocation(int32 SlotIndex, const FPoint& ClientPos, FVector& OutLocation) const
@@ -2498,6 +2540,16 @@ AActor* FLevelViewportLayout::SpawnActorFromViewportMenu(EViewportPlaceActorType
 		if (SpawnedActor)
 		{
 			UStaticMeshComponent* Root = SpawnedActor->AddComponent<UStaticMeshComponent>();
+			if (Root) SpawnedActor->SetRootComponent(Root);
+		}
+		break;
+	}
+	case EViewportPlaceActorType::SkeletalMeshActor:
+	{
+		SpawnedActor = World->SpawnActor<AActor>();
+		if (SpawnedActor)
+		{
+			USkeletalMeshComponent* Root = SpawnedActor->AddComponent<USkeletalMeshComponent>();
 			if (Root) SpawnedActor->SetRootComponent(Root);
 		}
 		break;

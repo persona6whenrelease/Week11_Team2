@@ -215,6 +215,64 @@ namespace
         }
     }
 
+    FString TryBuildStandaloneSkeletalAssetFallbackPath(const FString& Path)
+    {
+        const FString Marker = "#Skeleton_";
+        const size_t MarkerPos = Path.rfind(Marker);
+        if (MarkerPos == FString::npos)
+        {
+            return FString();
+        }
+
+        const FString SourcePath = Path.substr(0, MarkerPos);
+        std::filesystem::path CandidatePath(FPaths::ToWide(SourcePath));
+        CandidatePath.replace_extension(L".asset");
+
+        const auto IsStandaloneSkeletalAsset = [](const std::filesystem::path& AssetDiskPath) -> bool
+        {
+            const FString AssetPath = FPaths::ToUtf8(AssetDiskPath.generic_wstring());
+            EAssetType AssetType = EAssetType::Unknown;
+            return TryReadAssetType(AssetPath, AssetType) && AssetType == EAssetType::SkeletalMesh;
+        };
+
+        if (IsStandaloneSkeletalAsset(CandidatePath))
+        {
+            return FPaths::ToUtf8(CandidatePath.generic_wstring());
+        }
+
+        // 저장된 FBX reference 절대경로가 오래된/잘못된 경로일 수 있으므로 Asset/FBX 아래에서 같은 파일명을 다시 찾는다.
+        const std::wstring TargetFileName = CandidatePath.filename().wstring();
+        const std::filesystem::path SearchRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"FBX";
+        std::error_code ErrorCode;
+        for (std::filesystem::recursive_directory_iterator It(SearchRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode), End;
+             It != End;
+             It.increment(ErrorCode))
+        {
+            if (ErrorCode)
+            {
+                ErrorCode.clear();
+                continue;
+            }
+
+            if (!It->is_regular_file())
+            {
+                continue;
+            }
+
+            if (It->path().filename().wstring() != TargetFileName)
+            {
+                continue;
+            }
+
+            if (IsStandaloneSkeletalAsset(It->path()))
+            {
+                return FPaths::ToUtf8(It->path().generic_wstring());
+            }
+        }
+
+        return FString();
+    }
+
     void EnsureFbxSceneCacheDirExists()
     {
         static bool bCreated = false;
@@ -339,7 +397,21 @@ USkeletalMesh *FMeshManager::LoadSkeletalMesh(const FString &PathFileName)
     {
         return LoadSkeletalMeshFromFile(PathFileName);
     }
-    return FFBXManager::LoadSkeletalMesh(PathFileName);
+
+    const FString FallbackAssetPath = TryBuildStandaloneSkeletalAssetFallbackPath(PathFileName);
+    if (!FallbackAssetPath.empty())
+    {
+        UE_LOG("[MeshManager] Resolved skeletal mesh FBX reference to standalone asset. Ref=%s Asset=%s",
+               PathFileName.c_str(), FallbackAssetPath.c_str());
+        return LoadSkeletalMeshFromFile(FallbackAssetPath);
+    }
+
+    if (USkeletalMesh* Mesh = FFBXManager::LoadSkeletalMesh(PathFileName))
+    {
+        return Mesh;
+    }
+
+    return nullptr;
 }
 
 USkeletalMesh *FMeshManager::LoadSkeletalMeshFromFile(const FString &PathFileName)
@@ -373,7 +445,10 @@ USkeletalMesh *FMeshManager::LoadSkeletalMeshFromFile(const FString &PathFileNam
         return nullptr;
     }
 
-    SkeletalMeshAssetPathCache[Mesh] = PathFileName;
+    // Standalone .asset 로드에서는 내부 원본 FBX 참조 대신 실제 .asset 경로를 자기 경로로 사용한다.
+    // 그래야 이후 컴포넌트/에디터가 이 메시를 다시 경로 기반으로 다룰 때 FBX reference loader를 타지 않는다.
+    Mesh->GetSkeletalMeshAsset()->PathFileName = PathFileName;
+
     return Mesh;
 }
 

@@ -390,7 +390,10 @@ namespace
 
 		ImGui::Text("%s", Prop.GetName());
 		ImGui::SameLine(120);
-		ImGui::SetNextItemWidth(-1.0f);
+
+		const float ButtonWidth = ImGui::CalcTextSize("Import Asset").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+		const float Spacing = ImGui::GetStyle().ItemSpacing.x;
+		ImGui::SetNextItemWidth(-(ButtonWidth + Spacing));
 
 		if (ImGui::BeginCombo("##SkeletalMesh", Preview.c_str()))
 		{
@@ -417,6 +420,32 @@ namespace
 				}
 			}
 			ImGui::EndCombo();
+		}
+
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - ButtonWidth);
+		if (ImGui::Button("Import Asset"))
+		{
+			const FString SelectedPath = FEditorPropertyWidget::OpenSkeletalMeshAssetFileDialog();
+			if (!SelectedPath.empty())
+			{
+				EAssetType AssetType = EAssetType::Unknown;
+				if (!TryReadAssetType(SelectedPath, AssetType))
+				{
+					UE_LOG("[PropertyWidget] Skeletal mesh import expects a valid .asset file: %s", SelectedPath.c_str());
+				}
+				else if (AssetType != EAssetType::SkeletalMesh)
+				{
+					UE_LOG("[PropertyWidget] Skeletal mesh import expects SkeletalMesh asset. Path=%s Type=%s",
+						SelectedPath.c_str(),
+						LexToString(AssetType));
+				}
+				else if (FMeshManager::LoadSkeletalMeshFromFile(SelectedPath))
+				{
+					*Val = SelectedPath;
+					bChanged = true;
+				}
+			}
 		}
 
 		return bChanged;
@@ -747,33 +776,19 @@ FString FEditorPropertyWidget::OpenObjFileDialog()
 	return FString();
 }
 
-FString FEditorPropertyWidget::OpenFbxFileDialog()
+FString FEditorPropertyWidget::OpenSkeletalMeshAssetFileDialog()
 {
-	wchar_t FilePath[MAX_PATH] = {};
+	const std::wstring InitialDirW = FPaths::Combine(FPaths::RootDir(), L"Asset/Content/");
 
-	OPENFILENAMEW Ofn = {};
-	Ofn.lStructSize = sizeof(Ofn);
-	Ofn.hwndOwner = nullptr;
-	Ofn.lpstrFilter = L"FBX Files (*.fbx)\0*.fbx\0All Files (*.*)\0*.*\0";
-	Ofn.lpstrFile = FilePath;
-	Ofn.nMaxFile = MAX_PATH;
-	Ofn.lpstrTitle = L"Import FBX Skeletal Mesh";
-	Ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-
-	if (GetOpenFileNameW(&Ofn))
-	{
-		std::filesystem::path AbsPath = std::filesystem::path(FilePath).lexically_normal();
-		std::filesystem::path RootPath = std::filesystem::path(FPaths::RootDir());
-		std::filesystem::path RelPath = AbsPath.lexically_relative(RootPath);
-
-		if (RelPath.empty() || RelPath.wstring().starts_with(L".."))
-		{
-			return FPaths::ToUtf8(AbsPath.generic_wstring());
-		}
-		return FPaths::ToUtf8(RelPath.generic_wstring());
-	}
-
-	return FString();
+	FEditorFileDialogOptions Options;
+	Options.Title = L"Select Skeletal Mesh Asset";
+	Options.Filter = L"Asset Files (*.asset)\0*.asset\0All Files (*.*)\0*.*\0";
+	Options.DefaultExtension = L"asset";
+	Options.InitialDirectory = InitialDirW.c_str();
+	Options.bFileMustExist = true;
+	Options.bPathMustExist = true;
+	Options.bReturnRelativeToProjectRoot = true;
+	return FEditorFileUtils::OpenFileDialog(Options);
 }
 
 FString FEditorPropertyWidget::OpenLuaScriptFileDialog()

@@ -3,6 +3,7 @@
 #include "Editor/UI/EditorWidget.h"
 #include "Editor/UI/SkeletalEditor/SkeletalEditorTab.h"
 
+#include <filesystem>
 #include <memory>
 
 class USkeletalMesh;
@@ -32,9 +33,16 @@ private:
 	FSkeletalEditorTab* GetActiveTab() const;
 	void FocusTab(FSkeletalEditorTab* Tab);
 	void RequestCloseTab(int32 Index);
+	void RefreshSkeletalMeshAssetList();
+	bool OpenSelectedSkeletalMeshAsset();
+	static FString BuildSkeletalMeshAssetDisplayName(const std::filesystem::path& AssetPath);
 
 	TArray<std::unique_ptr<FSkeletalEditorTab>> Tabs;
+	TArray<FString> AvailableSkeletalMeshAssetPaths;
+	TArray<FString> AvailableSkeletalMeshAssetLabels;
 	int32 ActiveTabIndex = -1;
 	int32 NextTabId = 1;
 	int32 RequestedFocusTabId = -1;
+	int32 SelectedSkeletalMeshAssetIndex = -1;
+	bool bSkeletalMeshAssetsScanned = false;
 };

@@ -269,6 +269,7 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 {
 	SetSourcePath(FbxPath);
 	CurrentFbxPath = FbxPath;
+	PreviewSkeletalMesh = nullptr;
 	CurrentSceneAsset = FMeshManager::LoadFbxScene(FbxPath);
 	CurrentSequenceIndex = -1;
 	SelectedResourceIndex = -1;
@@ -375,7 +376,11 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 		}
 		else if (!CurrentSceneAsset)
 		{
-			ImGui::TextDisabled("%s", StatusMessage.c_str());
+			const FString Label = (PreviewSkeletalMesh && PreviewSkeletalMesh->GetSkeletalMeshAsset() &&
+				!PreviewSkeletalMesh->GetSkeletalMeshAsset()->PathFileName.empty())
+				? PreviewSkeletalMesh->GetSkeletalMeshAsset()->PathFileName
+				: FString("SkeletalMesh Asset");
+			ImGui::Selectable(Label.c_str(), true);
 		}
 		else
 		{
@@ -1088,7 +1093,7 @@ USkeletalMesh* FSkeletalMeshEditorTab::GetSelectedSkeletalMesh() const
 
 	if (!CurrentSceneAsset)
 	{
-		return nullptr;
+		return PreviewSkeletalMesh;
 	}
 
 	const TArray<USkeletalMesh*>& SkeletalMeshes = CurrentSceneAsset->GetSkeletalMeshes();

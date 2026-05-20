@@ -654,13 +654,24 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 			}
 			ImGui::Separator();
 		}
-		if (ImGui::MenuItem("Add Notify at current frame"))
+		if (ImGui::MenuItem("Add Sound Notify at current frame"))
 		{
 			FAnimNotifyEntry NN;
-			NN.Name = "Notify";
+			NN.Name = "SoundNotify";
 			NN.TriggerTime = CurrentTime;
 			NN.Duration = 0.0f;
 			NN.ColorPacked = IM_COL32(120, 220, 120, 255);
+			NN.Type = EAnimNotifyType::Sound;
+			SelectedNotifyIndex = DataSource->AddNotify(NN);
+		}
+		if (ImGui::MenuItem("Add Camera Shake Notify at current frame"))
+		{
+			FAnimNotifyEntry NN;
+			NN.Name = "CameraShakeNotify";
+			NN.TriggerTime = CurrentTime;
+			NN.Duration = 0.0f;
+			NN.ColorPacked = IM_COL32(120, 220, 120, 255);
+			NN.Type = EAnimNotifyType::CameraShake;
 			SelectedNotifyIndex = DataSource->AddNotify(NN);
 		}
 		ImGui::EndPopup();
@@ -851,13 +862,108 @@ void FAnimSequenceEditorTab::RenderNotifyPropertyInline()
 		return;
 	}
 
+	if (Edited.Duration <= 0.0f) ImGui::TextDisabled("Instant notify");
+	else                          ImGui::TextDisabled("State notify (range)");
+
+	ImGui::Separator();
+
+	// Type별 payload 위젯 (R3: SoundId는 char buffer 경유, R7: None은 read-only)
+	if (Edited.Type == EAnimNotifyType::None)
+	{
+		ImGui::TextDisabled("(no type — legacy)");
+	}
+	else if (Edited.Type == EAnimNotifyType::Sound)
+	{
+		char SoundIdBuf[128];
+		strncpy_s(SoundIdBuf, sizeof(SoundIdBuf), Edited.SoundId.c_str(), _TRUNCATE);
+		ImGui::SetNextItemWidth(220.0f);
+		if (ImGui::InputText("SoundId", SoundIdBuf, sizeof(SoundIdBuf)))
+		{
+			Edited.SoundId = SoundIdBuf;
+			bChanged = true;
+		}
+	}
+	else if (Edited.Type == EAnimNotifyType::CameraShake)
+	{
+		if (ImGui::CollapsingHeader("Shake Params", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			FCameraShakeParams &SP = Edited.ShakeParams;
+
+			const char *Patterns[] = { "Sine", "Perlin" };
+			int PatternIdx = static_cast<int>(SP.Pattern);
+			if (ImGui::Combo("Pattern", &PatternIdx, Patterns, IM_ARRAYSIZE(Patterns)))
+			{
+				SP.Pattern = static_cast<ECameraShakePattern>(PatternIdx);
+				bChanged = true;
+			}
+
+			if (ImGui::InputFloat("Duration", &SP.Duration))
+			{
+				SP.Duration = std::max(0.0f, SP.Duration);
+				bChanged = true;
+			}
+			if (ImGui::InputFloat("BlendInTime", &SP.BlendInTime))
+			{
+				SP.BlendInTime = std::max(0.0f, SP.BlendInTime);
+				bChanged = true;
+			}
+			if (ImGui::InputFloat("BlendOutTime", &SP.BlendOutTime))
+			{
+				SP.BlendOutTime = std::max(0.0f, SP.BlendOutTime);
+				bChanged = true;
+			}
+
+			float Loc[3] = { SP.LocationAmplitude.X, SP.LocationAmplitude.Y, SP.LocationAmplitude.Z };
+			if (ImGui::InputFloat3("LocationAmplitude", Loc))
+			{
+				SP.LocationAmplitude.X = Loc[0];
+				SP.LocationAmplitude.Y = Loc[1];
+				SP.LocationAmplitude.Z = Loc[2];
+				bChanged = true;
+			}
+
+			float Rot[3] = { SP.RotationAmplitude.Pitch, SP.RotationAmplitude.Yaw, SP.RotationAmplitude.Roll };
+			if (ImGui::InputFloat3("RotationAmplitude (P/Y/R)", Rot))
+			{
+				SP.RotationAmplitude.Pitch = Rot[0];
+				SP.RotationAmplitude.Yaw = Rot[1];
+				SP.RotationAmplitude.Roll = Rot[2];
+				bChanged = true;
+			}
+
+			if (ImGui::InputFloat("FOVAmplitude", &SP.FOVAmplitude))
+			{
+				bChanged = true;
+			}
+			if (ImGui::InputFloat("Frequency", &SP.Frequency))
+			{
+				SP.Frequency = std::max(0.0f, SP.Frequency);
+				bChanged = true;
+			}
+			if (ImGui::InputFloat("Roughness", &SP.Roughness))
+			{
+				SP.Roughness = std::max(0.0f, SP.Roughness);
+				bChanged = true;
+			}
+			if (ImGui::Checkbox("ApplyInCameraLocalSpace", &SP.bApplyInCameraLocalSpace))
+			{
+				bChanged = true;
+			}
+			if (ImGui::Checkbox("SingleInstance", &SP.bSingleInstance))
+			{
+				bChanged = true;
+			}
+			if (ImGui::InputScalar("Seed", ImGuiDataType_U32, &SP.Seed))
+			{
+				bChanged = true;
+			}
+		}
+	}
+
 	if (bChanged)
 	{
 		DataSource->UpdateNotify(SelectedNotifyIndex, Edited);
 	}
-
-	if (Edited.Duration <= 0.0f) ImGui::TextDisabled("Instant notify");
-	else                          ImGui::TextDisabled("State notify (range)");
 }
 
 // =================================================================

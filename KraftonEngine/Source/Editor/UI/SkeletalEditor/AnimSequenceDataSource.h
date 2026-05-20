@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Asset/Animation/Notify/AnimNotify.h"
+#include "Camera/CameraShakeModifier.h"
 #include "Core/CoreTypes.h"
 
 #include <cstdint>
@@ -15,6 +17,10 @@ struct FAnimNotifyEntry
     float TriggerTime = 0.0f;
     float Duration = 0.0f;           // 0 = 즉시(instant), >0 = 범위(state) notify
     uint32 ColorPacked = 0xFF80E080; // ImGui IM_COL32 형식 (ABGR)
+
+    EAnimNotifyType    Type = EAnimNotifyType::None;
+    FString            SoundId;
+    FCameraShakeParams ShakeParams;
 };
 
 // AnimSequence Viewer가 timeline / track UI를 그리기 위해 필요한 최소 인터페이스.

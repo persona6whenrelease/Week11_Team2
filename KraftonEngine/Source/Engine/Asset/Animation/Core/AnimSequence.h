@@ -95,7 +95,8 @@ class UAnimSequence : public UAnimSequenceBase
   public:
     GENERATED_BODY()
 
-    static constexpr uint32 AssetVersion = 3u;
+    // v3 files load via backfill (Type=None). See AnimSequence::Serialize.
+    static constexpr uint32 AssetVersion = 4u;
 
     void Serialize(FArchive &Ar);
 
