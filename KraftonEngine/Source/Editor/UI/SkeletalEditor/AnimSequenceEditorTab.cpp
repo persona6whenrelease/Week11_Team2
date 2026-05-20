@@ -13,6 +13,7 @@
 #include "Runtime/Engine.h"
 #include "Render/Pipeline/Renderer.h"
 #include "Platform/Paths.h"
+#include "Sound/SoundManager.h"
 #include "WICTextureLoader.h"
 
 #include <algorithm>
@@ -139,6 +140,18 @@ namespace
 		return FMatrix::MakeScaleMatrix(Scale) *
 			FMatrix::MakeRotationEuler(Rotation) *
 			FMatrix::MakeTranslationMatrix(Location);
+	}
+
+	// timeline notify 마커의 type별 자동 색상. Sound=청색, CameraShake=주황, None(legacy)=회색.
+	ImU32 GetNotifyTypeColor(EAnimNotifyType Type)
+	{
+		switch (Type)
+		{
+		case EAnimNotifyType::Sound:       return IM_COL32( 80, 180, 230, 255);
+		case EAnimNotifyType::CameraShake: return IM_COL32(240, 150,  60, 255);
+		case EAnimNotifyType::None:
+		default:                           return IM_COL32(140, 140, 140, 255);
+		}
 	}
 }
 
@@ -560,18 +573,19 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		const ImU32 BC = bSel ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 180);
 		const float BT = bSel ? 2.0f : 1.0f;
 
+		const ImU32 MarkerColor = GetNotifyTypeColor(N.Type);
 		if (N.Duration > 0.0f)
 		{
 			const float EX = TimeToX(std::min(N.TriggerTime + N.Duration, Duration));
-			DL->AddRectFilled(ImVec2(SX, MTop), ImVec2(EX, MBot), N.ColorPacked, 2.0f);
-			DL->AddRect     (ImVec2(SX, MTop), ImVec2(EX, MBot), BC,             2.0f, 0, BT);
+			DL->AddRectFilled(ImVec2(SX, MTop), ImVec2(EX, MBot), MarkerColor, 2.0f);
+			DL->AddRect     (ImVec2(SX, MTop), ImVec2(EX, MBot), BC,           2.0f, 0, BT);
 		}
 		else
 		{
 			const float HW = 6.0f;
 			const float HH = (MBot - MTop) * 0.5f;
 			ImVec2 P[4] = { {SX, MCY - HH}, {SX + HW, MCY}, {SX, MCY + HH}, {SX - HW, MCY} };
-			DL->AddConvexPolyFilled(P, 4, N.ColorPacked);
+			DL->AddConvexPolyFilled(P, 4, MarkerColor);
 			DL->AddPolyline(P, 4, BC, ImDrawFlags_Closed, BT);
 		}
 
@@ -852,19 +866,51 @@ void FAnimSequenceEditorTab::RenderNotifyPropertyInline()
 	}
 	else if (Edited.Type == EAnimNotifyType::Sound)
 	{
-		char SoundIdBuf[128];
-		strncpy_s(SoundIdBuf, sizeof(SoundIdBuf), Edited.SoundId.c_str(), _TRUNCATE);
-		ImGui::SetNextItemWidth(220.0f);
-		if (ImGui::InputText("SoundId", SoundIdBuf, sizeof(SoundIdBuf)))
+		// SoundManager에 등록된 effect ID 중 하나를 라디오로 선택. 자유 입력 미지원.
+		// 등록되지 않은 ID는 여기서 선택할 수 없으므로 SoundManager::LoadEffect 호출 위치(CrossyGameModule 등)
+		// 에 사전 등록이 필요하다.
+		ImGui::PushID("SoundIdPicker");
+		ImGui::TextUnformatted("SoundId:");
+		ImGui::SameLine();
+		ImGui::TextDisabled("(current: %s)", Edited.SoundId.empty() ? "<none>" : Edited.SoundId.c_str());
+
+		ImGui::Indent();
+		if (ImGui::RadioButton("<none>", Edited.SoundId.empty()))
 		{
-			Edited.SoundId = SoundIdBuf;
-			bChanged = true;
+			if (!Edited.SoundId.empty())
+			{
+				Edited.SoundId.clear();
+				bChanged = true;
+			}
 		}
+
+		const TArray<FSoundId> RegisteredIds = FSoundManager::Get().GetRegisteredEffectIds();
+		if (RegisteredIds.empty())
+		{
+			ImGui::TextDisabled("(no registered effects — register via FSoundManager::LoadEffect)");
+		}
+		for (const FSoundId &Id : RegisteredIds)
+		{
+			const bool bSelected = (Id == Edited.SoundId);
+			if (ImGui::RadioButton(Id.c_str(), bSelected))
+			{
+				if (!bSelected)
+				{
+					Edited.SoundId = Id;
+					bChanged = true;
+				}
+			}
+		}
+		ImGui::Unindent();
+		ImGui::PopID();
 	}
 	else if (Edited.Type == EAnimNotifyType::CameraShake)
 	{
 		if (ImGui::CollapsingHeader("Shake Params", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			// 상단 Trigger/Duration slider와 라벨이 겹치므로 ID scope를 분리한다.
+			ImGui::PushID("ShakeParams");
+
 			FCameraShakeParams &SP = Edited.ShakeParams;
 
 			const char *Patterns[] = { "Sine", "Perlin" };
@@ -935,6 +981,8 @@ void FAnimSequenceEditorTab::RenderNotifyPropertyInline()
 			{
 				bChanged = true;
 			}
+
+			ImGui::PopID();
 		}
 	}
 

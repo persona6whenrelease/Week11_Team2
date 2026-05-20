@@ -29,6 +29,9 @@ public:
 	bool IsEffectPlaying(const FSoundId& ID) const;
 	float GetEffectDuration(const FSoundId& ID) const;
 
+	// LoadEffect로 등록된 효과음 ID 목록을 알파벳 정렬해 반환한다. 에디터의 SoundId 드롭다운용.
+	TArray<FSoundId> GetRegisteredEffectIds() const;
+
 private:
 	FSoundManager() = default;
 	TMap<FSoundId, std::unique_ptr<sf::SoundBuffer>> SoundBufferMap;

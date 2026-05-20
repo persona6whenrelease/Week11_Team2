@@ -2,6 +2,7 @@
 
 #include "Core/Log.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 
@@ -133,4 +134,16 @@ float FSoundManager::GetEffectDuration(const FSoundId& ID) const
 		return it->second->getDuration().asSeconds();
 	}
 	return 0.0f;
+}
+
+TArray<FSoundId> FSoundManager::GetRegisteredEffectIds() const
+{
+	TArray<FSoundId> Ids;
+	Ids.reserve(SoundBufferMap.size());
+	for (const auto& Pair : SoundBufferMap)
+	{
+		Ids.push_back(Pair.first);
+	}
+	std::sort(Ids.begin(), Ids.end());
+	return Ids;
 }
