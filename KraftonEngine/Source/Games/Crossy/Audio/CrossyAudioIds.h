@@ -5,9 +5,9 @@
 namespace CrossyAudioIds
 {
 	inline const FSoundId Jump = "Jump";
-	inline const FSoundId Parry = "Parry";
-	inline const FSoundId Death = "Death";
-	inline const FSoundId Dash = "Dash";
+	inline const FSoundId Jump2 = "Jump2";
+	inline const FSoundId Jump3 = "Jump3";
+
 	inline const FSoundId BGM = "Crossy.BGM";
-	inline const FSoundId Crash = "Crash";
+
 }

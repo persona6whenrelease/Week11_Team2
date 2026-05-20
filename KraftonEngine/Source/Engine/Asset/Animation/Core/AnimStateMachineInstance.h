@@ -34,6 +34,22 @@ class UAnimStateMachineInstance : public UAnimInstance
     bool GetBoolVariable(const FName &Name, bool Default = false) const override;
     const std::unordered_map<FName, bool, FName::Hash> &GetBoolVariables() const { return BoolVariables; }
 
+    // I1 STEP 3~9: PIE silent 해소 — state-local time 기반 notify firing.
+    void  Update(float DeltaTime) override;
+    const TArray<FAnimNotifyEvent> *GetActiveNotifies() const override;
+    float GetEffectivePlayLength() const override;
+    void  SetEvaluationTime(float Time) override;
+
+    // Blend 노드 분기 헬퍼 — UAnimGraphInstance도 재사용 (I1 STEP 12).
+    static const TArray<FAnimNotifyEvent> *ResolveActiveNotifiesFromNode(FAnimGraphNode_Base *Node);
+    static float                           ResolveActivePlayLengthFromNode(FAnimGraphNode_Base *Node);
+
   private:
+    FAnimGraphNode_StateMachine *ResolveStateMachineRoot() const;
+
     std::unordered_map<FName, bool, FName::Hash> BoolVariables;
+
+    // I1 STEP 3: state 전환 감지용 (PrevStateLocalTime reset 트리거).
+    int32 PrevActiveStateIndex = -1;
+    float PrevStateLocalTime   = 0.0f;
 };

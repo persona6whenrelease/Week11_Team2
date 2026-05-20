@@ -10,6 +10,7 @@ void RegisterLuaBindings(sol::state& Lua)
 	RegisterFVectorBinding(Lua);
 	RegisterFVector4Binding(Lua);
 	RegisterFRotatorBinding(Lua);
+	RegisterCameraShakeBinding(Lua);
 
 	RegisterActorLifecycleBinding(Lua);
 

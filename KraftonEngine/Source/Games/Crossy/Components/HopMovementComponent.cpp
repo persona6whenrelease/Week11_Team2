@@ -1,4 +1,4 @@
-#include "Games/Crossy/Components/HopMovementComponent.h"
+﻿#include "Games/Crossy/Components/HopMovementComponent.h"
 
 #include "Component/SceneComponent.h"
 #include "Math/MathUtils.h"
@@ -70,12 +70,12 @@ UHopMovementComponent::UHopMovementComponent()
 {
 	bReceiveControllerInput = true;
 	ControllerInputPriority = 10;
-	DashDelegate.Add(
-		[]()
-		{
-			FSoundManager::Get().PlayEffect(CrossyAudioIds::Dash);
-		}
-	);
+	//DashDelegate.Add(
+	//	[]()
+	//	{
+	//		FSoundManager::Get().PlayEffect(CrossyAudioIds::Dash);
+	//	}
+	//);
 
 }
 

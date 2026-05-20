@@ -86,14 +86,16 @@ void UAnimInstance::Update(float DeltaTime)
         {
             if (Notify.IsTriggeredBetween(PreviousTime, CurrentTime, Length))
             {
-                TriggeredNotifiesThisFrame.push_back(Notify.NotifyName); // 기존 동작 보존 (D8, Lua)
+                TriggeredNotifiesThisFrame.push_back(Notify); // Lua가 payload 접근 위해 전체 복사
                 LocalTriggered.push_back(&Notify);
             }
         }
     }
 
-    if (!LocalTriggered.empty())
+    if (!LocalTriggered.empty() && ShouldFallbackToCppDispatch())
     {
+        // PlayerController 부재 환경(editor preview)에서만 C++가 dispatch.
+        // PIE에서는 Lua가 SkeletalMeshComponent:GetTriggeredNotifies()로 payload 받아 직접 dispatch.
         DispatchTriggeredNotifies(LocalTriggered);
     }
 }
@@ -132,6 +134,18 @@ void UAnimInstance::DispatchTriggeredNotifies(const TArray<const FAnimNotifyEven
             break;
         }
     }
+}
+
+bool UAnimInstance::ShouldFallbackToCppDispatch() const
+{
+    // PIE에서는 PC가 존재 → Lua가 dispatch. editor preview는 PC 없음 → C++ fallback.
+    USkeletalMeshComponent *Comp = GetTypedOuter<USkeletalMeshComponent>();
+    if (!Comp) return false;
+    AActor *Owner = Comp->GetOwner();
+    if (!Owner) return false;
+    UWorld *World = Owner->GetWorld();
+    if (!World) return false;
+    return World->GetPlayerController(0) == nullptr;
 }
 
 APlayerCameraManager *UAnimInstance::ResolveCameraManager() const

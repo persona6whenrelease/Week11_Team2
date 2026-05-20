@@ -1,4 +1,4 @@
-#include "LuaBindings.h"
+﻿#include "LuaBindings.h"
 #include "SolInclude.h"
 
 #include "LuaBindingHelper.h"
@@ -11,10 +11,12 @@
 #include "Asset/Animation/Core/AnimGraph_StateMachine.h"
 #include "Asset/Animation/Core/AnimSequence.h"
 #include "Asset/Animation/Core/AnimStateMachineInstance.h"
+#include "Asset/Animation/Notify/AnimNotify.h"
 #include "Asset/Import/MeshManager.h"
+#include "Camera/CameraShakeModifier.h"
 #include "Component/SkeletalMeshComponent.h"
 #include "Core/Log.h"
-
+#include "Sound/SoundManager.h"
 #include <algorithm>
 #include <cctype>
 
@@ -28,6 +30,17 @@ namespace
 			Handle.UUID = Sequence->GetUUID();
 		}
 		return Handle;
+	}
+
+	const char* AnimNotifyTypeToString(EAnimNotifyType Type)
+	{
+		switch (Type)
+		{
+		case EAnimNotifyType::Sound:       return "Sound";
+		case EAnimNotifyType::CameraShake: return "CameraShake";
+		case EAnimNotifyType::None:
+		default:                           return "None";
+		}
 	}
 
 	FString ToAnimationModeString(EAnimationMode Mode)
@@ -802,14 +815,26 @@ void RegisterSkeletalMeshComponentBinding(sol::state& Lua)
 			}
 
 			int32 LuaIndex = 1;
-			for (const FName& NotifyName : AnimInstance->GetTriggeredNotifiesThisFrame())
+			for (const FAnimNotifyEvent& Notify : AnimInstance->GetTriggeredNotifiesThisFrame())
 			{
-				Result[LuaIndex++] = NotifyName.ToString();
+				sol::table Entry = LuaView.create_table();
+				Entry["Name"]        = Notify.NotifyName.ToString();
+				Entry["Type"]        = AnimNotifyTypeToString(Notify.Type);
+				Entry["TriggerTime"] = Notify.TriggerTime;
+				Entry["Duration"]    = Notify.Duration;
+				Entry["SoundId"]     = Notify.SoundId;
+				Entry["ShakeParams"] = Notify.ShakeParams;
+				Result[LuaIndex++] = Entry;
 			}
 
 			return Result;
 		},
 
+		"PlayEffect",
+		[](const FLuaSkeletalMeshComponentHandle& Self, const FString& SoundId)
+		{
+			FSoundManager::Get().PlayEffect(SoundId);
+		},
 		"SetStateBool",
 		[](const FLuaSkeletalMeshComponentHandle& Self, const FString& Name, bool Value)
 		{

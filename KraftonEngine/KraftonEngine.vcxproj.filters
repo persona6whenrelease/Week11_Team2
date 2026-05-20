@@ -1137,6 +1137,9 @@
     <ClCompile Include="Source\Engine\Scripting\LuaCameraComponentBindings.cpp">
       <Filter>Source\Engine\Scripting</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Scripting\LuaCameraShakeBindings.cpp">
+      <Filter>Source\Engine\Scripting</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Scripting\LuaComponentBindings.cpp">
       <Filter>Source\Engine\Scripting</Filter>
     </ClCompile>

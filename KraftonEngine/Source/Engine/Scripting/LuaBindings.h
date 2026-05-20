@@ -22,6 +22,7 @@ void RegisterFVector2Binding(sol::state& Lua);
 void RegisterFVectorBinding(sol::state& Lua);
 void RegisterFVector4Binding(sol::state& Lua);
 void RegisterFRotatorBinding(sol::state& Lua);
+void RegisterCameraShakeBinding(sol::state& Lua);
 void RegisterGameObjectBinding(sol::state& Lua);
 
 void RegisterMovementComponentBinding(sol::state& Lua);

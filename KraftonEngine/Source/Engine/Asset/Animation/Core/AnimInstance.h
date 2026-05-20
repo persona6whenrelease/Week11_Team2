@@ -44,7 +44,7 @@ class UAnimInstance : public UObject
     virtual void EvaluateGraph();
 
     const TArray<FTransform> &GetOutputLocalPose() const { return OutputLocalPose; }
-    const TArray<FName>   &GetTriggeredNotifiesThisFrame() const { return TriggeredNotifiesThisFrame; }
+    const TArray<FAnimNotifyEvent> &GetTriggeredNotifiesThisFrame() const { return TriggeredNotifiesThisFrame; }
 
     void  SetLooping(bool b)        { bLooping = b; }
     bool  IsLooping() const         { return bLooping; }
@@ -59,8 +59,9 @@ class UAnimInstance : public UObject
     /**
      * 외부에서 임의 시점 평가를 요청할 때 시간만 강제로 세팅하기 위한 helper.
      * Update를 거치지 않으므로 loop wrap 처리는 호출자 책임이다.
+     * I1 STEP 9: StateMachine 파생이 state-local time set으로 override.
      */
-    void SetEvaluationTime(float InTime) { PreviousTime = CurrentTime = InTime; }
+    virtual void SetEvaluationTime(float InTime) { PreviousTime = CurrentTime = InTime; }
 
     USkeleton *GetSkeleton() const  { return Skeleton; }
     AnimGraph *GetAnimGraph() const { return AnimGraphPtr.get(); }
@@ -88,6 +89,14 @@ class UAnimInstance : public UObject
      */
     void DispatchTriggeredNotifies(const TArray<const FAnimNotifyEvent *> &InTriggered);
 
+    /**
+     * PlayerController 부재 환경(예: AnimSequenceEditorTab preview)에서만 true.
+     * PIE에서는 Lua가 dispatch 책임을 가지므로 C++ dispatch는 skip.
+     * PC 부재면 Lua가 붙지 않은 환경이라 C++가 fallback dispatch 수행.
+     * StateMachine 파생 Update override에서도 사용하므로 protected.
+     */
+    bool ShouldFallbackToCppDispatch() const;
+
   private:
     /**
      * AnimInstance → SkeletalMeshComponent → Actor → World → PlayerController → CameraManager
@@ -105,7 +114,7 @@ class UAnimInstance : public UObject
     USkeleton                  *Skeleton = nullptr;     // ref, not owned
     std::unique_ptr<AnimGraph>  AnimGraphPtr;           // owned
     TArray<FTransform>          OutputLocalPose;        // size = BoneCount
-    TArray<FName>               TriggeredNotifiesThisFrame;
+    TArray<FAnimNotifyEvent>    TriggeredNotifiesThisFrame;
 
     float CurrentTime   = 0.0f;
     float PreviousTime  = 0.0f; // 구간 사이 event 처리할 때 필요.

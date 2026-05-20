@@ -22,12 +22,12 @@ void UParryComponent::BeginPlay()
 	AActor* Owner = GetOwner();
 	if (!Owner) return;
 
-	ParryDelegate.Add(
-		[]()
-		{
-			FSoundManager::Get().PlayEffect(CrossyAudioIds::Parry);
-		}
-	);
+	//ParryDelegate.Add(
+	//	[]()
+	//	{
+	//		//FSoundManager::Get().PlayEffect(CrossyAudioIds::Parry);
+	//	}
+	//);
 
 	ResolveScaleTarget();
 }

@@ -53,11 +53,7 @@ private:
 	TArray<FString> AssetBrowserAnimSequencePaths;
 	TArray<UAnimSequence*> AssetBrowserAnimSequences;
 
-	float CurrentTime = 0.0f;
-	bool  bPlaying = false;
-	bool  bLooping = true;
 	bool  bRecording = false;        // UI placeholder (실제 녹화 기능 미구현)
-	float PlayRate = 1.0f;
 
 	// Notify 편집 state
 	int32 SelectedNotifyIndex = -1;

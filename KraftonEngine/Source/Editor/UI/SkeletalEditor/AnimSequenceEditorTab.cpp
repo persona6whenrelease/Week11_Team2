@@ -273,13 +273,13 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 		Comp->SetBakedAnimTime(0.0f);
 		Comp->SetBakedAnimPlaybackSpeed(1.0f);
 		Comp->SetBakedAnimPaused(true);
+		if (UAnimInstance* Inst = Comp->GetAnimInstance())
+		{
+			Inst->SetLooping(true);
+		}
 		BakedClipIndex = 0;
 	}
 
-	CurrentTime = 0.0f;
-	bPlaying = false;
-	bLooping = true;
-	PlayRate = 1.0f;
 	SelectedNotifyIndex = -1;
 	DraggingNotifyIndex = -1;
 	return true;
@@ -307,23 +307,10 @@ FString FAnimSequenceEditorTab::GetTabLabel() const
 
 void FAnimSequenceEditorTab::OnTickPreview(float DeltaTime)
 {
+	(void)DeltaTime;
 	if (!DataSource) return;
-
-	const float Duration = DataSource->GetDuration();
-	if (bPlaying && Duration > 0.0f)
-	{
-		CurrentTime += DeltaTime * PlayRate;
-		if (bLooping)
-		{
-			CurrentTime = std::fmod(CurrentTime, Duration);
-			if (CurrentTime < 0.0f) CurrentTime += Duration;
-		}
-		else
-		{
-			if (CurrentTime <= 0.0f)      { CurrentTime = 0.0f;     bPlaying = false; }
-			else if (CurrentTime >= Duration) { CurrentTime = Duration; bPlaying = false; }
-		}
-	}
+	// 시간 진행 책임은 USkeletalMeshComponent + UAnimInstance가 소유한다.
+	// 본 hook은 anim asset binding 유지만 확인한다.
 	SyncPlaybackToComponent();
 }
 
@@ -335,8 +322,6 @@ void FAnimSequenceEditorTab::SyncPlaybackToComponent()
 	{
 		Comp->SetAnimation(AnimSequence);
 	}
-	Comp->SetBakedAnimPaused(true);
-	Comp->SetBakedAnimTime(CurrentTime);
 }
 
 // =================================================================
@@ -434,6 +419,8 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		return;
 	}
 
+	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
+
 	const float Duration   = DataSource->GetDuration();
 	const float FrameRate  = DataSource->GetFrameRate();
 	const int32 FrameCount = DataSource->GetFrameCount();
@@ -442,6 +429,9 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		ImGui::TextDisabled("Clip has zero duration");
 		return;
 	}
+
+	// 시간 상태는 Component 소유 — 매 frame query (D2 Option 5).
+	const float CurrentTime = Comp ? Comp->GetBakedAnimTime() : 0.0f;
 
 	const TArray<FAnimNotifyEntry>& Notifies = DataSource->GetNotifies();
 	const bool bNotifySelected = (SelectedNotifyIndex >= 0
@@ -535,8 +525,11 @@ void FAnimSequenceEditorTab::RenderTimelinePanel()
 		}
 		else if (bScrubbing)
 		{
-			CurrentTime = SnapT;
-			bPlaying = false;
+			if (Comp)
+			{
+				Comp->SetBakedAnimTime(SnapT);
+				Comp->SetBakedAnimPaused(true);
+			}
 		}
 	}
 	if (bDeactivated)
@@ -746,9 +739,20 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 {
 	EnsureAnimIconsLoaded();
 
+	USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent;
+	if (!Comp)
+	{
+		return;
+	}
+
 	const float Duration = DataSource ? DataSource->GetDuration() : 0.0f;
 	const float FrameRate = DataSource ? DataSource->GetFrameRate() : 30.0f;
 	const float FrameStep = (FrameRate > 0.0f) ? (1.0f / FrameRate) : 0.0f;
+	const float CurrentTime = Comp->GetBakedAnimTime();
+	const bool bPaused = Comp->IsBakedAnimPaused();
+	const float CurrentSpeed = Comp->GetBakedAnimPlaybackSpeed();
+	UAnimInstance* Inst = Comp->GetAnimInstance();
+	const bool bLoopingNow = Inst ? Inst->IsLooping() : true;
 
 	constexpr float ButtonSpacing = 2.0f;
 	constexpr float GroupSpacing = 12.0f;
@@ -760,7 +764,8 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	// |◀ 처음으로
 	if (DrawAnimIconButton("##GoToFront", EAnimToolIcon::GoToFront, true, "|<"))
 	{
-		CurrentTime = 0.0f;
+		Comp->SetBakedAnimTime(0.0f);
+		Comp->SetBakedAnimPaused(true);
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
 
@@ -769,20 +774,27 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	{
 		if (FrameStep > 0.0f)
 		{
-			CurrentTime = std::max(0.0f, CurrentTime - FrameStep);
-			bPlaying = false;
+			Comp->SetBakedAnimTime(std::max(0.0f, CurrentTime - FrameStep));
+			Comp->SetBakedAnimPaused(true);
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
 
 	// ◀◀ 역재생 토글 — 활성 시 || 아이콘으로 전환, 비활성은 음영 처리 X
 	{
-		const bool bReversePlaying = bPlaying && PlayRate < 0.0f;
+		const bool bReversePlaying = !bPaused && CurrentSpeed < 0.0f;
 		const EAnimToolIcon BackIcon = bReversePlaying ? EAnimToolIcon::Pause : EAnimToolIcon::Backwards;
 		if (DrawAnimIconButton("##Backwards", BackIcon, true, bReversePlaying ? "||" : "<<"))
 		{
-			if (bReversePlaying) bPlaying = false;
-			else { PlayRate = -std::abs(PlayRate); bPlaying = true; }
+			if (bReversePlaying)
+			{
+				Comp->SetBakedAnimPaused(true);
+			}
+			else
+			{
+				Comp->SetBakedAnimPlaybackSpeed(-std::max(0.01f, std::abs(CurrentSpeed)));
+				Comp->SetBakedAnimPaused(false);
+			}
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -796,12 +808,19 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 
 	// ▶ / ⏸
 	{
-		const bool bForwardPlaying = bPlaying && PlayRate >= 0.0f;
+		const bool bForwardPlaying = !bPaused && CurrentSpeed >= 0.0f;
 		const EAnimToolIcon PlayIcon = bForwardPlaying ? EAnimToolIcon::Pause : EAnimToolIcon::Play;
 		if (DrawAnimIconButton("##PlayPause", PlayIcon, true, bForwardPlaying ? "Pause" : "Play"))
 		{
-			if (bForwardPlaying) bPlaying = false;
-			else { PlayRate = std::abs(PlayRate); bPlaying = true; }
+			if (bForwardPlaying)
+			{
+				Comp->SetBakedAnimPaused(true);
+			}
+			else
+			{
+				Comp->SetBakedAnimPlaybackSpeed(std::max(0.01f, std::abs(CurrentSpeed)));
+				Comp->SetBakedAnimPaused(false);
+			}
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -811,8 +830,8 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	{
 		if (FrameStep > 0.0f)
 		{
-			CurrentTime = std::min(Duration, CurrentTime + FrameStep);
-			bPlaying = false;
+			Comp->SetBakedAnimTime(std::min(Duration, CurrentTime + FrameStep));
+			Comp->SetBakedAnimPaused(true);
 		}
 	}
 	ImGui::SameLine(0.0f, ButtonSpacing);
@@ -820,15 +839,20 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	// ▶| 끝으로
 	if (DrawAnimIconButton("##GoToEnd", EAnimToolIcon::GoToEnd, true, ">|"))
 	{
-		CurrentTime = Duration;
+		Comp->SetBakedAnimTime(Duration);
+		Comp->SetBakedAnimPaused(true);
 	}
 
 	ImGui::SameLine(0.0f, GroupSpacing);
 
-	// Loop 토글 — ON=Loop, OFF=Loop_Toggle(화살표)
-	if (DrawAnimIconButton("##Loop", EAnimToolIcon::Loop, bLooping, bLooping ? "Loop:On" : "Loop:Off"))
+	// Loop 토글 — ON=Loop, OFF=Loop_Toggle(화살표). Comp의 looping accessor가 부재하여
+	// AnimInstance에 직접 접근한다(D2 Option 5 + Stage A 결정).
+	if (DrawAnimIconButton("##Loop", EAnimToolIcon::Loop, bLoopingNow, bLoopingNow ? "Loop:On" : "Loop:Off"))
 	{
-		bLooping = !bLooping;
+		if (Inst)
+		{
+			Inst->SetLooping(!bLoopingNow);
+		}
 	}
 
 	ImGui::PopStyleColor(3);
@@ -836,10 +860,10 @@ void FAnimSequenceEditorTab::RenderPlaybackControls()
 	// Speed
 	ImGui::SameLine(0.0f, GroupSpacing);
 	ImGui::SetNextItemWidth(120.0f);
-	float SpeedDisplay = std::abs(PlayRate);
+	float SpeedDisplay = std::abs(CurrentSpeed);
 	if (ImGui::SliderFloat("##Speed", &SpeedDisplay, 0.0f, 3.0f, "%.2fx"))
 	{
-		PlayRate = (PlayRate < 0.0f) ? -SpeedDisplay : SpeedDisplay;
+		Comp->SetBakedAnimPlaybackSpeed((CurrentSpeed < 0.0f) ? -SpeedDisplay : SpeedDisplay);
 	}
 }
 
@@ -900,8 +924,11 @@ void FAnimSequenceEditorTab::RenderNotifyPropertyInline()
 
 	if (ImGui::Button("Go"))
 	{
-		CurrentTime = Edited.TriggerTime;
-		bPlaying = false;
+		if (USkeletalMeshComponent* Comp = PreviewScene.PreviewMeshComponent)
+		{
+			Comp->SetBakedAnimTime(Edited.TriggerTime);
+			Comp->SetBakedAnimPaused(true);
+		}
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Delete"))

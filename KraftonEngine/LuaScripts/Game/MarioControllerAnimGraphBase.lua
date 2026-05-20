@@ -404,6 +404,25 @@ function AnimGraphBase.Create(options)
             AdvancePendingJumpFlag()
         end,
         Tick = function(deltaTime)
+            if not M.skelMesh then
+                return
+            end
+
+            local notifies = M.skelMesh:GetTriggeredNotifies()
+            for i = 1, #notifies do
+                local n = notifies[i]
+                if n.Type == "Sound" then
+                    Sound.PlayEffect(n.SoundId)
+                elseif n.Type == "CameraShake" then
+                    local pc = World.GetPlayerController(0)
+                    if pc then
+                        local cm = pc:GetCameraManager()
+                        if cm then
+                            cm:StartCameraShake(n.ShakeParams)
+                        end
+                    end
+                end
+            end
         end,
         EndPlay = function()
             ClearPendingJumpFlag()

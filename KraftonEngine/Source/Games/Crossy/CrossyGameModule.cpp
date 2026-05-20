@@ -112,8 +112,7 @@ void FCrossyGameModule::LoadCrossyAudio()
 {
 	FSoundManager::Get().LoadMusic(CrossyAudioIds::BGM, FPaths::Combine(FPaths::AssetDir(), L"Sound/BackgroundMusic.wav"));
 	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump.wav"));
-	FSoundManager::Get().LoadEffect(CrossyAudioIds::Death, FPaths::Combine(FPaths::AssetDir(), L"Sound/Death.wav"));
-	FSoundManager::Get().LoadEffect(CrossyAudioIds::Parry, FPaths::Combine(FPaths::AssetDir(), L"Sound/Parry.wav"));
-	FSoundManager::Get().LoadEffect(CrossyAudioIds::Dash, FPaths::Combine(FPaths::AssetDir(), L"Sound/Dash.wav"));
-	FSoundManager::Get().LoadEffect(CrossyAudioIds::Crash, FPaths::Combine(FPaths::AssetDir(), L"Sound/Crash.wav"));
+	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump2, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump2.wav"));
+	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump3, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump3.wav"));
+
 }

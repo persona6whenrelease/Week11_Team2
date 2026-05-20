@@ -560,6 +560,7 @@
     <ClCompile Include="Source\Engine\Scripting\LuaActorLifecycleBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaCameraComponentBindings.cpp" />
+    <ClCompile Include="Source\Engine\Scripting\LuaCameraShakeBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaComponentBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaDelegateBindings.cpp" />
     <ClCompile Include="Source\Engine\Scripting\LuaGameObjectBindings.cpp" />

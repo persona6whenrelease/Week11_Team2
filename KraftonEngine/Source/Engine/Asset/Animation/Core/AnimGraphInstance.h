@@ -27,4 +27,10 @@ class UAnimGraphInstance : public UAnimInstance
      * - root 노드 타입은 가리지 않는다(SequencePlayer/Blend2/BlendN/StateMachine 등 모두 허용).
      */
     void SetRootGraph(std::unique_ptr<FAnimGraphNode_Base> InRoot);
+
+    // I1 STEP 7: 단순 root case에서 notify dispatch path를 열기 위해 두 hook을 override.
+    // Update override는 불필요 — base의 PrevTime/CurrTime 모델이 단일 root SequencePlayer에는 그대로 적합.
+    // Blend root 의 경우는 ResolveActiveNotifiesFromNode 가 가장 가중치 큰 child 를 따라가 SequencePlayer 도달.
+    const TArray<FAnimNotifyEvent> *GetActiveNotifies() const override;
+    float                            GetEffectivePlayLength() const override;
 };

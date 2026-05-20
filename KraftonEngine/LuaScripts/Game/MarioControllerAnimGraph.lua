@@ -19,6 +19,8 @@ end
 
 function Tick(deltaTime)
     Controller.Tick(deltaTime)
+
+        
 end
 
 function EndPlay()

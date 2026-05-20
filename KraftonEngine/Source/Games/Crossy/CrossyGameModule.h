@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Runtime/IRuntimeModule.h"
 #include "Games/Crossy/UI/CrossyGameUiSystem.h"

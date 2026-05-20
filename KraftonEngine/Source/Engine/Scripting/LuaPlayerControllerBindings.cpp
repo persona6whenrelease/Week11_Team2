@@ -613,6 +613,13 @@ void RegisterPlayerControllerBinding(sol::state& Lua)
 			}
 		},
 
+		"GetCameraManager",
+		[](const FLuaPlayerControllerHandle& Self) -> APlayerCameraManager*
+		{
+			APlayerController* Controller = Self.Resolve();
+			return Controller ? Controller->GetCameraManagerPtr() : nullptr;
+		},
+
 		"StartCameraShake",
 		sol::overload(
 			[](const FLuaPlayerControllerHandle& Self, float Duration, float LocationAmplitude, float RotationAmplitude, float Frequency)

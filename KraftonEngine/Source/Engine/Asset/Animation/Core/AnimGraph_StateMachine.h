@@ -66,6 +66,21 @@ struct FAnimGraphNode_StateMachine : FAnimGraphNode_Base
 
     void Evaluate(const FAnimEvalContext &Ctx, TArray<FTransform> &OutLocalPose) override;
 
+    // Notify firing 용 — UAnimStateMachineInstance::Update override 가 사용 (D4 §G1.3 + I1 STEP 2).
+    int32 GetActiveStateIndex() const { return ActiveStateIndex; }
+    int32 GetActiveTransitionIndex() const { return ActiveTransitionIndex; }
+    float GetStateLocalTime(int32 StateIdx) const
+    {
+        if (StateIdx < 0 || StateIdx >= static_cast<int32>(StateLocalTimes.size())) return 0.0f;
+        return StateLocalTimes[StateIdx];
+    }
+    // scrub/seek 시 활성 state의 time을 외부에서 set (I1 STEP 9).
+    void SetStateLocalTime(int32 StateIdx, float Time)
+    {
+        if (StateIdx < 0 || StateIdx >= static_cast<int32>(StateLocalTimes.size())) return;
+        StateLocalTimes[StateIdx] = Time;
+    }
+
   private:
     void        ApplyLoopOrClamp(int32 StateIdx);
     static bool EvaluateConditions(class UAnimInstance *Owning,

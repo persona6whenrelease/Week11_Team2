@@ -10,6 +10,13 @@ local function VX(v) return v and (v.X or v.x) or 0 end
 local function VY(v) return v and (v.Y or v.y) or 0 end
 local function VZ(v) return v and (v.Z or v.z) or 0 end
 
+local NOTIFY_TO_SOUND = {
+    Footstep_Left  = "Jump",
+    Footstep_Right = "Jump",
+    JumpStart      = "Jump",
+    Land           = "Crash",
+}
+
 local function SafeDt(dt)
     if not dt or dt <= 0 or dt > 0.2 then
         return 1 / 60
@@ -286,6 +293,25 @@ function SingleNodeBase.Create(options)
             UpdateState(dt, input, hasMove, isRunning)
         end,
         Tick = function(deltaTime)
+            if not M.skelMesh then
+                return
+            end
+
+            local notifies = M.skelMesh:GetTriggeredNotifies()
+            for i = 1, #notifies do
+                local n = notifies[i]
+                if n.Type == "Sound" then
+                    Sound.PlayEffect(n.SoundId)
+                elseif n.Type == "CameraShake" then
+                    local pc = World.GetPlayerController(0)
+                    if pc then
+                        local cm = pc:GetCameraManager()
+                        if cm then
+                            cm:StartCameraShake(n.ShakeParams)
+                        end
+                    end
+                end
+            end
         end,
         EndPlay = function()
             print("[" .. tag .. "] EndPlay")
