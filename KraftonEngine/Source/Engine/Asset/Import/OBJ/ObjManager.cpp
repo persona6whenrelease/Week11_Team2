@@ -25,8 +25,8 @@ static void EnsureMeshCacheDirExists()
     static bool bCreated = false;
     if (!bCreated)
     {
-        std::wstring CacheDir = FPaths::RootDir() + L"Asset\\MeshCache\\";
-        FPaths::CreateDir(CacheDir);
+        std::filesystem::create_directories(
+            std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"StaticMesh");
         bCreated = true;
     }
 }
@@ -48,7 +48,7 @@ FString FObjManager::GetBinaryFilePath(const FString &OriginalPath)
 
     EnsureMeshCacheDirExists();
 
-    std::filesystem::path RelPath = std::filesystem::path(L"Asset\\MeshCache") / SrcPath.stem();
+    std::filesystem::path RelPath = std::filesystem::path(L"Asset\\Runtime\\StaticMesh") / SrcPath.stem();
     RelPath += L".bin";
 
     return FPaths::ToUtf8(RelPath.generic_wstring());
@@ -58,7 +58,7 @@ void FObjManager::ScanMeshAssets()
 {
     AvailableMeshFiles.clear();
 
-    const std::filesystem::path MeshCacheRoot = FPaths::RootDir() + L"Asset\\MeshCache\\";
+    const std::filesystem::path MeshCacheRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"StaticMesh";
 
     if (!std::filesystem::exists(MeshCacheRoot))
     {

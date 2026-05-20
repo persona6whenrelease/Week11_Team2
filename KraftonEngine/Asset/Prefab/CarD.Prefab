@@ -42,34 +42,34 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/green_mat1.005.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat1.005.mat"
         },
         "Element 1" : {
-          "Path" : "Asset/Materials/Auto/green_mat3.004.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat3.004.mat"
         },
         "Element 2" : {
-          "Path" : "Asset/Materials/Auto/green_mat4.004.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat4.004.mat"
         },
         "Element 3" : {
-          "Path" : "Asset/Materials/Auto/green_mat5.004.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat5.004.mat"
         },
         "Element 4" : {
-          "Path" : "Asset/Materials/Auto/green_mat7.004.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat7.004.mat"
         },
         "Element 5" : {
-          "Path" : "Asset/Materials/Auto/green_mat8.002.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat8.002.mat"
         },
         "Element 6" : {
-          "Path" : "Asset/Materials/Auto/green_mat11.001.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat11.001.mat"
         },
         "Element 7" : {
-          "Path" : "Asset/Materials/Auto/green_mat12.001.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat12.001.mat"
         },
         "Element 8" : {
-          "Path" : "Asset/Materials/Auto/green_mat13.001.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat13.001.mat"
         },
         "Element 9" : {
-          "Path" : "Asset/Materials/Auto/green_mat14.001.mat"
+          "Path" : "Asset/Runtime/Material/Auto/green_mat14.001.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [-10.866257, 12.312666, 13.697205],

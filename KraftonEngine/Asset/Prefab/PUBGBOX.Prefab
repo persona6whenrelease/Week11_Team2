@@ -27,7 +27,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/pubgBox.mat"
+          "Path" : "Asset/Runtime/Material/Auto/pubgBox.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [7.228954, 6.605073, -0.103528],

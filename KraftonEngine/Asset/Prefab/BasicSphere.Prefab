@@ -27,7 +27,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/BasicShapeMaterial.mat"
+          "Path" : "Asset/Runtime/Material/Auto/BasicShapeMaterial.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [8.887383, 10.242723, 1.570795],
