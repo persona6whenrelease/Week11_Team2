@@ -18,6 +18,7 @@ public:
 	void Render(float DeltaTime) override;
 
 	bool OpenFbxAsset(const FString& FbxPath);
+	bool OpenSkeletalMeshAsset(const FString& AssetPath);
 	bool OpenAnimSequenceAsset(const FString& AssetPath);
 	bool OpenAnimSequenceAsset(const FString& AssetPath, USkeletalMesh* PreviewMesh, UAnimSequence* Sequence);
 

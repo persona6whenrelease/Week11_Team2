@@ -273,6 +273,9 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 	CurrentSequenceIndex = -1;
 	SelectedResourceIndex = -1;
 	SelectedBoneIndex = -1;
+	bLoadedFromMeshAsset = false;
+	AssetAnimSequencePaths.clear();
+	AssetAnimSequences.clear();
 
 	if (!CurrentSceneAsset)
 	{
@@ -299,6 +302,52 @@ bool FSkeletalMeshEditorTab::OpenFbxAsset(const FString& FbxPath)
 	return true;
 }
 
+bool FSkeletalMeshEditorTab::OpenSkeletalMeshAsset(const FString& AssetPath)
+{
+	SetSourcePath(AssetPath);
+	CurrentSequenceIndex = -1;
+	SelectedResourceIndex = -1;
+	SelectedBoneIndex = -1;
+	bLoadedFromMeshAsset = true;
+	AssetAnimSequencePaths.clear();
+	AssetAnimSequences.clear();
+
+	PreviewSkeletalMesh = FMeshManager::LoadSkeletalMeshFromFile(AssetPath);
+	if (!PreviewSkeletalMesh)
+	{
+		CurrentSceneAsset = nullptr;
+		CurrentFbxPath.clear();
+		StatusMessage = "Failed to load SkeletalMesh asset";
+		return false;
+	}
+
+	CurrentSceneAsset = FMeshManager::LoadFbxSceneForSkeletalMesh(PreviewSkeletalMesh);
+	CurrentFbxPath.clear();
+	if (const FSkeletalMesh* MeshAsset = PreviewSkeletalMesh->GetSkeletalMeshAsset())
+	{
+		if (MeshAsset->SkeletonAssetPath.find('#') != FString::npos)
+		{
+			CurrentFbxPath = FMeshManager::GetFbxSourcePathFromSubAssetPath(MeshAsset->SkeletonAssetPath);
+		}
+	}
+
+	PreviewScene.SetPreviewMesh(PreviewSkeletalMesh);
+	if (PreviewScene.PreviewMeshComponent)
+	{
+		PreviewScene.PreviewMeshComponent->SetAnimation(nullptr);
+	}
+	FMeshManager::FindCompatibleAnimSequenceAssetsForSkeletalMesh(
+		PreviewSkeletalMesh,
+		AssetPath,
+		AssetAnimSequencePaths,
+		AssetAnimSequences);
+
+	StatusMessage = CurrentSceneAsset
+		? "SkeletalMesh asset loaded"
+		: "SkeletalMesh asset loaded without source FBX scene";
+	return true;
+}
+
 void FSkeletalMeshEditorTab::RenderResourcePanel()
 {
 	FSkeletalMeshViewerViewportClient* PreviewViewportClient = PreviewScene.PreviewViewportClient;
@@ -308,7 +357,23 @@ void FSkeletalMeshEditorTab::RenderResourcePanel()
 		ImGui::TextUnformatted("Resources");
 		ImGui::Separator();
 
-		if (!CurrentSceneAsset)
+		if (bLoadedFromMeshAsset)
+		{
+			const FSkeletalMesh* MeshAsset = PreviewSkeletalMesh ? PreviewSkeletalMesh->GetSkeletalMeshAsset() : nullptr;
+			FString Label = MeshAsset && !MeshAsset->PathFileName.empty()
+				? MeshAsset->PathFileName
+				: (GetSourcePath().empty() ? FString("SkeletalMesh") : ExtractFileName(GetSourcePath()));
+
+			if (ImGui::Selectable(Label.c_str(), true))
+			{
+				PreviewScene.SetPreviewMesh(PreviewSkeletalMesh);
+				if (PreviewScene.PreviewMeshComponent)
+				{
+					PreviewScene.PreviewMeshComponent->SetAnimation(nullptr);
+				}
+			}
+		}
+		else if (!CurrentSceneAsset)
 		{
 			ImGui::TextDisabled("%s", StatusMessage.c_str());
 		}
@@ -460,8 +525,10 @@ void FSkeletalMeshEditorTab::RenderPreviewAnimationSelector()
 	ImGui::TextUnformatted("Preview Animation");
 	ImGui::SameLine();
 
-	const int32 SequenceCount =
-		FMeshManager::GetAnimSequenceCountForSkeletalMesh(CurrentSceneAsset, PreviewSkeletalMesh);
+	const bool bUseAssetAnimSequences = bLoadedFromMeshAsset;
+	const int32 SequenceCount = bUseAssetAnimSequences
+		? static_cast<int32>(AssetAnimSequences.size())
+		: FMeshManager::GetAnimSequenceCountForSkeletalMesh(CurrentSceneAsset, PreviewSkeletalMesh);
 	if (!Asset || SequenceCount <= 0)
 	{
 		ImGui::SetNextItemWidth(260.0f);
@@ -482,10 +549,20 @@ void FSkeletalMeshEditorTab::RenderPreviewAnimationSelector()
 		CurrentSequenceIndex = -1;
 	}
 	FString CurrentAnimSequencePath;
-	UAnimSequence* CurrentSequence = (SequenceIndex >= 0)
-		? FMeshManager::FindAnimSequenceForSkeletalMesh(
-			CurrentSceneAsset, PreviewSkeletalMesh, SequenceIndex, &CurrentAnimSequencePath)
-		: nullptr;
+	UAnimSequence* CurrentSequence = nullptr;
+	if (SequenceIndex >= 0)
+	{
+		if (bUseAssetAnimSequences)
+		{
+			CurrentSequence = AssetAnimSequences[SequenceIndex];
+			CurrentAnimSequencePath = AssetAnimSequencePaths[SequenceIndex];
+		}
+		else
+		{
+			CurrentSequence = FMeshManager::FindAnimSequenceForSkeletalMesh(
+				CurrentSceneAsset, PreviewSkeletalMesh, SequenceIndex, &CurrentAnimSequencePath);
+		}
+	}
 	if (CurrentSequence && PreviewMeshComponent->GetAnimation() != CurrentSequence)
 	{
 		PreviewMeshComponent->SetAnimation(CurrentSequence);
@@ -522,8 +599,17 @@ void FSkeletalMeshEditorTab::RenderPreviewAnimationSelector()
 		for (int32 i = 0; i < SequenceCount; ++i)
 		{
 			FString AnimSequencePath;
-			UAnimSequence* Sequence = FMeshManager::FindAnimSequenceForSkeletalMesh(
-				CurrentSceneAsset, PreviewSkeletalMesh, i, &AnimSequencePath);
+			UAnimSequence* Sequence = nullptr;
+			if (bUseAssetAnimSequences)
+			{
+				Sequence = AssetAnimSequences[i];
+				AnimSequencePath = AssetAnimSequencePaths[i];
+			}
+			else
+			{
+				Sequence = FMeshManager::FindAnimSequenceForSkeletalMesh(
+					CurrentSceneAsset, PreviewSkeletalMesh, i, &AnimSequencePath);
+			}
             const FString SequenceName = (Sequence && !Sequence->GetSequenceName().empty())
                 ? Sequence->GetSequenceName()
                 : (!AnimSequencePath.empty()
@@ -926,6 +1012,16 @@ int32 FSkeletalMeshEditorTab::GetCurrentAnimSequenceIndex() const
 	}
 
 	const UAnimSequence* CurrentSequence = Cast<UAnimSequence>(Comp->GetAnimation());
+	if (CurrentSequence && bLoadedFromMeshAsset)
+	{
+		for (int32 SequenceIndex = 0; SequenceIndex < static_cast<int32>(AssetAnimSequences.size()); ++SequenceIndex)
+		{
+			if (AssetAnimSequences[SequenceIndex] == CurrentSequence)
+			{
+				return SequenceIndex;
+			}
+		}
+	}
 	if (CurrentSequence && CurrentSceneAsset && PreviewSkeletalMesh)
 	{
 		FString CurrentAnimSequencePath;
@@ -949,7 +1045,8 @@ int32 FSkeletalMeshEditorTab::GetCurrentAnimSequenceIndex() const
 
 UAnimSequence* FSkeletalMeshEditorTab::GetCurrentAnimSequence(FString* OutPath) const
 {
-	if (GetCurrentAnimSequenceIndex() < 0)
+	const int32 SequenceIndex = GetCurrentAnimSequenceIndex();
+	if (SequenceIndex < 0)
 	{
 		if (OutPath)
 		{
@@ -958,15 +1055,37 @@ UAnimSequence* FSkeletalMeshEditorTab::GetCurrentAnimSequence(FString* OutPath) 
 		return nullptr;
 	}
 
+	if (bLoadedFromMeshAsset)
+	{
+		if (SequenceIndex >= static_cast<int32>(AssetAnimSequences.size()))
+		{
+			if (OutPath)
+			{
+				*OutPath = FString();
+			}
+			return nullptr;
+		}
+		if (OutPath)
+		{
+			*OutPath = AssetAnimSequencePaths[SequenceIndex];
+		}
+		return AssetAnimSequences[SequenceIndex];
+	}
+
 	return FMeshManager::FindAnimSequenceForSkeletalMesh(
 		CurrentSceneAsset,
 		PreviewSkeletalMesh,
-		GetCurrentAnimSequenceIndex(),
+		SequenceIndex,
 		OutPath);
 }
 
 USkeletalMesh* FSkeletalMeshEditorTab::GetSelectedSkeletalMesh() const
 {
+	if (bLoadedFromMeshAsset)
+	{
+		return PreviewSkeletalMesh;
+	}
+
 	if (!CurrentSceneAsset)
 	{
 		return nullptr;

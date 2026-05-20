@@ -41,6 +41,10 @@ namespace
 		{
 			OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, OutSequence);
 		}
+		if (!OutPreviewMesh)
+		{
+			OutPreviewMesh = FMeshManager::FindPreviewMeshForAnimSequence(OutSequence, AssetPath);
+		}
 
 		return OutSequence != nullptr;
 	}
@@ -239,6 +243,61 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 	return true;
 }
 
+bool FEditorSkeletalMeshViewerWidget::OpenSkeletalMeshAsset(const FString& AssetPath)
+{
+	EAssetType AssetType = EAssetType::Unknown;
+	if (!TryReadAssetType(AssetPath, AssetType))
+	{
+		return OpenFbxAsset(AssetPath);
+	}
+
+	if (AssetType == EAssetType::AnimSequence)
+	{
+		return OpenAnimSequenceAsset(AssetPath);
+	}
+	if (AssetType != EAssetType::SkeletalMesh)
+	{
+		return false;
+	}
+
+	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
+	{
+		FocusTab(Existing);
+		return true;
+	}
+
+	auto NewTab = std::make_unique<FSkeletalMeshEditorTab>(EditorEngine, NextTabId++);
+	FSkeletalMeshEditorTab* RawTab = NewTab.get();
+	NewTab->SetOpenAnimEditorCallback(
+		[this](const FString& Path, USkeletalMesh* Mesh, UAnimSequence* Sequence)
+		{
+			OpenAnimSequenceAsset(Path, Mesh, Sequence);
+		});
+	NewTab->SetOnSwitchToSkeletalMesh(nullptr);
+	NewTab->SetOnSwitchToAnimSequence(
+		[this, RawTab]()
+		{
+			USkeletalMesh* Mesh = RawTab->GetCurrentPreviewMesh();
+			FString AnimSequencePath;
+			UAnimSequence* Sequence = RawTab->GetCurrentAnimSequence(&AnimSequencePath);
+			if (Mesh && Sequence && !AnimSequencePath.empty())
+			{
+				OpenAnimSequenceAsset(AnimSequencePath, Mesh, Sequence);
+			}
+		});
+
+	const bool bOk = NewTab->OpenSkeletalMeshAsset(AssetPath);
+	if (!bOk)
+	{
+		return false;
+	}
+
+	RequestedFocusTabId = NewTab->GetTabId();
+	Tabs.emplace_back(std::move(NewTab));
+	ActiveTabIndex = static_cast<int32>(Tabs.size()) - 1;
+	return true;
+}
+
 bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& AssetPath)
 {
 	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
@@ -267,9 +326,16 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 		[this, RawTab]()
 		{
 			const FString& Path = RawTab->GetFbxPath();
-			if (!Path.empty())
+			if (!Path.empty() && OpenFbxAsset(Path))
 			{
-				OpenFbxAsset(Path);
+				return;
+			}
+
+			const FString MeshAssetPath =
+				FMeshManager::GetLoadedSkeletalMeshAssetPath(RawTab->GetCurrentPreviewMesh());
+			if (!MeshAssetPath.empty())
+			{
+				OpenSkeletalMeshAsset(MeshAssetPath);
 			}
 		});
 	NewTab->SetOnSwitchToAnimSequence(nullptr);
@@ -314,9 +380,16 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 		[this, RawTab]()
 		{
 			const FString& Path = RawTab->GetFbxPath();
-			if (!Path.empty())
+			if (!Path.empty() && OpenFbxAsset(Path))
 			{
-				OpenFbxAsset(Path);
+				return;
+			}
+
+			const FString MeshAssetPath =
+				FMeshManager::GetLoadedSkeletalMeshAssetPath(RawTab->GetCurrentPreviewMesh());
+			if (!MeshAssetPath.empty())
+			{
+				OpenSkeletalMeshAsset(MeshAssetPath);
 			}
 		});
 	NewTab->SetOnSwitchToAnimSequence(nullptr);

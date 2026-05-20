@@ -24,12 +24,15 @@
 #include <cstdlib>
 #include <cwctype>
 #include <filesystem>
+#include <set>
+#include <vector>
 
 namespace
 {
     // .asset 단일 파일에서 로드한 UAnimSequence를 보관하는 메모리 캐시.
     // FBX scene cache와 동일한 패턴 — 프로세스 종료까지 비우지 않는다 (의도적 누수 수용).
     TMap<FString, UAnimSequence*> AnimSequenceAssetCache;
+    TMap<const USkeletalMesh*, FString> SkeletalMeshAssetPathCache;
 
     FString NormalizeAssetCacheKey(const FString &Path)
     {
@@ -47,6 +50,169 @@ namespace
         std::transform(Ext.begin(), Ext.end(), Ext.begin(),
                        [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
         return Ext == L".asset";
+    }
+
+    std::filesystem::path ResolveDiskPath(const FString &Path)
+    {
+        std::wstring DiskPath;
+        FString      ResolveError;
+        if (FPaths::TryResolvePackagePath(Path, DiskPath, &ResolveError))
+        {
+            return std::filesystem::path(DiskPath).lexically_normal();
+        }
+        return std::filesystem::path(FPaths::ToWide(Path)).lexically_normal();
+    }
+
+    FString ToPackageLikePath(const std::filesystem::path &DiskPath)
+    {
+        const std::filesystem::path Root = std::filesystem::path(FPaths::RootDir()).lexically_normal();
+        const std::filesystem::path Normalized = DiskPath.lexically_normal();
+        const std::filesystem::path Relative = Normalized.lexically_relative(Root);
+
+        if (!Relative.empty())
+        {
+            bool bEscapesRoot = false;
+            for (const std::filesystem::path &Part : Relative)
+            {
+                if (Part == L"..")
+                {
+                    bEscapesRoot = true;
+                    break;
+                }
+            }
+            if (!bEscapesRoot)
+            {
+                return FPaths::ToUtf8(Relative.generic_wstring());
+            }
+        }
+
+        return FPaths::ToUtf8(Normalized.generic_wstring());
+    }
+
+    bool HasAssetExtension(const std::filesystem::path &Path)
+    {
+        std::wstring Ext = Path.extension().wstring();
+        std::transform(Ext.begin(), Ext.end(), Ext.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        return Ext == L".asset";
+    }
+
+    FString GetPathStemLower(const FString &Path)
+    {
+        std::filesystem::path FsPath(FPaths::ToWide(Path));
+        std::wstring          Stem = FsPath.stem().wstring();
+        std::transform(Stem.begin(), Stem.end(), Stem.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        return FPaths::ToUtf8(Stem);
+    }
+
+    FString GetSkeletonAssetMarker(const FString &SkeletonAssetPath)
+    {
+        const FString Marker = "#SkeletonAsset_";
+        const size_t  MarkerPos = SkeletonAssetPath.rfind(Marker);
+        return MarkerPos == FString::npos ? FString() : SkeletonAssetPath.substr(MarkerPos);
+    }
+
+    int32 GetSkeletonReferenceScore(const FString &MeshSkeletonPath,
+                                    const FString &SequenceSkeletonPath)
+    {
+        if (MeshSkeletonPath.empty() || SequenceSkeletonPath.empty())
+        {
+            return 0;
+        }
+        if (MeshSkeletonPath == SequenceSkeletonPath)
+        {
+            return 3;
+        }
+
+        const FString MeshMarker = GetSkeletonAssetMarker(MeshSkeletonPath);
+        const FString SequenceMarker = GetSkeletonAssetMarker(SequenceSkeletonPath);
+        if (MeshMarker.empty() || MeshMarker != SequenceMarker)
+        {
+            return 0;
+        }
+
+        const FString MeshSourceStem =
+            GetPathStemLower(FMeshManager::GetFbxSourcePathFromSubAssetPath(MeshSkeletonPath));
+        const FString SequenceSourceStem =
+            GetPathStemLower(FMeshManager::GetFbxSourcePathFromSubAssetPath(SequenceSkeletonPath));
+        return (!MeshSourceStem.empty() && MeshSourceStem == SequenceSourceStem) ? 2 : 1;
+    }
+
+    void AddSearchRoot(const std::filesystem::path &Root,
+                       std::vector<std::filesystem::path> &Roots,
+                       std::set<std::wstring> &AddedRoots)
+    {
+        if (Root.empty())
+        {
+            return;
+        }
+
+        std::error_code Ec;
+        if (!std::filesystem::exists(Root, Ec))
+        {
+            return;
+        }
+
+        const std::filesystem::path Normalized = Root.lexically_normal();
+        std::wstring Key = Normalized.wstring();
+        std::transform(Key.begin(), Key.end(), Key.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        if (AddedRoots.insert(Key).second)
+        {
+            Roots.push_back(Normalized);
+        }
+    }
+
+    void CollectAssetFiles(const std::vector<std::filesystem::path> &Roots,
+                           TArray<FString> &OutAssetPaths)
+    {
+        std::set<std::wstring> AddedFiles;
+        for (const std::filesystem::path &Root : Roots)
+        {
+            std::error_code Ec;
+            if (std::filesystem::is_regular_file(Root, Ec))
+            {
+                if (HasAssetExtension(Root))
+                {
+                    OutAssetPaths.push_back(ToPackageLikePath(Root));
+                }
+                continue;
+            }
+
+            if (!std::filesystem::is_directory(Root, Ec))
+            {
+                continue;
+            }
+
+            TArray<std::filesystem::path> Files;
+            for (const std::filesystem::directory_entry &Entry :
+                 std::filesystem::recursive_directory_iterator(
+                     Root, std::filesystem::directory_options::skip_permission_denied, Ec))
+            {
+                if (Ec)
+                {
+                    break;
+                }
+                if (!Entry.is_regular_file(Ec) || !HasAssetExtension(Entry.path()))
+                {
+                    continue;
+                }
+                Files.push_back(Entry.path().lexically_normal());
+            }
+
+            std::sort(Files.begin(), Files.end());
+            for (const std::filesystem::path &File : Files)
+            {
+                std::wstring Key = File.wstring();
+                std::transform(Key.begin(), Key.end(), Key.begin(),
+                               [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+                if (AddedFiles.insert(Key).second)
+                {
+                    OutAssetPaths.push_back(ToPackageLikePath(File));
+                }
+            }
+        }
     }
 
     void EnsureFbxSceneCacheDirExists()
@@ -207,7 +373,14 @@ USkeletalMesh *FMeshManager::LoadSkeletalMeshFromFile(const FString &PathFileNam
         return nullptr;
     }
 
+    SkeletalMeshAssetPathCache[Mesh] = PathFileName;
     return Mesh;
+}
+
+FString FMeshManager::GetLoadedSkeletalMeshAssetPath(const USkeletalMesh *Mesh)
+{
+    auto It = SkeletalMeshAssetPathCache.find(Mesh);
+    return It != SkeletalMeshAssetPathCache.end() ? It->second : FString();
 }
 
 UAnimSequence *FMeshManager::ResolveAnimSequenceReference(const FString &PathFileName)
@@ -393,6 +566,174 @@ UAnimSequence *FMeshManager::LoadAnimSequenceFromFile(const FString &PathFileNam
 UFBXSceneAsset *FMeshManager::LoadFbxScene(const FString &PathFileName)
 {
     return FFBXManager::LoadFbxScene(PathFileName);
+}
+
+FString FMeshManager::GetFbxSourcePathFromSubAssetPath(const FString &AssetPath)
+{
+    const size_t MarkerPos = AssetPath.find('#');
+    return MarkerPos == FString::npos ? AssetPath : AssetPath.substr(0, MarkerPos);
+}
+
+UFBXSceneAsset *FMeshManager::LoadFbxSceneForSkeletonAssetPath(const FString &SkeletonAssetPath)
+{
+    if (SkeletonAssetPath.empty() || SkeletonAssetPath.find('#') == FString::npos)
+    {
+        return nullptr;
+    }
+
+    const FString FbxSourcePath = GetFbxSourcePathFromSubAssetPath(SkeletonAssetPath);
+    return FbxSourcePath.empty() ? nullptr : LoadFbxScene(FbxSourcePath);
+}
+
+UFBXSceneAsset *FMeshManager::LoadFbxSceneForSkeletalMesh(const USkeletalMesh *Mesh)
+{
+    const FSkeletalMesh *MeshAsset = GetMeshAsset(Mesh);
+    return MeshAsset ? LoadFbxSceneForSkeletonAssetPath(MeshAsset->SkeletonAssetPath) : nullptr;
+}
+
+USkeletalMesh *FMeshManager::FindPreviewMeshForAnimSequence(const UAnimSequence *Sequence)
+{
+    return FindPreviewMeshForAnimSequence(Sequence, FString());
+}
+
+USkeletalMesh *FMeshManager::FindPreviewMeshForAnimSequence(const UAnimSequence *Sequence,
+                                                            const FString       &SequenceAssetPath)
+{
+    if (!Sequence)
+    {
+        return nullptr;
+    }
+
+    UFBXSceneAsset *SceneAsset = Sequence->GetTypedOuter<UFBXSceneAsset>();
+    if (!SceneAsset)
+    {
+        SceneAsset = LoadFbxSceneForSkeletonAssetPath(Sequence->GetSkeletonAssetPath());
+    }
+
+    if (USkeletalMesh *PreviewMesh = FindSkeletalMeshForAnimSequence(SceneAsset, Sequence))
+    {
+        return PreviewMesh;
+    }
+
+    std::vector<std::filesystem::path> Roots;
+    std::set<std::wstring>             AddedRoots;
+    if (!SequenceAssetPath.empty())
+    {
+        const std::filesystem::path SequenceDiskPath = ResolveDiskPath(SequenceAssetPath);
+        const std::filesystem::path SequenceDir = SequenceDiskPath.parent_path();
+        AddSearchRoot(SequenceDir.parent_path(), Roots, AddedRoots);
+        AddSearchRoot(SequenceDir, Roots, AddedRoots);
+    }
+    AddSearchRoot(FPaths::AssetDir(), Roots, AddedRoots);
+
+    TArray<FString> CandidatePaths;
+    CollectAssetFiles(Roots, CandidatePaths);
+
+    USkeletalMesh *BestMesh = nullptr;
+    int32          BestScore = -1;
+    for (const FString &CandidatePath : CandidatePaths)
+    {
+        EAssetType AssetType = EAssetType::Unknown;
+        if (!TryReadAssetType(CandidatePath, AssetType) || AssetType != EAssetType::SkeletalMesh)
+        {
+            continue;
+        }
+
+        USkeletalMesh *Mesh = LoadSkeletalMeshFromFile(CandidatePath);
+        if (!Mesh || !IsAnimSequenceCompatibleWithMesh(Sequence, Mesh))
+        {
+            continue;
+        }
+
+        const FSkeletalMesh *MeshAsset = GetMeshAsset(Mesh);
+        const int32 Score = MeshAsset
+            ? GetSkeletonReferenceScore(MeshAsset->SkeletonAssetPath, Sequence->GetSkeletonAssetPath())
+            : 0;
+        if (Score > BestScore)
+        {
+            BestMesh = Mesh;
+            BestScore = Score;
+            if (BestScore >= 3)
+            {
+                break;
+            }
+        }
+    }
+
+    return BestMesh;
+}
+
+void FMeshManager::FindCompatibleAnimSequenceAssetsForSkeletalMesh(
+    const USkeletalMesh *Mesh,
+    const FString       &MeshAssetPath,
+    TArray<FString>     &OutPaths,
+    TArray<UAnimSequence*> &OutSequences)
+{
+    OutPaths.clear();
+    OutSequences.clear();
+    if (!Mesh)
+    {
+        return;
+    }
+
+    std::vector<std::filesystem::path> Roots;
+    std::set<std::wstring>             AddedRoots;
+    if (!MeshAssetPath.empty())
+    {
+        const std::filesystem::path MeshDiskPath = ResolveDiskPath(MeshAssetPath);
+        const std::filesystem::path MeshDir = MeshDiskPath.parent_path();
+        AddSearchRoot(MeshDir / L"animation", Roots, AddedRoots);
+        AddSearchRoot(MeshDir, Roots, AddedRoots);
+    }
+    AddSearchRoot(FPaths::AssetDir(), Roots, AddedRoots);
+
+    TArray<FString> CandidatePaths;
+    CollectAssetFiles(Roots, CandidatePaths);
+
+    const FSkeletalMesh *MeshAsset = GetMeshAsset(Mesh);
+    struct FMatch
+    {
+        FString        Path;
+        UAnimSequence *Sequence = nullptr;
+        int32          Score = 0;
+    };
+    TArray<FMatch> Matches;
+
+    for (const FString &CandidatePath : CandidatePaths)
+    {
+        EAssetType AssetType = EAssetType::Unknown;
+        if (!TryReadAssetType(CandidatePath, AssetType) || AssetType != EAssetType::AnimSequence)
+        {
+            continue;
+        }
+
+        UAnimSequence *Sequence = LoadAnimSequenceFromFile(CandidatePath);
+        if (!Sequence || !IsAnimSequenceCompatibleWithMesh(Sequence, Mesh))
+        {
+            continue;
+        }
+
+        const int32 Score = MeshAsset
+            ? GetSkeletonReferenceScore(MeshAsset->SkeletonAssetPath, Sequence->GetSkeletonAssetPath())
+            : 0;
+        Matches.push_back({CandidatePath, Sequence, Score});
+    }
+
+    std::sort(Matches.begin(), Matches.end(),
+              [](const FMatch &A, const FMatch &B)
+              {
+                  if (A.Score != B.Score)
+                  {
+                      return A.Score > B.Score;
+                  }
+                  return A.Path < B.Path;
+              });
+
+    for (const FMatch &Match : Matches)
+    {
+        OutPaths.push_back(Match.Path);
+        OutSequences.push_back(Match.Sequence);
+    }
 }
 
 int32 FMeshManager::GetAnimSequenceCountForSkeletalMesh(const UFBXSceneAsset *SceneAsset,

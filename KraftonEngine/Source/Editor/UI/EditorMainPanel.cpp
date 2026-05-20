@@ -119,7 +119,7 @@ bool FEditorMainPanel::OpenCurveAsset(const FString& CurvePath)
 bool FEditorMainPanel::OpenSkeletalMeshViewerAsset(const FString& FbxPath)
 {
 	FEditorSettings::Get().UI.bSkeletalMeshViewer = true;
-	return SkeletalMeshViewerWidget.OpenFbxAsset(FbxPath);
+	return SkeletalMeshViewerWidget.OpenSkeletalMeshAsset(FbxPath);
 }
 
 bool FEditorMainPanel::OpenAnimSequenceAsset(const FString& AssetPath)

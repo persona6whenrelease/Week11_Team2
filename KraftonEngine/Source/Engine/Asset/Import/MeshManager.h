@@ -55,6 +55,7 @@ class FMeshManager
     static bool SaveAnimSequenceToFile(const UAnimSequence *Sequence, const FString &PathFileName);
     static bool SaveSkeletalMeshToFile(const USkeletalMesh *Mesh, const FString &PathFileName);
     static USkeletalMesh *LoadSkeletalMeshFromFile(const FString &PathFileName);
+    static FString GetLoadedSkeletalMeshAssetPath(const USkeletalMesh *Mesh);
 
     /**
      * 애니메이션과 스켈레탈 메시의 리그 호환성을 검사한다.
@@ -71,6 +72,17 @@ class FMeshManager
     static UAnimSequence *LoadAnimSequenceFromFile(const FString &PathFileName);
 
     static UFBXSceneAsset *LoadFbxScene(const FString &PathFileName);
+    static FString GetFbxSourcePathFromSubAssetPath(const FString &AssetPath);
+    static UFBXSceneAsset *LoadFbxSceneForSkeletonAssetPath(const FString &SkeletonAssetPath);
+    static UFBXSceneAsset *LoadFbxSceneForSkeletalMesh(const USkeletalMesh *Mesh);
+    static USkeletalMesh *FindPreviewMeshForAnimSequence(const UAnimSequence *Sequence);
+    static USkeletalMesh *FindPreviewMeshForAnimSequence(const UAnimSequence *Sequence,
+                                                         const FString       &SequenceAssetPath);
+    static void FindCompatibleAnimSequenceAssetsForSkeletalMesh(
+        const USkeletalMesh *Mesh,
+        const FString       &MeshAssetPath,
+        TArray<FString>     &OutPaths,
+        TArray<UAnimSequence*> &OutSequences);
     static int32          GetAnimSequenceCountForSkeletalMesh(const UFBXSceneAsset *SceneAsset,
                                                               const USkeletalMesh  *SkeletalMesh);
     static UAnimSequence *FindAnimSequenceForSkeletalMesh(UFBXSceneAsset      *SceneAsset,
