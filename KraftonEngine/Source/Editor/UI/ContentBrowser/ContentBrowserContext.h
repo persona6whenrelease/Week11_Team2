@@ -2,6 +2,8 @@
 #include "ImGui/imgui.h"
 #include "Platform/Paths.h"
 #include <memory>
+#include <string>
+#include <vector>
 
 class ContentBrowserElement;
 class UEditorEngine;
@@ -30,6 +32,17 @@ struct ContentBrowserContext final
 
 	bool bPendingDeleteConfirm = false;
 	std::shared_ptr<ContentBrowserElement> PendingDeleteElement;
+
+	// --- FBX Import Options Dialog ---
+	bool bShowFbxImportDialog = false;
+	std::wstring PendingFbxImportPath;
+	// Peeked animation names (populated before opening the dialog)
+	std::vector<std::string> FbxAnimationNames;
+	float FbxNativeFPS = 30.0f;
+	// 0 = 30 fps, 1 = Custom, 2 = Optimal (native)
+	int FbxImportFPSMode = 0;
+	float FbxImportCustomFPS = 30.0f;
+	std::vector<int> FbxAnimSelected; // per-animation checkbox state (int avoids std::vector<bool> specialization)
 
 	ImVec2 GetContentGridSlotPos() const
 	{

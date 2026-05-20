@@ -15,9 +15,13 @@
 #include "Asset/Import/FBX/Builder/FbxSkeletalMeshAssembler.h"
 #include "Asset/Import/FBX/Parser/FbxSkeletalMeshPartParser.h"
 #include "Asset/Import/FBX/Parser/FbxStaticMeshParser.h"
+#include "Engine/Platform/Paths.h"
 
 #include <fbxsdk.h>
 
+#include <algorithm>
+#include <cwctype>
+#include <filesystem>
 #include <string>
 
 namespace
@@ -114,22 +118,199 @@ namespace
             Asset.SceneComponents.push_back(std::move(Desc));
         }
     }
+
+    const char *ToStatusCodeString(FbxStatus::EStatusCode Code)
+    {
+        switch (Code)
+        {
+        case FbxStatus::eSuccess:
+            return "Success";
+        case FbxStatus::eFailure:
+            return "Failure";
+        case FbxStatus::eInsufficientMemory:
+            return "InsufficientMemory";
+        case FbxStatus::eInvalidParameter:
+            return "InvalidParameter";
+        case FbxStatus::eIndexOutOfRange:
+            return "IndexOutOfRange";
+        case FbxStatus::ePasswordError:
+            return "PasswordError";
+        case FbxStatus::eInvalidFileVersion:
+            return "InvalidFileVersion";
+        case FbxStatus::eInvalidFile:
+            return "InvalidFile";
+        case FbxStatus::eSceneCheckFail:
+            return "SceneCheckFail";
+        default:
+            return "Unknown";
+        }
+    }
+
+    std::string NormalizeUtf8Path(const std::wstring &Path)
+    {
+        return FPaths::ToUtf8(std::filesystem::path(Path).lexically_normal().wstring());
+    }
+
+    std::string ResolveImportDiskPath(const FString &InFilePath)
+    {
+        std::wstring DiskPath;
+        FString      ResolveError;
+        if (FPaths::TryResolvePackagePath(InFilePath, DiskPath, &ResolveError))
+        {
+            return NormalizeUtf8Path(DiskPath);
+        }
+
+        return NormalizeUtf8Path(FPaths::ToWide(InFilePath));
+    }
+
+    bool HasFbxExtension(const std::string &Path)
+    {
+        std::wstring Extension = std::filesystem::path(FPaths::ToWide(Path)).extension().wstring();
+        std::transform(Extension.begin(), Extension.end(), Extension.begin(),
+                       [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+        return Extension == L".fbx";
+    }
+
+    bool FileExistsOnDisk(const std::string &Path)
+    {
+        std::error_code           ErrorCode;
+        const std::filesystem::path DiskPath(FPaths::ToWide(Path));
+        return std::filesystem::exists(DiskPath, ErrorCode) && !ErrorCode;
+    }
+
+    int FindPreferredFbxReaderFormat(FbxManager *Manager, const char *PathUtf8)
+    {
+        if (!Manager)
+        {
+            return -1;
+        }
+
+        FbxIOPluginRegistry *Registry = Manager->GetIOPluginRegistry();
+        if (!Registry)
+        {
+            return -1;
+        }
+
+        int ReaderFormat = -1;
+        if (PathUtf8 && Registry->DetectReaderFileFormat(PathUtf8, ReaderFormat))
+        {
+            return ReaderFormat;
+        }
+
+        const int BinaryReader = Registry->FindReaderIDByDescription("FBX binary (*.fbx)");
+        if (BinaryReader >= 0)
+        {
+            return BinaryReader;
+        }
+
+        const int NativeReader = Registry->GetNativeReaderFormat();
+        if (NativeReader >= 0 && Registry->ReaderIsFBX(NativeReader))
+        {
+            return NativeReader;
+        }
+
+        const int ReaderCount = Registry->GetReaderFormatCount();
+        for (int ReaderIndex = 0; ReaderIndex < ReaderCount; ++ReaderIndex)
+        {
+            if (Registry->ReaderIsFBX(ReaderIndex))
+            {
+                return ReaderIndex;
+            }
+        }
+
+        return -1;
+    }
+
+    void LogReaderDiagnostics(FbxManager *Manager, const char *PathUtf8, int ReaderFormat)
+    {
+        if (!Manager)
+        {
+            return;
+        }
+
+        FbxIOPluginRegistry *Registry = Manager->GetIOPluginRegistry();
+        if (!Registry)
+        {
+            UE_LOG("[FBXImporter] FBX IO plugin registry is null. Path=%s",
+                   PathUtf8 ? PathUtf8 : "<null>");
+            return;
+        }
+
+        const int ReaderCount = Registry->GetReaderFormatCount();
+        if (ReaderCount <= 0)
+        {
+            UE_LOG("[FBXImporter] No FBX readers are registered. Path=%s", PathUtf8 ? PathUtf8 : "<null>");
+            return;
+        }
+
+        if (ReaderFormat >= 0 && ReaderFormat < ReaderCount)
+        {
+            UE_LOG("[FBXImporter] Reader diagnostics. Path=%s ReaderCount=%d SelectedFormat=%d "
+                   "Description=%s Extension=%s IsFBX=%d",
+                   PathUtf8 ? PathUtf8 : "<null>", ReaderCount, ReaderFormat,
+                   Registry->GetReaderFormatDescription(ReaderFormat),
+                   Registry->GetReaderFormatExtension(ReaderFormat),
+                   Registry->ReaderIsFBX(ReaderFormat) ? 1 : 0);
+            return;
+        }
+
+        UE_LOG("[FBXImporter] Reader diagnostics. Path=%s ReaderCount=%d SelectedFormat=%d",
+               PathUtf8 ? PathUtf8 : "<null>", ReaderCount, ReaderFormat);
+    }
+
+    bool TryInitializeImporter(FbxImporter *Importer, FbxManager *Manager, const char *PathUtf8,
+                               int ReaderFormat, const char *AttemptLabel)
+    {
+        if (!Importer || !Manager)
+        {
+            return false;
+        }
+
+        const bool bInitialized = Importer->Initialize(PathUtf8, ReaderFormat, Manager->GetIOSettings());
+        if (!bInitialized)
+        {
+            const FbxStatus &Status = Importer->GetStatus();
+            UE_LOG("[FBXImporter] Initialize attempt failed. Path=%s Attempt=%s Format=%d Status=%s "
+                   "Error=%s",
+                   PathUtf8 ? PathUtf8 : "<null>",
+                   AttemptLabel ? AttemptLabel : "unknown",
+                   ReaderFormat,
+                   ToStatusCodeString(Status.GetCode()),
+                   Status.GetErrorString());
+        }
+        return bInitialized;
+    }
 }
 
-bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset)
+void FBXImporter::ReportProgress(int Percent, const wchar_t* Status) const
 {
+    if (ProgressCallback)
+    {
+        ProgressCallback(Percent, Status);
+    }
+}
+
+bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAsset,
+                                  const FFBXImportOptions &Options,
+                                  FFBXProgressCallback     ProgressCb)
+{
+    ProgressCallback = std::move(ProgressCb);
+
     ClearAsset(OutFBXAsset);
 
+    ReportProgress(2, L"Initializing FBX SDK...");
     if (!InitializeSdk())
     {
         return false;
     }
 
+    ReportProgress(5, L"Loading FBX file...");
     if (!LoadScene(InFilePath))
     {
         ShutdownSdk();
         return false;
     }
+    ReportProgress(40, L"Analyzing scene structure...");
 
     ImportMeta.SourceFilePath = InFilePath;
 
@@ -139,6 +320,7 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
         ShutdownSdk();
         return false;
     }
+    ReportProgress(50, L"Parsing static meshes...");
 
     OutFBXAsset.PathFileName = InFilePath;
 
@@ -148,6 +330,7 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
         ShutdownSdk();
         return false;
     }
+    ReportProgress(55, L"Parsing skeletal meshes...");
 
     TArray<FFbxSkinnedMeshPart> SkinnedMeshParts;
     FFbxSkeletalMeshPartParser  SkeletalMeshPartParser(ImportMeta);
@@ -156,6 +339,7 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
         ShutdownSdk();
         return false;
     }
+    ReportProgress(65, L"Building skeletal meshes...");
 
     FFbxSkeletalMeshAssembler SkeletalMeshAssembler(ImportMeta);
     if (!SkeletalMeshAssembler.Assemble(SkinnedMeshParts, OutFBXAsset.SkeletalMeshes,
@@ -164,6 +348,22 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
         ShutdownSdk();
         return false;
     }
+    ReportProgress(75, L"Baking animations...");
+
+    // Determine effective sample rate
+    float NativeFPS = 30.0f;
+    if (Scene)
+    {
+        const FbxTime::EMode TimeMode = Scene->GetGlobalSettings().GetTimeMode();
+        const double NativeRate = FbxTime::GetFrameRate(TimeMode);
+        if (NativeRate > 0.0)
+        {
+            NativeFPS = static_cast<float>(NativeRate);
+        }
+    }
+    const float SampleRate = Options.GetEffectiveFPS(NativeFPS);
+    UE_LOG("[FBXImporter] Animation bake rate. NativeFPS=%.2f SampleRate=%.2f FPSMode=%d CustomFPS=%.2f",
+           NativeFPS, SampleRate, static_cast<int>(Options.FPSMode), Options.CustomFPS);
 
     {
         FFbxAnimationParser AnimationParser(ImportMeta);
@@ -198,9 +398,14 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
             SkeletonAsset.Bones = std::move(SkeletalMesh.Bones);
             SkeletonAsset.RebuildBoneNameToIndex();
 
+            const TArray<int32>* FilterIndices =
+                Options.AnimationFilterIndices.empty() ? nullptr : &Options.AnimationFilterIndices;
+
             AnimationParser.ParseSkeletonAnimations(Scene, SkeletonMeta,
                                                     SkeletonAsset.Bones,
-                                                    OutFBXAsset.AnimSequences[SkeletalMeshIndex]);
+                                                    OutFBXAsset.AnimSequences[SkeletalMeshIndex],
+                                                    SampleRate,
+                                                    FilterIndices);
 
             for (UAnimSequence* AnimSequence : OutFBXAsset.AnimSequences[SkeletalMeshIndex])
             {
@@ -211,6 +416,7 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
             }
         }
     }
+    ReportProgress(90, L"Setting up materials...");
 
     OutFBXAsset.StaticMeshMaterials.resize(OutFBXAsset.StaticMeshes.size());
     for (int32 StaticMeshIndex = 0;
@@ -236,11 +442,86 @@ bool FBXImporter::ImportFbxAsset(const FString &InFilePath, FFBXAsset &OutFBXAss
     }
 
     BuildSceneComponents(ImportMeta, OutFBXAsset);
+    ReportProgress(98, L"Finalizing...");
 
     FinalizeAsset();
 
     ShutdownSdk();
 
+    ReportProgress(100, L"Done");
+    return true;
+}
+
+bool FBXImporter::PeekFbxInfo(const FString &InFilePath, FFBXPeekInfo &OutInfo)
+{
+    OutInfo = {};
+
+    FbxManager* PeekManager = FbxManager::Create();
+    if (!PeekManager)
+    {
+        return false;
+    }
+
+    FbxIOSettings* IOSettings = FbxIOSettings::Create(PeekManager, IOSROOT);
+    if (IOSettings)
+    {
+        // Skip geometry and materials – we only need animation stack names and global settings
+        IOSettings->SetBoolProp(IMP_FBX_MATERIAL,         false);
+        IOSettings->SetBoolProp(IMP_FBX_TEXTURE,          false);
+        IOSettings->SetBoolProp(IMP_FBX_LINK,             false);
+        IOSettings->SetBoolProp(IMP_FBX_SHAPE,            false);
+        IOSettings->SetBoolProp(IMP_FBX_GOBO,             false);
+        PeekManager->SetIOSettings(IOSettings);
+    }
+
+    FbxImporter* PeekImporter = FbxImporter::Create(PeekManager, "");
+    if (!PeekImporter)
+    {
+        PeekManager->Destroy();
+        return false;
+    }
+
+    const std::string ResolvedPath = NormalizeUtf8Path(FPaths::ToWide(InFilePath));
+    const bool bInit = PeekImporter->Initialize(ResolvedPath.c_str(), -1, PeekManager->GetIOSettings());
+    if (!bInit)
+    {
+        PeekImporter->Destroy();
+        PeekManager->Destroy();
+        return false;
+    }
+
+    FbxScene* PeekScene = FbxScene::Create(PeekManager, "PeekScene");
+    if (!PeekScene || !PeekImporter->Import(PeekScene))
+    {
+        if (PeekScene) PeekScene->Destroy();
+        PeekImporter->Destroy();
+        PeekManager->Destroy();
+        return false;
+    }
+
+    // Native FPS from global settings
+    const FbxTime::EMode TimeMode = PeekScene->GetGlobalSettings().GetTimeMode();
+    const double NativeRate = FbxTime::GetFrameRate(TimeMode);
+    OutInfo.NativeFPS = (NativeRate > 0.0) ? static_cast<float>(NativeRate) : 30.0f;
+
+    // Animation stack names
+    const int32 StackCount = PeekScene->GetSrcObjectCount<FbxAnimStack>();
+    for (int32 i = 0; i < StackCount; ++i)
+    {
+        FbxAnimStack* Stack = PeekScene->GetSrcObject<FbxAnimStack>(i);
+        if (Stack && Stack->GetName())
+        {
+            OutInfo.AnimationNames.push_back(FString(Stack->GetName()));
+        }
+        else
+        {
+            OutInfo.AnimationNames.push_back(FString("Anim_") + std::to_string(i));
+        }
+    }
+
+    PeekScene->Destroy();
+    PeekImporter->Destroy();
+    PeekManager->Destroy();
     return true;
 }
 
@@ -295,13 +576,37 @@ bool FBXImporter::LoadScene(const FString &InFilePath)
         return false;
     }
 
-    const bool bInitialized =
-        Importer->Initialize(InFilePath.c_str(), -1, Manager->GetIOSettings());
+    const std::string ResolvedPath = ResolveImportDiskPath(InFilePath);
+    if (!FileExistsOnDisk(ResolvedPath))
+    {
+        UE_LOG("[FBXImporter] Source FBX file not found. Requested=%s Resolved=%s",
+               InFilePath.c_str(), ResolvedPath.c_str());
+        Importer->Destroy();
+        return false;
+    }
+
+    int PreferredReaderFormat = -1;
+    if (HasFbxExtension(ResolvedPath))
+    {
+        PreferredReaderFormat = FindPreferredFbxReaderFormat(Manager, ResolvedPath.c_str());
+    }
+
+    LogReaderDiagnostics(Manager, ResolvedPath.c_str(), PreferredReaderFormat);
+
+    bool bInitialized = TryInitializeImporter(Importer, Manager, ResolvedPath.c_str(),
+                                              PreferredReaderFormat, "preferred");
+    if (!bInitialized && PreferredReaderFormat >= 0)
+    {
+        bInitialized = TryInitializeImporter(Importer, Manager, ResolvedPath.c_str(), -1,
+                                             "autodetect");
+    }
 
     if (!bInitialized)
     {
-        UE_LOG("[FBXImporter] Initialize failed: %s. Error: %s", InFilePath.c_str(),
-               Importer->GetStatus().GetErrorString());
+        const FbxStatus &Status = Importer->GetStatus();
+        UE_LOG("[FBXImporter] Initialize failed. Requested=%s Resolved=%s Status=%s Error=%s",
+               InFilePath.c_str(), ResolvedPath.c_str(), ToStatusCodeString(Status.GetCode()),
+               Status.GetErrorString());
         Importer->Destroy();
         return false;
     }

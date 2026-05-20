@@ -42,7 +42,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/miniBusMTL.mat"
+          "Path" : "Asset/Runtime/Material/Auto/miniBusMTL.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [0.000000, 0.000000, 0.000000],

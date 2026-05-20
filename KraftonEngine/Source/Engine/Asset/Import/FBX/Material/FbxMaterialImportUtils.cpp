@@ -63,7 +63,7 @@ namespace
         }
 
         const FString MatPath =
-            "Asset/Materials/Auto/" + SanitizeMaterialFileName(SlotName) + ".mat";
+            "Asset/Runtime/Material/" + SanitizeMaterialFileName(SlotName) + ".mat";
         MaterialInfo.MaterialAssetPath = MatPath;
 
         std::wstring MatDiskPath;

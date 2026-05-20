@@ -27,7 +27,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/Rock_1.mat"
+          "Path" : "Asset/Runtime/Material/Auto/Rock_1.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [1.222886, -0.959962, -0.621617],

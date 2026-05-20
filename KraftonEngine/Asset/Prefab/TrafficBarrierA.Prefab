@@ -27,7 +27,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/UrbanObstacle.mat"
+          "Path" : "Asset/Runtime/Material/Auto/UrbanObstacle.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [1.343420, -16.565662, 0.816329],

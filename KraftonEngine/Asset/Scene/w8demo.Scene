@@ -2970,7 +2970,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/DirectionalLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/DirectionalLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3012,7 +3012,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/AmbientLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/AmbientLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3054,7 +3054,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/PointLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/PointLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3111,7 +3111,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/PointLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/PointLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3155,7 +3155,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/PointLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/PointLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3212,7 +3212,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3271,7 +3271,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3317,7 +3317,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3363,7 +3363,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3409,7 +3409,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3468,7 +3468,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],
@@ -3514,7 +3514,7 @@
               "Height" : 1.000000,
               "Location" : [0.000000, 0.000000, 0.000000],
               "Material" : {
-                "Path" : "Asset/Materials/Editor/SpotLight.mat"
+                "Path" : "Asset/Runtime/Material/Editor/SpotLight.mat"
               },
               "Rotation" : [0.000000, 0.000000, 0.000000],
               "Scale" : [1.000000, 1.000000, 1.000000],

@@ -19,7 +19,7 @@ void FMaterialManager::ScanMaterialAssets()
 {
 	AvailableMaterialFiles.clear();
 
-	const std::filesystem::path MaterialRoot = FPaths::RootDir() + L"Asset\\Materials\\";
+	const std::filesystem::path MaterialRoot = std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"Material";
 
 	if (!std::filesystem::exists(MaterialRoot))
 	{
@@ -52,7 +52,7 @@ UMaterial* FMaterialManager::GetOrCreateMaterial(const FString& MatFilePath)
 	auto It = MaterialCache.find(GenericPath);
 	if (It != MaterialCache.end())
 	{
-		if (GenericPath.find("Asset/Materials/Auto/") == FString::npos)
+		if (GenericPath.find("Asset/Runtime/Material/") == FString::npos)
 		{
 			return It->second;
 		}

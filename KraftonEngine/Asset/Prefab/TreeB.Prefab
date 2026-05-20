@@ -59,7 +59,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/VoxelTreeB.mat"
+          "Path" : "Asset/Runtime/Material/Auto/VoxelTreeB.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [-8.278685, 1.548151, 6.180996],

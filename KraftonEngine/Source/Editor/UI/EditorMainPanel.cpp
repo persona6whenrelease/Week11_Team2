@@ -268,6 +268,12 @@ void FEditorMainPanel::RenderMainMenuBar()
 		}
 
 		ImGui::Separator();
+		if (ImGui::MenuItem("Import FBX...", nullptr) && EditorEngine)
+		{
+			EditorEngine->ImportFbxAsSkeletalMeshAssetWithDialog();
+		}
+
+		ImGui::Separator();
 		if (ImGui::MenuItem("Package Game...") && EditorEngine)
 		{
 			OpenPackageSettingsWindow();

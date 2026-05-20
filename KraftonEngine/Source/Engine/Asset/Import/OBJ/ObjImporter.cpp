@@ -516,7 +516,7 @@ FString FObjImporter::ConvertMtlInfoToJson(const FObjMaterialInfo *MtlInfo)
 
 FString FObjImporter::ConvertMtlInfoToMat(const FObjMaterialInfo *MtlInfo)
 {
-    FString      MatPath = "Asset/Materials/Auto/" + MtlInfo->MaterialSlotName + ".mat";
+    FString      MatPath = "Asset/Runtime/Material/" + MtlInfo->MaterialSlotName + ".mat";
     std::wstring MatDiskPath;
     FString      Error;
     if (!FPaths::TryResolvePackagePath(MatPath, MatDiskPath, &Error))

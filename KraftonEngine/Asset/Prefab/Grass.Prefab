@@ -11,7 +11,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : false,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/Grass_Block.mat"
+          "Path" : "Asset/Runtime/Material/Auto/Grass_Block.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [0.000000, 4.000000, 1.000000],

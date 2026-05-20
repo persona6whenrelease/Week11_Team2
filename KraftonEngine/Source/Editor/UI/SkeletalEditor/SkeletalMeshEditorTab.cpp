@@ -578,10 +578,24 @@ void FSkeletalMeshEditorTab::RenderPreviewAnimationSelector()
 		PreviewMeshComponent->SetBakedAnimTime(0.0f);
 		PreviewMeshComponent->SetBakedAnimPaused(true);
 	}
-    const FString CurrentSequenceName =
-        (CurrentSequence && !CurrentSequence->GetSequenceName().empty())
-            ? CurrentSequence->GetSequenceName()
-            : FString("None");
+    auto MakeAnimLabel = [](const UAnimSequence* Seq, const FString& FallbackName) -> FString
+    {
+        FString Base = (Seq && !Seq->GetSequenceName().empty()) ? Seq->GetSequenceName() : FallbackName;
+        if (Seq)
+        {
+            const UAnimDataModel* Model = Seq->GetDataModel();
+            if (Model && Model->GetFrameRate().AsDecimal() > 0.0f)
+            {
+                const int32 FPSInt = static_cast<int32>(std::round(Model->GetFrameRate().AsDecimal()));
+                Base += " (" + std::to_string(FPSInt) + "fps)";
+            }
+        }
+        return Base;
+    };
+
+    const FString CurrentSequenceName = CurrentSequence
+        ? MakeAnimLabel(CurrentSequence, "None")
+        : FString("None");
     const char* CurrentClipName = CurrentSequenceName.c_str();
 
 	ImGui::SetNextItemWidth(260.0f);
@@ -615,14 +629,14 @@ void FSkeletalMeshEditorTab::RenderPreviewAnimationSelector()
 				Sequence = FMeshManager::FindAnimSequenceForSkeletalMesh(
 					CurrentSceneAsset, PreviewSkeletalMesh, i, &AnimSequencePath);
 			}
-            const FString SequenceName = (Sequence && !Sequence->GetSequenceName().empty())
-                ? Sequence->GetSequenceName()
-                : (!AnimSequencePath.empty()
-                    ? AnimSequencePath
-                    : FString("AnimSequence_") + std::to_string(i));
+            const FString FallbackName = !AnimSequencePath.empty()
+                ? AnimSequencePath
+                : FString("AnimSequence_") + std::to_string(i);
+            const FString SequenceLabel = MakeAnimLabel(Sequence, FallbackName)
+                + "##" + std::to_string(i);
 
             const bool bSelected = (i == SequenceIndex);
-            if (ImGui::Selectable(SequenceName.c_str(), bSelected))
+            if (ImGui::Selectable(SequenceLabel.c_str(), bSelected))
             {
 				CurrentSequenceIndex = i;
                 PreviewMeshComponent->SetAnimation(Sequence);

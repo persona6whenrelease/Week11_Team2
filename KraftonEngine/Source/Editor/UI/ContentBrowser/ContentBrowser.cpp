@@ -1,7 +1,9 @@
 ﻿#include "ContentBrowser.h"
 
 #include "ContentBrowserElement.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/Settings/EditorSettings.h"
+#include "Asset/Import/FBX/Core/FBXManager.h"
 #include <algorithm>
 #include <cwctype>
 #include <fstream>
@@ -190,12 +192,6 @@ void FEditorContentBrowserWidget::Render(float DeltaTime)
 
 	ImGui::Text(FPaths::ToUtf8(PathText).c_str());
 
-	ImGui::SameLine();
-	int size = static_cast<int>(GetIconSize());
-	if (ImGui::SliderInt("##slider", &size, 20, 100))
-	{
-		SetIconSize(static_cast<float>(size));
-	}
 	if (!ImGui::BeginTable("ContentBrowserLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
 	{
 		ImGui::End();
@@ -430,6 +426,127 @@ void FEditorContentBrowserWidget::DrawContents()
 		if (ImGui::Button("Cancel", ImVec2(80, 0)))
 		{
 			BrowserContext.PendingDeleteElement = nullptr;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	// FBX Import Options dialog
+	if (BrowserContext.bShowFbxImportDialog)
+	{
+		ImGui::OpenPopup("FBX Import Options");
+		BrowserContext.bShowFbxImportDialog = false;
+	}
+
+	ImVec2 Center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(Center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSize(ImVec2(480, 0), ImGuiCond_Appearing);
+	if (ImGui::BeginPopupModal("FBX Import Options", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextDisabled("File: %s", FPaths::ToUtf8(BrowserContext.PendingFbxImportPath).c_str());
+		ImGui::Separator();
+
+		// --- FPS 설정 ---
+		ImGui::Text("Bake FPS");
+		ImGui::RadioButton("30 fps", &BrowserContext.FbxImportFPSMode, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Custom", &BrowserContext.FbxImportFPSMode, 1);
+		ImGui::SameLine();
+		char OptimalLabel[64];
+		snprintf(OptimalLabel, sizeof(OptimalLabel), "Optimal (%.0f fps)", BrowserContext.FbxNativeFPS);
+		ImGui::RadioButton(OptimalLabel, &BrowserContext.FbxImportFPSMode, 2);
+
+		if (BrowserContext.FbxImportFPSMode == 1)
+		{
+			ImGui::SetNextItemWidth(120.0f);
+			ImGui::InputFloat("Custom fps##fbximport", &BrowserContext.FbxImportCustomFPS, 1.0f, 5.0f, "%.1f");
+			if (BrowserContext.FbxImportCustomFPS < 1.0f)  BrowserContext.FbxImportCustomFPS = 1.0f;
+			if (BrowserContext.FbxImportCustomFPS > 240.0f) BrowserContext.FbxImportCustomFPS = 240.0f;
+		}
+
+		ImGui::Separator();
+
+		// --- 애니메이션 선택 ---
+		ImGui::Text("Animations to import:");
+		if (BrowserContext.FbxAnimationNames.empty())
+		{
+			ImGui::TextDisabled("  (no animations found)");
+		}
+		else
+		{
+			// Select all / none buttons
+			if (ImGui::SmallButton("All"))
+			{
+				for (size_t i = 0; i < BrowserContext.FbxAnimSelected.size(); ++i) BrowserContext.FbxAnimSelected[i] = 1;
+			}
+			ImGui::SameLine();
+			if (ImGui::SmallButton("None"))
+			{
+				for (size_t i = 0; i < BrowserContext.FbxAnimSelected.size(); ++i) BrowserContext.FbxAnimSelected[i] = 0;
+			}
+
+			ImGui::BeginChild("##animlist", ImVec2(0, 160), true);
+			for (size_t i = 0; i < BrowserContext.FbxAnimationNames.size(); ++i)
+			{
+				bool bSelected = (i < BrowserContext.FbxAnimSelected.size()) ? BrowserContext.FbxAnimSelected[i] : true;
+				char CheckLabel[256];
+				snprintf(CheckLabel, sizeof(CheckLabel), "%s##anim%zu",
+				         BrowserContext.FbxAnimationNames[i].c_str(), i);
+				if (ImGui::Checkbox(CheckLabel, &bSelected))
+				{
+					if (i < BrowserContext.FbxAnimSelected.size())
+					{
+						BrowserContext.FbxAnimSelected[i] = bSelected;
+					}
+				}
+			}
+			ImGui::EndChild();
+		}
+
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		bool bCanImport = BrowserContext.EditorEngine != nullptr;
+		if (!bCanImport) ImGui::BeginDisabled();
+		if (ImGui::Button("Import", ImVec2(100, 0)))
+		{
+			// Build import options from dialog state
+			FFBXImportOptions Options;
+			switch (BrowserContext.FbxImportFPSMode)
+			{
+			case 1: Options.FPSMode = FFBXImportOptions::EFPSMode::Custom;   Options.CustomFPS = BrowserContext.FbxImportCustomFPS; break;
+			case 2: Options.FPSMode = FFBXImportOptions::EFPSMode::Optimal;  break;
+			default: Options.FPSMode = FFBXImportOptions::EFPSMode::FPS30;   break;
+			}
+			// Animation filter: only pass indices of selected anims if not all are selected
+			bool bAllSelected = true;
+			for (bool b : BrowserContext.FbxAnimSelected) { if (!b) { bAllSelected = false; break; } }
+			if (!bAllSelected)
+			{
+				for (int32 i = 0; i < static_cast<int32>(BrowserContext.FbxAnimSelected.size()); ++i)
+				{
+					if (BrowserContext.FbxAnimSelected[i])
+					{
+						Options.AnimationFilterIndices.push_back(i);
+					}
+				}
+			}
+
+			const FString FbxPath = FPaths::ToUtf8(BrowserContext.PendingFbxImportPath);
+			if (BrowserContext.EditorEngine->ImportFbxWithOptions(FbxPath, Options))
+			{
+				const std::wstring DestDir =
+					(std::filesystem::path(FPaths::RootDir()) / L"Asset" / L"Runtime" / L"SkeletalMesh").wstring();
+				BrowserContext.CurrentPath = DestDir;
+				BrowserContext.PendingRevealPath = DestDir;
+				BrowserContext.bIsNeedRefresh = true;
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		if (!bCanImport) ImGui::EndDisabled();
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(100, 0)))
+		{
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();

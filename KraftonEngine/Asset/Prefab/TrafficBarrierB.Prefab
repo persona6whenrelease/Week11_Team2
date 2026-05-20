@@ -27,7 +27,7 @@
         "Blocks Movement" : true,
         "Cast Shadow" : true,
         "Element 0" : {
-          "Path" : "Asset/Materials/Auto/weathered_concrete_barriers.mat"
+          "Path" : "Asset/Runtime/Material/Auto/weathered_concrete_barriers.mat"
         },
         "Generate Overlap Events" : true,
         "Location" : [1.543525, 2.407899, 1.005149],

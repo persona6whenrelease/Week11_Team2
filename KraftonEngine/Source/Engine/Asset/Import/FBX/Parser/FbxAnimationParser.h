@@ -23,11 +23,13 @@ class FFbxAnimationParser final
 public:
     explicit FFbxAnimationParser(const FFbxImportMeta& InImportMeta) : ImportMeta(InImportMeta) {}
 
+    // AnimFilterIndices: if non-null and non-empty, only animation stacks at those indices are baked.
     void ParseSkeletonAnimations(fbxsdk::FbxScene* Scene,
                                  const FFbxSkeletonMeta& SkeletonMeta,
                                  const TArray<FBoneInfo>& SkeletonBones,
                                  TArray<UAnimSequence*>& OutAnimSequences,
-                                 float SampleRate = 30.0f) const;
+                                 float SampleRate = 30.0f,
+                                 const TArray<int32>* AnimFilterIndices = nullptr) const;
 
 private:
     const FFbxImportMeta& ImportMeta;
