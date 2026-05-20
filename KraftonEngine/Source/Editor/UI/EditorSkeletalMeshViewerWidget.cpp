@@ -45,6 +45,10 @@ namespace
 		{
 			OutPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, OutSequence);
 		}
+		if (!OutPreviewMesh)
+		{
+			OutPreviewMesh = FMeshManager::FindPreviewMeshForAnimSequence(OutSequence, AssetPath);
+		}
 
 		return OutSequence != nullptr;
 	}
@@ -254,6 +258,21 @@ bool FEditorSkeletalMeshViewerWidget::OpenFbxAsset(const FString& FbxPath)
 
 bool FEditorSkeletalMeshViewerWidget::OpenSkeletalMeshAsset(const FString& AssetPath)
 {
+	EAssetType AssetType = EAssetType::Unknown;
+	if (!TryReadAssetType(AssetPath, AssetType))
+	{
+		return OpenFbxAsset(AssetPath);
+	}
+
+	if (AssetType == EAssetType::AnimSequence)
+	{
+		return OpenAnimSequenceAsset(AssetPath);
+	}
+	if (AssetType != EAssetType::SkeletalMesh)
+	{
+		return false;
+	}
+
 	if (FSkeletalEditorTab* Existing = FindTabBySource(AssetPath))
 	{
 		FocusTab(Existing);
@@ -279,7 +298,9 @@ bool FEditorSkeletalMeshViewerWidget::OpenSkeletalMeshAsset(const FString& Asset
 				OpenAnimSequenceAsset(AnimSequencePath, Mesh, Sequence);
 			}
 		});
-	if (!NewTab->OpenSkeletalMeshAsset(AssetPath))
+
+	const bool bOk = NewTab->OpenSkeletalMeshAsset(AssetPath);
+	if (!bOk)
 	{
 		return false;
 	}
@@ -324,9 +345,16 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 		[this, RawTab]()
 		{
 			const FString& Path = RawTab->GetFbxPath();
-			if (!Path.empty())
+			if (!Path.empty() && OpenFbxAsset(Path))
 			{
-				OpenFbxAsset(Path);
+				return;
+			}
+
+			const FString MeshAssetPath =
+				FMeshManager::GetLoadedSkeletalMeshAssetPath(RawTab->GetCurrentPreviewMesh());
+			if (!MeshAssetPath.empty())
+			{
+				OpenSkeletalMeshAsset(MeshAssetPath);
 			}
 		});
 	NewTab->SetOnSwitchToAnimSequence(nullptr);
@@ -371,9 +399,16 @@ bool FEditorSkeletalMeshViewerWidget::OpenAnimSequenceAsset(const FString& Asset
 		[this, RawTab]()
 		{
 			const FString& Path = RawTab->GetFbxPath();
-			if (!Path.empty())
+			if (!Path.empty() && OpenFbxAsset(Path))
 			{
-				OpenFbxAsset(Path);
+				return;
+			}
+
+			const FString MeshAssetPath =
+				FMeshManager::GetLoadedSkeletalMeshAssetPath(RawTab->GetCurrentPreviewMesh());
+			if (!MeshAssetPath.empty())
+			{
+				OpenSkeletalMeshAsset(MeshAssetPath);
 			}
 		});
 	NewTab->SetOnSwitchToAnimSequence(nullptr);

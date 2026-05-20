@@ -167,6 +167,10 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath)
 	{
 		ResolvedPreviewMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, ResolvedSequence);
 	}
+	if (!ResolvedPreviewMesh)
+	{
+		ResolvedPreviewMesh = FMeshManager::FindPreviewMeshForAnimSequence(ResolvedSequence, AssetPath);
+	}
 
 	return OpenAnimSequenceAsset(AssetPath, ResolvedPreviewMesh, ResolvedSequence);
 }
@@ -180,8 +184,26 @@ bool FAnimSequenceEditorTab::OpenAnimSequenceAsset(const FString& AssetPath, USk
 
 	const size_t AnimMarkerPos = AssetPath.find("#Anim_");
 	FbxPath = AnimMarkerPos == FString::npos ? FString() : AssetPath.substr(0, AnimMarkerPos);
+	if (FbxPath.empty())
+	{
+		const FString& SkeletonAssetPath = InSequence->GetSkeletonAssetPath();
+		if (SkeletonAssetPath.find('#') != FString::npos)
+		{
+			FbxPath = FMeshManager::GetFbxSourcePathFromSubAssetPath(SkeletonAssetPath);
+		}
+	}
 	SetSourcePath(AssetPath);
 	DataSource = std::make_unique<FUAnimSequenceDataSource>(InSequence);
+	AssetBrowserAnimSequencePaths.clear();
+	AssetBrowserAnimSequences.clear();
+	if (InPreviewMesh)
+	{
+		FMeshManager::FindCompatibleAnimSequenceAssetsForSkeletalMesh(
+			InPreviewMesh,
+			FMeshManager::GetLoadedSkeletalMeshAssetPath(InPreviewMesh),
+			AssetBrowserAnimSequencePaths,
+			AssetBrowserAnimSequences);
+	}
 
 	PreviewScene.Ensure();
 	if (InPreviewMesh &&
@@ -1174,13 +1196,23 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 {
 	const FSkeletalMesh* MeshAsset = PreviewMesh ? PreviewMesh->GetSkeletalMeshAsset() : nullptr;
 	UFBXSceneAsset* SceneAsset = PreviewMesh ? PreviewMesh->GetTypedOuter<UFBXSceneAsset>() : nullptr;
-	if (!MeshAsset || !SceneAsset)
+	if (!SceneAsset && PreviewMesh)
+	{
+		SceneAsset = FMeshManager::LoadFbxSceneForSkeletalMesh(PreviewMesh);
+	}
+	if (!MeshAsset)
 	{
 		ImGui::TextDisabled("No mesh");
 		return;
 	}
-	const int32 SequenceCount =
-		FMeshManager::GetAnimSequenceCountForSkeletalMesh(SceneAsset, PreviewMesh);
+
+	const int32 FbxSequenceCount = SceneAsset
+		? FMeshManager::GetAnimSequenceCountForSkeletalMesh(SceneAsset, PreviewMesh)
+		: 0;
+	const bool bUseAssetSequences = FbxSequenceCount <= 0;
+	const int32 SequenceCount = bUseAssetSequences
+		? static_cast<int32>(AssetBrowserAnimSequences.size())
+		: FbxSequenceCount;
 	if (SequenceCount <= 0)
 	{
 		ImGui::TextDisabled("No anim sequences for this mesh");
@@ -1212,8 +1244,17 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 		for (int32 i = 0; i < SequenceCount; ++i)
 		{
 			FString Path;
-			UAnimSequence* Seq = FMeshManager::FindAnimSequenceForSkeletalMesh(
-				SceneAsset, PreviewMesh, i, &Path);
+			UAnimSequence* Seq = nullptr;
+			if (bUseAssetSequences)
+			{
+				Seq = AssetBrowserAnimSequences[i];
+				Path = AssetBrowserAnimSequencePaths[i];
+			}
+			else
+			{
+				Seq = FMeshManager::FindAnimSequenceForSkeletalMesh(
+					SceneAsset, PreviewMesh, i, &Path);
+			}
 
 			// Name: 실제 anim sequence의 이름을 resolve해서 가져옴
 			//       (없으면 path의 stem으로 fallback)
@@ -1248,7 +1289,14 @@ void FAnimSequenceEditorTab::RenderAssetBrowser()
 			{
 				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 				{
-					OpenAnimSequenceAsset(Path);
+					if (bUseAssetSequences)
+					{
+						OpenAnimSequenceAsset(Path, PreviewMesh, Seq);
+					}
+					else
+					{
+						OpenAnimSequenceAsset(Path);
+					}
 				}
 			}
 			ImGui::PopID();

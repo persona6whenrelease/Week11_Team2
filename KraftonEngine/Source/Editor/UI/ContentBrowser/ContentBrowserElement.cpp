@@ -1,4 +1,4 @@
-#include "ContentBrowserElement.h"
+﻿#include "ContentBrowserElement.h"
 #include "Component/SkeletalMeshComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Editor/EditorEngine.h"
@@ -164,12 +164,6 @@ namespace
 		return BuildSkeletalMeshSnapshot(Context, SkeletalMesh);
 	}
 
-	FString GetFbxSourcePathFromSubAssetPath(const FString& AssetPath)
-	{
-		const size_t MarkerPos = AssetPath.find('#');
-		return MarkerPos == FString::npos ? AssetPath : AssetPath.substr(0, MarkerPos);
-	}
-
 	ID3D11ShaderResourceView* BuildAnimSequenceSnapshot(ContentBrowserContext& Context, const FString& AnimSequencePath)
 	{
 		UAnimSequence* Sequence = FMeshManager::ResolveAnimSequenceReference(AnimSequencePath);
@@ -178,8 +172,7 @@ namespace
 			return nullptr;
 		}
 
-		UFBXSceneAsset* SceneAsset = FMeshManager::LoadFbxScene(GetFbxSourcePathFromSubAssetPath(AnimSequencePath));
-		USkeletalMesh* SkeletalMesh = FMeshManager::FindSkeletalMeshForAnimSequence(SceneAsset, Sequence);
+		USkeletalMesh* SkeletalMesh = FMeshManager::FindPreviewMeshForAnimSequence(Sequence, AnimSequencePath);
 		if (!SkeletalMesh)
 		{
 			return nullptr;
@@ -592,10 +585,23 @@ void ImportedAnimSequenceElement::OnDoubleLeftClicked(ContentBrowserContext& Con
 
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> AnimSequenceAssetElement::GetElementIcon(ContentBrowserContext& Context)
 {
-	// `.asset` 단일 파일도 BuildAnimSequenceSnapshot이 ResolveAnimSequenceReference 분기를 통해
-	// 동일하게 처리한다 (절대 경로 OK). 헤더 검사가 실패하면 nullptr이 떨어져 fallback 아이콘이 쓰인다.
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Result;
-	Result.Attach(BuildAnimSequenceSnapshot(Context, FPaths::ToUtf8(ContentItem.Path.wstring())));
+	const FString AssetPath = FPaths::ToUtf8(ContentItem.Path.wstring());
+
+	EAssetType AssetType = EAssetType::Unknown;
+	if (!TryReadAssetType(AssetPath, AssetType))
+	{
+		return Result;
+	}
+
+	if (AssetType == EAssetType::AnimSequence)
+	{
+		Result.Attach(BuildAnimSequenceSnapshot(Context, AssetPath));
+	}
+	else if (AssetType == EAssetType::SkeletalMesh)
+	{
+		Result.Attach(BuildSkeletalMeshSnapshot(Context, AssetPath));
+	}
 	return Result;
 }
 

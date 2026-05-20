@@ -51,6 +51,9 @@ private:
 	FString CurrentFbxPath;
 	FString StatusMessage = "Double-click an FBX asset in ContentBrowser";
 	FOpenAnimEditorCallback OpenAnimEditorCallback;
+	TArray<FString> AssetAnimSequencePaths;
+	TArray<UAnimSequence*> AssetAnimSequences;
+	bool bLoadedFromMeshAsset = false;
 	int32 CurrentSequenceIndex = -1;
 	int32 SelectedResourceIndex = -1;
 	int32 SelectedBoneIndex = -1;
