@@ -448,6 +448,7 @@ USkeletalMesh *FMeshManager::LoadSkeletalMeshFromFile(const FString &PathFileNam
     // Standalone .asset 로드에서는 내부 원본 FBX 참조 대신 실제 .asset 경로를 자기 경로로 사용한다.
     // 그래야 이후 컴포넌트/에디터가 이 메시를 다시 경로 기반으로 다룰 때 FBX reference loader를 타지 않는다.
     Mesh->GetSkeletalMeshAsset()->PathFileName = PathFileName;
+    SkeletalMeshAssetPathCache[Mesh] = PathFileName;
 
     return Mesh;
 }
