@@ -10,12 +10,6 @@ local function VX(v) return v and (v.X or v.x) or 0 end
 local function VY(v) return v and (v.Y or v.y) or 0 end
 local function VZ(v) return v and (v.Z or v.z) or 0 end
 
-local NOTIFY_TO_SOUND = {
-    Footstep_Left  = "Jump",
-    Footstep_Right = "Jump",
-    JumpStart      = "Jump",
-    Land           = "Crash",
-}
 
 local function SafeDt(dt)
     if not dt or dt <= 0 or dt > 0.2 then

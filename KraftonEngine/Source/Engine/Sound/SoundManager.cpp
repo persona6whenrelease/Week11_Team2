@@ -95,6 +95,32 @@ void FSoundManager::LoadEffect(const FSoundId& ID, const std::wstring& FilePath)
 	Sounds[ID] = std::make_unique<sf::Sound>(*SoundBufferMap[ID]);
 }
 
+void FSoundManager::ScanAndLoadEffectsFromDirectory(const std::wstring& Directory)
+{
+	std::error_code Ec;
+	std::filesystem::directory_iterator It(Directory, Ec);
+	if (Ec) return;
+
+	for (const auto& Entry : It)
+	{
+		if (!Entry.is_regular_file()) continue;
+		const auto& Path = Entry.path();
+		if (Path.extension() != L".wav") continue;
+		// BackgroundMusic.wav는 sf::Music로 별도 로드되므로 효과음 등록 skip.
+		if (Path.filename() == L"BackgroundMusic.wav") continue;
+
+		const FSoundId Id = Path.stem().string();
+		try
+		{
+			LoadEffect(Id, Path.wstring());
+		}
+		catch (const std::exception& E)
+		{
+			UE_LOG("[Sound] Failed to pre-load '%s': %s", Id.c_str(), E.what());
+		}
+	}
+}
+
 void FSoundManager::PlayEffect(const FSoundId& ID)
 {
 	auto it = Sounds.find(ID);

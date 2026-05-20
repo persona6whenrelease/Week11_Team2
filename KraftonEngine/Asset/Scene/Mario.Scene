@@ -124,14 +124,14 @@
   "ContextName" : "Default",
   "Name" : "Mario",
   "PerspectiveCamera" : {
-    "AspectRatio" : 1.923205,
+    "AspectRatio" : 1.921536,
     "FOV" : 1.047198,
     "FarClip" : 1000.000000,
     "Location" : [23.239904, 0.377436, 13.500209],
     "NearClip" : 0.100000,
     "OrthoWidth" : 10.000000,
     "Orthographic" : false,
-    "Rotation" : [0.000000, 23.714596, 176.700897]
+    "Rotation" : [0.000000, 23.714561, 176.700897]
   },
   "Version" : 2,
   "WorldType" : "Editor"

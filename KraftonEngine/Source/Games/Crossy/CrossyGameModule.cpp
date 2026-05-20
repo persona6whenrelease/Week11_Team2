@@ -114,5 +114,6 @@ void FCrossyGameModule::LoadCrossyAudio()
 	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump.wav"));
 	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump2, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump2.wav"));
 	FSoundManager::Get().LoadEffect(CrossyAudioIds::Jump3, FPaths::Combine(FPaths::AssetDir(), L"Sound/Jump3.wav"));
+	FSoundManager::Get().LoadEffect(CrossyAudioIds::Walk, FPaths::Combine(FPaths::AssetDir(), L"Sound/Walk.wav"));
 
 }

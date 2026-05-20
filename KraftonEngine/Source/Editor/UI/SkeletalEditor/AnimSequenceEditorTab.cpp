@@ -143,36 +143,16 @@ namespace
 			FMatrix::MakeTranslationMatrix(Location);
 	}
 
-	// 에디터에서 Sound notify의 SoundId picker를 사용하려면 SoundManager에 효과음이 사전 등록되어 있어야 한다.
-	// LoadCrossyAudio는 game 모드에서만 호출되므로, 에디터 진입 시점에 Asset/Sound/ 디렉토리를 자동 스캔하여
-	// 모든 .wav를 LoadEffect로 등록한다. process 수명 동안 1회만 실행.
+	// 사운드 사전 등록은 UEngine::Init 시점에 FSoundManager가 직접 수행한다.
+	// 이 헬퍼는 새 wav가 디렉토리에 추가되었을 때를 대비한 정합성 보장용 — 이미 등록된 ID는 덮어쓰지만 비용은 작다.
 	void EnsureEditorSoundsLoaded()
 	{
 		static bool bLoaded = false;
 		if (bLoaded) return;
 		bLoaded = true;
 
-		const std::wstring SoundDir = FPaths::Combine(FPaths::AssetDir(), L"Sound/");
-		std::error_code Ec;
-		std::filesystem::directory_iterator It(SoundDir, Ec);
-		if (Ec) return;
-
-		for (const auto& Entry : It)
-		{
-			if (!Entry.is_regular_file()) continue;
-			const auto& Path = Entry.path();
-			if (Path.extension() != L".wav") continue;
-
-			const FSoundId Id = Path.stem().string();
-			try
-			{
-				FSoundManager::Get().LoadEffect(Id, Path.wstring());
-			}
-			catch (const std::exception& E)
-			{
-				UE_LOG("[AnimSequenceEditor] Failed to pre-load sound '%s': %s", Id.c_str(), E.what());
-			}
-		}
+		FSoundManager::Get().ScanAndLoadEffectsFromDirectory(
+			FPaths::Combine(FPaths::AssetDir(), L"Sound/"));
 	}
 
 	// timeline notify 마커의 type별 자동 색상. Sound=청색, CameraShake=주황, None(legacy)=회색.

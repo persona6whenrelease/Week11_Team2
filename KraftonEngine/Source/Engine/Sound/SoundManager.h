@@ -23,6 +23,9 @@ public:
 	void StopBGM();
 
 	void LoadEffect(const FSoundId& ID, const std::wstring& FilePath);
+	// 지정 디렉토리 내 모든 .wav를 stem(확장자 없는 파일명)을 ID로 사용해 LoadEffect 등록.
+	// 개별 파일 실패는 로그만 남기고 계속 진행.
+	void ScanAndLoadEffectsFromDirectory(const std::wstring& Directory);
 	void PlayEffect(const FSoundId& ID);
 	void StopEffect(const FSoundId& ID);
 

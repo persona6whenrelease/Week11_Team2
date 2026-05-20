@@ -22,6 +22,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Asset/Material/MaterialManager.h"
 #include "Engine/Platform/Paths.h"
+#include "Sound/SoundManager.h"
 #include "Runtime/ActorPoolSystem.h"
 #include "Runtime/EngineFactory.h"
 #include "GameClient/LinkedRuntimeModules.h"
@@ -341,6 +342,7 @@ void UEditorEngine::StartPlayInEditorSession(const FRequestPlaySessionParams& Pa
 
 	TaskScheduler.Clear();
 	GetRuntimeModules().OnWorldCreated(PIEWorld);
+	FSoundManager::Get().PlayBGM();
 
 	// GPU Occlusion readback? ProxyId 湲곕컲?대씪 ?붾뱶媛 媛덈━硫?stale.
 	// ?댁쟾 ?꾨젅??寃곌낵瑜?臾댄슚?뷀빐??wrong-proxy hit 諛⑹?.
@@ -454,6 +456,7 @@ void UEditorEngine::EndPlayMap()
 
 	// PIE ?고???Row ?≫꽣???ㅼ젣 ??젣?⑸땲??
 	GetRuntimeModules().OnPreWorldReset(PIEWorld);
+	FSoundManager::Get().StopBGM();
 
 	// ????ㅼ뼱媛 ?덈뜕 PIE ?≫꽣 李몄“?????붾뱶 湲곗??쇰줈留??딆뒿?덈떎.
 	// FActorPoolSystem::Shutdown()? ?꾩껜 ???吏?곕?濡?PIE?먯꽌??ClearWorld媛 ???덉쟾?⑸땲??

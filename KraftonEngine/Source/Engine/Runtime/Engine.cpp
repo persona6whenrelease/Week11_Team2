@@ -81,6 +81,8 @@ void UEngine::Init(FWindowsWindow* InWindow)
 	FDirectoryWatcher::Get().Initialize();
 	FLuaScriptSubsystem::Get().Initialize();
 	FSoundManager::Get().initialize();
+	FSoundManager::Get().ScanAndLoadEffectsFromDirectory(FPaths::Combine(FPaths::AssetDir(), L"Sound/"));
+	FSoundManager::Get().LoadMusic("BGM", FPaths::Combine(FPaths::AssetDir(), L"Sound/BackgroundMusic.wav"));
 
 	FEngineModuleContext ModuleContext;
 	ModuleContext.Engine = this;
