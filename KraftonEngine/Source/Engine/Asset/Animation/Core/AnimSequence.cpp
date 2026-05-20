@@ -35,7 +35,13 @@ void UAnimSequence::Serialize(FArchive &Ar)
     }
 
     Ar << Header;
-    if (!Header.IsValid(EAssetType::AnimSequence, AssetVersion))
+
+    // R6: FAssetFileHeader::IsValid 시그니처를 변경하지 않기 위해 호출 대신
+    // AnimSequence 내부에서 두 조건(Type/Version)만 인라인 검사한다.
+    // Version은 <= 로 비교하여 v3 -> v4 backward-compat 로드를 허용한다.
+    const bool bTypeOk = (Header.AssetType == EAssetType::AnimSequence);
+    const bool bVersionOk = (Header.Version <= AssetVersion);
+    if (!bTypeOk || !bVersionOk)
     {
         UE_LOG("[UAnimSequence] Invalid asset header. Type=%s Version=%u",
                LexToString(Header.AssetType), Header.Version);
@@ -56,5 +62,22 @@ void UAnimSequence::Serialize(FArchive &Ar)
         DataModel->Serialize(Ar);
     }
 
-    Ar << Notifies;
+    if (Ar.IsLoading() && Header.Version == 3u)
+    {
+        // v3 backfill: 새 v4 필드(Type/SoundId/ShakeParams)는 default 값으로 채운다.
+        uint32 Count = 0;
+        Ar << Count;
+        Notifies.resize(Count);
+        for (uint32 i = 0; i < Count; ++i)
+        {
+            Ar << Notifies[i].TriggerTime;
+            Ar << Notifies[i].Duration;
+            Ar << Notifies[i].NotifyName;
+            Notifies[i].Type = EAnimNotifyType::None;
+        }
+    }
+    else
+    {
+        Ar << Notifies;
+    }
 }

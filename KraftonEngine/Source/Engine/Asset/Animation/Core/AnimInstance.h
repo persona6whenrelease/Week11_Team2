@@ -17,6 +17,7 @@
 #include "AnimInstance.generated.h"
 
 class USkeleton;
+class APlayerCameraManager;
 
 UCLASS()
 class UAnimInstance : public UObject
@@ -82,6 +83,20 @@ class UAnimInstance : public UObject
      */
     virtual const TArray<FAnimNotifyEvent> *GetActiveNotifies() const { return nullptr; }
 
+    /**
+     * 한 프레임에 트리거된 Notify들을 type별로 분기 처리한다.
+     */
+    void DispatchTriggeredNotifies(const TArray<const FAnimNotifyEvent *> &InTriggered);
+
+  private:
+    /**
+     * AnimInstance → SkeletalMeshComponent → Actor → World → PlayerController → CameraManager
+     * outer chain을 5단계로 타고 올라가며 nullptr 가드. 어느 단계든 nullptr이면 nullptr 반환 (R2).
+     * 에디터 preview 등 PlayerController가 없는 환경에서는 자연스러운 silent no-op이 된다 (R5).
+     */
+    APlayerCameraManager *ResolveCameraManager() const;
+
+  protected:
     /**
      * Skeleton 본 수에 맞춰 OutputLocalPose를 bind pose로 초기화한다.
      */
